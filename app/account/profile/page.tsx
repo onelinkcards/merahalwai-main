@@ -1,261 +1,237 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { AlertTriangle, Loader2, Mail, MapPin, Phone, Trash2, UserRound } from "lucide-react";
 import AccountShell from "@/components/account/AccountShell";
 import { useDemoAuth } from "@/components/auth/DemoAuthProvider";
-import { useToastStore } from "@/store/toastStore";
 
 const inputClass =
-  "h-11 rounded-[18px] border border-[#E6E7EB] bg-white px-4 text-[14px] font-medium text-[#141414] outline-none transition-colors focus:border-[#141414]";
+  "h-11 rounded-[14px] border border-[#E7E2DA] bg-white px-3.5 text-[14px] font-medium text-[#181512] outline-none transition focus:border-[#EC9925]";
+
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, "").slice(-10);
+}
 
 export default function ProfilePage() {
-  const { user, updateProfile, deleteAccount } = useDemoAuth();
-  const primaryAddress =
-    user?.savedAddresses.find((address) => address.id === user.defaultAddressId) ?? user?.savedAddresses[0];
+  const { user, updateProfile, logout, deleteAccount } = useDemoAuth();
+  const [fullName, setFullName] = useState(user?.fullName ?? "");
+  const [phone, setPhone] = useState(normalizePhone(user?.phone ?? ""));
+  const [confirmPhone, setConfirmPhone] = useState(normalizePhone(user?.phone ?? ""));
   const [saving, setSaving] = useState(false);
-
-  const [form, setForm] = useState(() => ({
-    fullName: user?.fullName ?? "",
-    phone: user?.phone ?? "",
-    email: user?.email ?? "",
-    whatsapp: user?.whatsapp ?? "",
-    whatsappUpdates: user?.whatsappUpdates ?? true,
-    emailInvoices: user?.emailInvoices ?? true,
-    preferredCity: user?.preferredCity ?? "Jaipur",
-    commonEventType: user?.commonEventType ?? "Wedding",
-    commonGuestRange: user?.commonGuestRange ?? "100–150 guests",
-    addressLabel: primaryAddress?.label ?? "Home Venue",
-    venueName: primaryAddress?.venueName ?? "",
-    venueAddress: primaryAddress?.address ?? "",
-    pincode: primaryAddress?.pincode ?? "",
-  }));
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const initials = useMemo(
     () =>
-      (form.fullName || "MH")
+      (fullName || "MH")
         .split(" ")
         .slice(0, 2)
         .map((part) => part[0])
         .join(""),
-    [form.fullName]
+    [fullName]
   );
 
+  const currentPhone = normalizePhone(user?.phone ?? "");
+  const dirty = fullName.trim() !== (user?.fullName ?? "").trim() || phone !== currentPhone;
+  const phoneValid = phone.length === 10;
+  const confirmMatches = phone === confirmPhone && confirmPhone.length === 10;
+  const canUpdate = dirty && fullName.trim().length > 0 && phoneValid && confirmMatches && !saving;
+
   const handleSave = () => {
-    if (saving) return;
-    if (!form.fullName.trim()) {
-      useToastStore.getState().show("Enter your full name before saving.");
-      return;
-    }
-    if (!form.email.trim()) {
-      useToastStore.getState().show("Enter your email before saving.");
-      return;
-    }
-
+    if (!canUpdate) return;
     setSaving(true);
-
-    const hasAddressInput = [form.addressLabel, form.venueName, form.venueAddress, form.pincode].some((value) =>
-      value.trim()
-    );
-
-    const nextSavedAddresses = (() => {
-      if (!hasAddressInput) return user?.savedAddresses ?? [];
-
-      const addressId = primaryAddress?.id ?? `saved-${Date.now().toString(36)}`;
-      const nextPrimary = {
-        ...(primaryAddress ?? {}),
-        id: addressId,
-        label: form.addressLabel.trim() || primaryAddress?.label || "Home Venue",
-        venueName: form.venueName.trim(),
-        address: form.venueAddress.trim(),
-        city: primaryAddress?.city ?? (form.preferredCity.trim() || "Jaipur"),
-        state: primaryAddress?.state ?? "Rajasthan",
-        pincode: form.pincode.trim(),
-      };
-      const others = (user?.savedAddresses ?? []).filter((address) => address.id !== addressId);
-      return [nextPrimary, ...others];
-    })();
-
     updateProfile({
-      fullName: form.fullName.trim(),
-      email: form.email.trim(),
-      whatsapp: form.whatsapp.trim(),
-      whatsappUpdates: form.whatsappUpdates,
-      emailInvoices: form.emailInvoices,
-      preferredCity: form.preferredCity.trim(),
-      commonEventType: form.commonEventType.trim(),
-      commonGuestRange: form.commonGuestRange.trim(),
-      savedAddresses: nextSavedAddresses,
-      defaultAddressId: nextSavedAddresses[0]?.id ?? user?.defaultAddressId,
+      fullName: fullName.trim(),
+      phone: `+91 ${phone}`,
+      whatsapp: `+91 ${phone}`,
+      mobileVerified: true,
     });
-
     setSaving(false);
+  };
+
+  const handleDelete = () => {
+    deleteAccount("/register");
   };
 
   return (
     <AccountShell
-      active="profile"
-      title="Profile"
-      description="Update your contact details, account preferences, and commonly used booking defaults."
+      active="account"
+      title="Edit Account Details"
+      description="Update your name and contact number. Your Google email stays linked to this account."
+      mobileBackHref="/account"
       actions={
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] px-4 text-[13px] font-semibold text-white shadow-[0_18px_32px_rgba(138,62,29,0.16)] transition-all hover:brightness-[1.03] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            "Save Changes"
-          )}
-        </button>
+        canUpdate ? (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!canUpdate}
+            className="inline-flex h-10 items-center justify-center gap-1.5 rounded-full bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] px-4 text-[12px] font-semibold text-white disabled:opacity-70"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {saving ? "Updating..." : "Update Profile"}
+          </button>
+        ) : null
       }
     >
-      <div className="space-y-6">
-        <section className="rounded-[28px] border border-[#E7E8EC] bg-white px-5 py-5 shadow-[0_16px_40px_rgba(12,12,14,0.05)] md:px-6">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center">
-            <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-[linear-gradient(135deg,#EC9925_0%,#8A3E1D_100%)] text-[24px] font-black text-white shadow-[0_18px_32px_rgba(138,62,29,0.16)] md:h-20 md:w-20 md:text-[28px]">
-              {initials}
+      <div className="space-y-4">
+        <section className="rounded-[22px] border border-[#E7E2DA] bg-white px-4 py-4 shadow-[0_12px_30px_rgba(20,14,8,0.05)] md:px-5 md:py-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[linear-gradient(135deg,#EC9925_0%,#8A3E1D_100%)] text-[17px] font-black text-white">
+              {initials || "MH"}
             </span>
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#9A9AA3]">Personal account</p>
-              <h2 className="mt-2 text-[26px] font-black tracking-[-0.03em] text-[#111111]">{form.fullName}</h2>
-              <p className="mt-2 text-[14px] text-[#67676E]">Manage your contact details and notification preferences.</p>
+            <div className="min-w-0">
+              <p className="truncate text-[20px] font-black text-[#111111]">{fullName || "MeraHalwai User"}</p>
+              <p className="truncate text-[13px] text-[#7A6D60]">{user?.email}</p>
             </div>
           </div>
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-          <section className="space-y-6">
-            <article className="rounded-[28px] border border-[#E7E8EC] bg-white px-5 py-6 shadow-[0_16px_40px_rgba(12,12,14,0.05)] md:px-6">
-              <h3 className="text-[22px] font-black tracking-[-0.03em] text-[#111111]">Personal Info</h3>
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Full Name</label>
-                  <input value={form.fullName} onChange={(e) => setForm((prev) => ({ ...prev, fullName: e.target.value }))} className={inputClass} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Verified Mobile Number</label>
-                  <input value={form.phone} readOnly className={inputClass + " cursor-not-allowed bg-[#F8F8FA] text-[#6E6E75]"} />
-                  <p className="text-[12px] text-[#8A8A91]">Number changes use OTP verification in a separate flow.</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Email</label>
-                  <input value={form.email} onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))} className={inputClass} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">WhatsApp Number</label>
-                  <input value={form.whatsapp} onChange={(e) => setForm((prev) => ({ ...prev, whatsapp: e.target.value }))} className={inputClass} />
-                </div>
-              </div>
-            </article>
+        <section className="rounded-[22px] border border-[#E7E2DA] bg-white px-4 py-4 shadow-[0_12px_30px_rgba(20,14,8,0.05)]">
+          <h2 className="text-[18px] font-black text-[#12100E]">Account Information</h2>
+          <div className="mt-4 space-y-3">
+            <label className="block">
+              <span className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A7D6F]">
+                <UserRound className="h-3.5 w-3.5" />
+                Full Name
+              </span>
+              <input value={fullName} onChange={(e) => setFullName(e.target.value)} className={inputClass} />
+            </label>
 
-            <article className="rounded-[28px] border border-[#E7E8EC] bg-white px-5 py-6 shadow-[0_16px_40px_rgba(12,12,14,0.05)] md:px-6">
-              <h3 className="text-[22px] font-black tracking-[-0.03em] text-[#111111]">Saved Event Defaults</h3>
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Preferred City</label>
-                  <input value={form.preferredCity} onChange={(e) => setForm((prev) => ({ ...prev, preferredCity: e.target.value }))} className={inputClass} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Common Event Type</label>
-                  <input value={form.commonEventType} onChange={(e) => setForm((prev) => ({ ...prev, commonEventType: e.target.value }))} className={inputClass} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Common Guest Range</label>
-                  <input value={form.commonGuestRange} onChange={(e) => setForm((prev) => ({ ...prev, commonGuestRange: e.target.value }))} className={inputClass} />
-                </div>
-              </div>
-            </article>
+            <label className="block">
+              <span className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A7D6F]">
+                <Phone className="h-3.5 w-3.5" />
+                Mobile Number
+              </span>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(normalizePhone(e.target.value))}
+                inputMode="numeric"
+                maxLength={10}
+                className={inputClass}
+                placeholder="Enter 10-digit mobile number"
+              />
+            </label>
 
-            <article className="rounded-[28px] border border-[#E7E8EC] bg-white px-5 py-6 shadow-[0_16px_40px_rgba(12,12,14,0.05)] md:px-6">
-              <h3 className="text-[22px] font-black tracking-[-0.03em] text-[#111111]">Saved Venue Snippet</h3>
-              <div className="mt-5 grid gap-4 md:grid-cols-2">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Label</label>
-                  <input value={form.addressLabel} onChange={(e) => setForm((prev) => ({ ...prev, addressLabel: e.target.value }))} className={inputClass} />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Venue / Hall Name</label>
-                  <input value={form.venueName} onChange={(e) => setForm((prev) => ({ ...prev, venueName: e.target.value }))} className={inputClass} />
-                </div>
-                <div className="flex flex-col gap-2 md:col-span-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Complete Address</label>
-                  <textarea
-                    value={form.venueAddress}
-                    onChange={(e) => setForm((prev) => ({ ...prev, venueAddress: e.target.value }))}
-                    className="min-h-[120px] rounded-[22px] border border-[#E6E7EB] bg-white px-4 py-4 text-[14px] font-medium text-[#141414] outline-none transition-colors focus:border-[#141414]"
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[12px] font-semibold uppercase tracking-[0.14em] text-[#777780]">Pincode</label>
-                  <input value={form.pincode} onChange={(e) => setForm((prev) => ({ ...prev, pincode: e.target.value }))} className={inputClass} />
-                </div>
-              </div>
-            </article>
-          </section>
+            <label className="block">
+              <span className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A7D6F]">
+                <Phone className="h-3.5 w-3.5" />
+                Confirm Mobile Number
+              </span>
+              <input
+                value={confirmPhone}
+                onChange={(e) => setConfirmPhone(normalizePhone(e.target.value))}
+                inputMode="numeric"
+                maxLength={10}
+                className={inputClass}
+                placeholder="Re-enter mobile number"
+              />
+            </label>
 
-          <aside className="space-y-6">
-            <article className="rounded-[28px] border border-[#E7E8EC] bg-white px-5 py-6 shadow-[0_16px_40px_rgba(12,12,14,0.05)]">
-              <h3 className="text-[22px] font-black tracking-[-0.03em] text-[#111111]">Preferences</h3>
-              <div className="mt-5 space-y-4">
-                <label className="flex items-center justify-between gap-4 rounded-[20px] border border-[#ECECF0] bg-[#F8F8FA] px-4 py-4">
-                  <span>
-                    <span className="block text-[14px] font-semibold text-[#111111]">WhatsApp booking updates</span>
-                    <span className="mt-1 block text-[12px] text-[#7A7A82]">Get status updates and reminders on WhatsApp.</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={form.whatsappUpdates}
-                    onChange={(e) => setForm((prev) => ({ ...prev, whatsappUpdates: e.target.checked }))}
-                    className="h-5 w-5 rounded border-stone-300 accent-[#8A3E1D]"
-                  />
-                </label>
-                <label className="flex items-center justify-between gap-4 rounded-[20px] border border-[#ECECF0] bg-[#F8F8FA] px-4 py-4">
-                  <span>
-                    <span className="block text-[14px] font-semibold text-[#111111]">Email invoices</span>
-                    <span className="mt-1 block text-[12px] text-[#7A7A82]">Receive invoice links and payment confirmations by email.</span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={form.emailInvoices}
-                    onChange={(e) => setForm((prev) => ({ ...prev, emailInvoices: e.target.checked }))}
-                    className="h-5 w-5 rounded border-stone-300 accent-[#8A3E1D]"
-                  />
-                </label>
-              </div>
-            </article>
+            <label className="block">
+              <span className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A7D6F]">
+                <Mail className="h-3.5 w-3.5" />
+                Google Email
+              </span>
+              <input
+                value={user?.email ?? ""}
+                readOnly
+                className={inputClass + " cursor-not-allowed bg-[#F7F4F0] text-[#72675C]"}
+              />
+            </label>
 
-            <article className="rounded-[28px] border border-[#E7D5C4] bg-[linear-gradient(145deg,#FFF5E8_0%,#F9E6CC_52%,#F2D1AF_100%)] px-5 py-6 text-[#5F4635] shadow-[0_16px_40px_rgba(118,73,28,0.12)]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A66D39]">Profile note</p>
-              <p className="mt-3 text-[14px] leading-[1.8] text-[#6C5647]">
-                These defaults will be ready to prefill future booking requests once real account sync is connected.
-              </p>
-            </article>
+            <label className="block">
+              <span className="mb-1 inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A7D6F]">
+                <MapPin className="h-3.5 w-3.5" />
+                City
+              </span>
+              <input
+                value={user?.preferredCity ?? "Jaipur"}
+                readOnly
+                className={inputClass + " cursor-not-allowed bg-[#F7F4F0] text-[#72675C]"}
+              />
+            </label>
+          </div>
 
-            <article className="rounded-[28px] border border-[#F1D4D0] bg-[#FFF8F7] px-5 py-6 shadow-[0_16px_40px_rgba(12,12,14,0.04)]">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#B64545]">Danger zone</p>
-              <p className="mt-3 text-[14px] leading-[1.8] text-[#7B5C5C]">
-                Delete this account from the current device. This clears the local demo profile, addresses, and order access.
+          <div className="mt-4 rounded-[18px] border border-[#ECE4DA] bg-[#FFF9F2] px-4 py-3">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8A6E4A]">WhatsApp-ready number</p>
+            <p className="mt-1 text-[13px] leading-[1.6] text-[#6C6157]">
+              This mobile number is also used for WhatsApp booking updates and order alerts.
+            </p>
+          </div>
+
+          {!confirmMatches && confirmPhone.length > 0 ? (
+            <p className="mt-3 text-[12px] font-medium text-[#B34E24]">Mobile number confirmation does not match.</p>
+          ) : null}
+        </section>
+
+        <section className="rounded-[22px] border border-[#E7E2DA] bg-white px-4 py-4 shadow-[0_12px_30px_rgba(20,14,8,0.05)]">
+          <div className="flex flex-wrap gap-2">
+            <Link
+              href="/my-bookings"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-[#E6D8C9] bg-white px-4 text-[13px] font-semibold text-[#3F382F]"
+            >
+              My Orders
+            </Link>
+            <button
+              type="button"
+              onClick={() => logout("/login")}
+              className="inline-flex h-10 items-center justify-center rounded-full border border-[#E7D6C2] bg-[#FFF9F2] px-4 text-[13px] font-semibold text-[#8A3E1D]"
+            >
+              Logout
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded-[22px] border border-[#F1D3CD] bg-[#FFF7F5] px-4 py-4 shadow-[0_12px_30px_rgba(20,14,8,0.04)]">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-[#FDE3DC] text-[#B34E24]">
+              <AlertTriangle className="h-4 w-4" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[16px] font-black text-[#241A16]">Delete Account</p>
+              <p className="mt-1 text-[13px] leading-[1.6] text-[#765E55]">
+                This removes your saved profile and demo account data from this device.
               </p>
               <button
                 type="button"
-                onClick={() => {
-                  if (!window.confirm("Delete this account from this device?")) return;
-                  deleteAccount("/register");
-                }}
-                className="mt-4 inline-flex h-10 items-center justify-center rounded-full border border-[#E6B9B2] px-4 text-[13px] font-semibold text-[#B64545] transition-colors hover:bg-[#FFF1EF]"
+                onClick={() => setConfirmDelete(true)}
+                className="mt-3 inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#E4BBB0] bg-white px-4 text-[13px] font-semibold text-[#A44624]"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Account
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {confirmDelete ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/45 px-4 backdrop-blur-[2px]">
+          <div className="w-full max-w-[420px] rounded-[24px] border border-[#E8D7C6] bg-white p-5 shadow-[0_24px_60px_rgba(20,14,8,0.18)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#A86D35]">Delete account</p>
+            <h3 className="mt-2 text-[24px] font-black tracking-[-0.03em] text-[#161513]">Are you sure?</h3>
+            <p className="mt-2 text-[14px] leading-[1.7] text-[#6A5E54]">
+              Your saved profile, addresses, and local demo login session will be removed from this device.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDelete(false)}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-[#E6D8C9] bg-white px-4 text-[13px] font-semibold text-[#3F382F]"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="inline-flex h-11 flex-1 items-center justify-center rounded-full bg-[#B34E24] px-4 text-[13px] font-semibold text-white"
               >
                 Delete Account
               </button>
-            </article>
-          </aside>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : null}
     </AccountShell>
   );
 }

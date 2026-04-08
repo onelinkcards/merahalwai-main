@@ -13,8 +13,6 @@ type FilterKey = "all" | "active" | "pending" | "confirmed" | "completed" | "can
 const tabs: Array<{ key: FilterKey; label: string }> = [
   { key: "all", label: "All" },
   { key: "active", label: "Active" },
-  { key: "pending", label: "Pending" },
-  { key: "confirmed", label: "Confirmed" },
   { key: "completed", label: "Completed" },
   { key: "cancelled", label: "Cancelled" },
 ];
@@ -59,10 +57,11 @@ export default function MyOrdersPage() {
     <AccountShell
       active="orders"
       title="My Orders"
-      description="All your booking requests in one simple list."
+      description="All booking requests in one clean list."
+      mobileBackHref="/caterers"
     >
-      <div className="space-y-5">
-        <section className="rounded-[28px] border border-[#E7E8EC] bg-white px-5 py-5 shadow-[0_16px_40px_rgba(12,12,14,0.05)] md:px-6">
+      <div className="space-y-4">
+        <section className="rounded-[22px] border border-[#E7E2DA] bg-white px-4 py-4 shadow-[0_12px_30px_rgba(20,14,8,0.05)] md:px-5">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="overflow-x-auto pb-1">
               <div className="flex gap-2">
@@ -72,10 +71,10 @@ export default function MyOrdersPage() {
                     type="button"
                     onClick={() => setActiveTab(tab.key)}
                     className={
-                      "inline-flex h-10 items-center rounded-full border px-4 text-[13px] font-semibold whitespace-nowrap transition-all " +
+                      "inline-flex h-9 items-center rounded-full border px-3.5 text-[12px] font-semibold whitespace-nowrap transition-all " +
                       (activeTab === tab.key
-                        ? "border-[#EC9925] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] text-white shadow-[0_14px_28px_rgba(138,62,29,0.14)]"
-                        : "border-[#E7E8EC] bg-white text-[#5B5B63] hover:bg-[#FFF9F2]")
+                        ? "border-[#EC9925] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] text-white shadow-[0_10px_20px_rgba(138,62,29,0.14)]"
+                        : "border-[#E7E2DA] bg-white text-[#5B5148] hover:bg-[#FFF9F2]")
                     }
                   >
                     {tab.label}
@@ -84,35 +83,35 @@ export default function MyOrdersPage() {
               </div>
             </div>
 
-            <div className="relative w-full max-w-[340px]">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A28D79]" />
+            <div className="relative w-full max-w-[320px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#A28D79]" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search order or vendor"
-                className="h-11 w-full rounded-[18px] border border-[#E7D5C4] bg-[#FFF9F2] pl-11 pr-4 text-[14px] font-medium text-[#3A271C] outline-none focus:border-[#EC9925] focus:bg-white"
+                className="h-10 w-full rounded-[14px] border border-[#E7D5C4] bg-[#FFF9F2] pl-10 pr-4 text-[13px] font-medium text-[#3A271C] outline-none focus:border-[#EC9925] focus:bg-white"
               />
             </div>
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className="space-y-2.5">
           {filtered.map((order) => (
             <Link
               key={order.id}
               href={`/my-bookings/${order.id}`}
-              className="group block rounded-[28px] border border-[#E7E8EC] bg-white px-5 py-5 shadow-[0_16px_40px_rgba(12,12,14,0.05)] transition-all hover:border-[#E7D5C4] hover:bg-[#FFFCF8] md:px-6"
+              className="group block rounded-[18px] border border-[#EAE4DB] bg-white px-4 py-4 shadow-[0_12px_24px_rgba(20,14,8,0.04)] transition-all hover:border-[#E7D5C4] hover:bg-[#FFFCF8]"
             >
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-[19px] font-black tracking-[-0.03em] text-[#111111]">{order.vendorName}</p>
-                    <span className="rounded-full border border-[#E7DCCF] bg-[#FFF9F2] px-3 py-1 text-[11px] font-medium text-[#6F645B]">
+                    <p className="truncate text-[16px] font-black tracking-[-0.02em] text-[#111111]">{order.vendorName}</p>
+                    <span className="rounded-full border border-[#E7DCCF] bg-[#FFF9F2] px-2.5 py-1 text-[10px] font-medium text-[#6F645B]">
                       {order.packageName}
                     </span>
                   </div>
 
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-[#6E6E75]">
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-[#6E6E75]">
                     <span>Order ID {order.id}</span>
                     <span className="text-[#C7B7A8]">•</span>
                     <span>{order.eventType}</span>
@@ -120,14 +119,14 @@ export default function MyOrdersPage() {
                     <span>{order.guests} guests</span>
                   </div>
 
-                  <p className="mt-2 text-[14px] text-[#66666D]">{formatDateTime(order.eventDate, order.eventTime)}</p>
+                  <p className="mt-1.5 text-[12px] text-[#66666D]">{formatDateTime(order.eventDate, order.eventTime)}</p>
                 </div>
 
                 <div className="flex flex-col items-start gap-3 lg:items-end">
                   <StatusBadge status={order.status} compact />
                   <div className="flex items-center gap-3">
-                    <p className="text-[18px] font-black text-[#111111]">{formatCurrency(order.total)}</p>
-                    <span className="inline-flex items-center gap-1 text-[13px] font-semibold text-[#8A3E1D]">
+                    <p className="text-[16px] font-black text-[#111111]">{formatCurrency(order.total)}</p>
+                    <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#8A3E1D]">
                       View details
                       <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                     </span>
@@ -141,7 +140,7 @@ export default function MyOrdersPage() {
           ))}
 
           {!filtered.length ? (
-            <div className="rounded-[28px] border border-dashed border-[#E2E3E8] bg-white px-6 py-12 text-center text-[#6B6B73] shadow-[0_16px_40px_rgba(12,12,14,0.04)]">
+            <div className="rounded-[20px] border border-dashed border-[#E2E3E8] bg-white px-6 py-10 text-center text-[#6B6B73] shadow-[0_12px_24px_rgba(20,14,8,0.04)]">
               No orders match your current filters.
             </div>
           ) : null}

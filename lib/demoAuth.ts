@@ -266,13 +266,18 @@ export function updateSessionUser(partial: Partial<DemoAccountUser>) {
 export function completeProfile(input: {
   fullName: string;
   email: string;
+  phone: string;
+  whatsapp?: string;
   profilePhotoUrl?: string;
 }) {
+  const normalizedPhone = normalizePhone(input.phone);
   return updateSessionUser({
     fullName: input.fullName.trim(),
     email: input.email.trim(),
+    phone: normalizedPhone ? `+91 ${normalizedPhone}` : "",
+    whatsapp: normalizedPhone ? `+91 ${normalizePhone(input.whatsapp ?? input.phone)}` : "",
     profilePhotoUrl: input.profilePhotoUrl ?? "",
-    mobileVerified: true,
+    mobileVerified: Boolean(normalizedPhone),
   });
 }
 

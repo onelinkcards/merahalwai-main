@@ -4,12 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, ChevronRight, Loader2, Phone } from "lucide-react";
+import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import LogoOrange from "@/logos/Horizontal/MH_Logo_Horizontal_Orange.png";
 import { useBookingStore } from "@/store/bookingStore";
-import { useToastStore } from "@/store/toastStore";
-import { DEMO_LOGIN_PHONE, DEMO_LOGIN_OTP } from "@/data/mockAccount";
-import { createPendingOtp, isDemoPhone, resolvePostAuthRedirect } from "@/lib/demoAuth";
+import { resolvePostAuthRedirect } from "@/lib/demoAuth";
 import { useDemoAuth } from "@/components/auth/DemoAuthProvider";
 
 type Mode = "login" | "register";
@@ -62,20 +60,18 @@ export default function AuthEntryScreen({ mode }: { mode: Mode }) {
   const searchParams = useSearchParams();
   const redirect = searchParams.get("redirect") ?? "/account";
   const { ready, isAuthenticated, session, loginWithGoogle } = useDemoAuth();
-  const setMany = useBookingStore((s) => s.setMany);
   const vendorName = useBookingStore((s) => s.vendorName);
   const selectedPackage = useBookingStore((s) => s.selectedPackage);
   const pricePerPlate = useBookingStore((s) => s.pricePerPlate);
-  const [phone, setPhone] = useState(DEMO_LOGIN_PHONE);
-  const [pendingMethod, setPendingMethod] = useState<"google" | "otp" | null>(null);
+  const [loading, setLoading] = useState(false);
   const redirectStartedRef = useRef(false);
 
   const isBookingContext = redirect.startsWith("/book") || redirect.startsWith("/booking");
   const heading = mode === "login" ? "Welcome back" : "Create your account";
   const subheading =
     mode === "login"
-      ? "Login to continue with MeraHalwai"
-      : "Save bookings, track requests, and manage your profile";
+      ? "Continue with Google to access your bookings and account."
+      : "Use Google to start your account. We will collect mobile and WhatsApp details next.";
 
   useEffect(() => {
     if (ready && isAuthenticated && session && !redirectStartedRef.current) {
@@ -90,30 +86,11 @@ export default function AuthEntryScreen({ mode }: { mode: Mode }) {
   );
 
   const handleGoogle = () => {
-    if (pendingMethod) return;
-    setPendingMethod("google");
+    if (loading) return;
+    setLoading(true);
     const next = loginWithGoogle(mode);
     redirectStartedRef.current = true;
     router.replace(resolvePostAuthRedirect(next, redirect));
-  };
-
-  const handleOtp = () => {
-    if (pendingMethod) return;
-    const sanitized = phone.replace(/\D/g, "").slice(-10);
-    if (!isDemoPhone(sanitized)) {
-      useToastStore.getState().show(`Use ${DEMO_LOGIN_PHONE} for demo OTP login.`);
-      return;
-    }
-
-    setPendingMethod("otp");
-    setMany({
-      otpPhone: sanitized,
-      customerPhone: sanitized,
-      customerWhatsapp: sanitized,
-    });
-    createPendingOtp(sanitized, mode);
-    useToastStore.getState().show(`Demo OTP sent. Use ${DEMO_LOGIN_OTP}.`);
-    router.push(`/login/otp?mode=${mode}&redirect=${encodeURIComponent(redirect)}`);
   };
 
   const handleBack = () => {
@@ -159,19 +136,19 @@ export default function AuthEntryScreen({ mode }: { mode: Mode }) {
                   <Image src={LogoOrange} alt="Mera Halwai" className="h-8 w-auto object-contain" priority />
                 </div>
                 <div className="px-6 pb-6 pt-5">
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#A86D35]">Customer account</p>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#A86D35]">Google account</p>
                   <h1 className="mt-3 text-[40px] font-black leading-[0.98] tracking-[-0.04em] text-[#8A3E1D]">
-                    Clean login, faster booking.
+                    One sign-in, cleaner bookings.
                   </h1>
                   <p className="mt-4 max-w-[420px] text-[15px] leading-[1.75] text-[#6E594C]">
-                    Continue with Google or OTP, keep your bookings in one place, and pick up the flow without long forms.
+                    Sign in with Google, fetch your email automatically, then add your mobile number and WhatsApp-ready contact once.
                   </p>
 
                   <div className="mt-6 space-y-3">
                     {[
-                      "Track booking requests and confirmations",
-                      "Access invoices and payment status",
-                      "Manage profile, venue snippets, and preferences",
+                      "Google email is fetched automatically",
+                      "Mobile number is collected once during setup",
+                      "Bookings, invoices, and updates stay in one place",
                     ].map((item) => (
                       <div
                         key={item}
@@ -187,7 +164,7 @@ export default function AuthEntryScreen({ mode }: { mode: Mode }) {
 
             <div className="w-full rounded-[30px] border border-[#E8D7C6] bg-white/90 px-5 py-6 shadow-[0_22px_56px_rgba(118,73,28,0.1)] backdrop-blur-sm md:px-7 md:py-7">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A86D35]">
-                {mode === "login" ? "Customer Login" : "Customer Register"}
+                {mode === "login" ? "Customer Login" : "Create Customer Account"}
               </p>
               <h2 className="mt-2 text-[30px] font-black tracking-[-0.04em] text-[#3A271C] md:text-[34px]">{heading}</h2>
               <p className="mt-2 text-[14px] leading-[1.75] text-[#716255] md:text-[15px]">{subheading}</p>
@@ -205,61 +182,22 @@ export default function AuthEntryScreen({ mode }: { mode: Mode }) {
               <button
                 type="button"
                 onClick={handleGoogle}
-                disabled={pendingMethod !== null}
-                aria-busy={pendingMethod === "google"}
-                className="mt-5 flex h-12 w-full items-center justify-center gap-3 rounded-[18px] border border-[#E8D7C6] bg-white text-[14px] font-semibold text-[#5A4437] transition-all hover:bg-[#FFF8F1] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={loading}
+                aria-busy={loading}
+                className="mt-6 flex h-14 w-full items-center justify-center gap-3 rounded-[18px] border border-[#E8D7C6] bg-white text-[15px] font-semibold text-[#5A4437] transition-all hover:bg-[#FFF8F1] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {pendingMethod === "google" ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
-                {pendingMethod === "google" ? "Continuing..." : "Continue with Google"}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
+                {loading ? "Continuing..." : "Continue with Google"}
               </button>
 
-              <div className="my-5 flex items-center gap-3">
-                <div className="h-px flex-1 bg-[#EEDFCF]" />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#A88A68]">or</span>
-                <div className="h-px flex-1 bg-[#EEDFCF]" />
+              <div className="mt-5 rounded-[20px] border border-[#EDE1D5] bg-[#FFF9F2] px-4 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A6D4B]">What happens next</p>
+                <ul className="mt-3 space-y-2 text-[13px] leading-[1.6] text-[#6F6054]">
+                  <li>Google fetches your email automatically.</li>
+                  <li>You add your mobile number once and confirm it.</li>
+                  <li>The same number is used for WhatsApp booking updates.</li>
+                </ul>
               </div>
-
-              <div>
-                <label className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.14em] text-[#7D6A5B]">
-                  Mobile Number
-                </label>
-                <div className="flex items-center gap-3 rounded-[18px] border border-[#E8D7C6] bg-[#FFF9F2] px-4 py-3">
-                  <span className="rounded-full bg-white px-3 py-1.5 text-[13px] font-semibold text-[#8A3E1D] shadow-[0_6px_16px_rgba(118,73,28,0.06)]">+91</span>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={10}
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                    placeholder={DEMO_LOGIN_PHONE}
-                    className="h-7 flex-1 border-0 bg-transparent text-[15px] font-semibold text-[#3A271C] outline-none placeholder:text-[#B89E86]"
-                  />
-                  <Phone className="h-4 w-4 text-[#B17E4D]" />
-                </div>
-                <p className="mt-2 text-[12px] text-[#8C7A6C]">
-                  Demo mobile: <span className="font-semibold text-[#8A3E1D]">{DEMO_LOGIN_PHONE}</span>
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={handleOtp}
-                disabled={pendingMethod !== null}
-                aria-busy={pendingMethod === "otp"}
-                className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-[18px] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] px-5 text-[14px] font-semibold text-white shadow-[0_18px_36px_rgba(138,62,29,0.2)] transition-all hover:brightness-[1.03] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {pendingMethod === "otp" ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Sending OTP...
-                  </>
-                ) : (
-                  <>
-                    Send OTP
-                    <ArrowRight className="h-4 w-4" />
-                  </>
-                )}
-              </button>
 
               <p className="mt-4 text-[12px] leading-[1.7] text-[#877567]">
                 By continuing, you agree to MeraHalwai’s Terms and Privacy Policy.

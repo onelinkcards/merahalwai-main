@@ -1,182 +1,228 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
+  ArrowUpRight,
+  ArrowRight,
+  CalendarDays,
   Check,
-  CheckCircle,
-  Clock,
-  Copy,
+  Clock3,
+  MapPin,
   FileText,
   MessageCircle,
   Phone,
+  BadgeCheck,
+  UserRound,
 } from "lucide-react";
 import BookingStepper from "@/components/book/BookingStepper";
-import LogoOrange from "@/logos/Horizontal/MH_Logo_Horizontal_Orange.png";
 import { useBookingStore } from "@/store/bookingStore";
 
-const HOLD_SEC = 2 * 60 * 60;
+type SuccessSnapshot = {
+  orderId: string;
+  vendorName: string;
+  selectedPackage: string | null;
+  guestCount: number;
+  eventType: string;
+  eventDate: string;
+  eventTime: string;
+  venueName: string;
+  venueAddress: string;
+  venueCity: string;
+  customerName: string;
+  grandTotal: number;
+};
 
 export default function BookingSuccessPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const store = useBookingStore();
-  const [left, setLeft] = useState(HOLD_SEC);
+  const [mounted, setMounted] = useState(false);
+  const [snapshot, setSnapshot] = useState<SuccessSnapshot | null>(null);
+
+  const queryOrderId = searchParams.get("orderId") ?? "";
+  const effectiveOrderId = store.orderId || queryOrderId || snapshot?.orderId || "";
 
   useEffect(() => {
-    if (!store.orderId) router.replace("/caterers");
-  }, [store.orderId, router]);
+    setMounted(true);
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem("mh_last_success_booking");
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as SuccessSnapshot;
+      setSnapshot(parsed);
+    } catch {
+      setSnapshot(null);
+    }
+  }, []);
 
   useEffect(() => {
-    if (left <= 0) return;
-    const t = window.setInterval(() => setLeft((s) => Math.max(0, s - 1)), 1000);
-    return () => window.clearInterval(t);
-  }, [left]);
+    if (!mounted) return;
+    if (!effectiveOrderId) router.replace("/caterers");
+  }, [mounted, effectiveOrderId, router]);
 
-  const h = Math.floor(left / 3600);
-  const m = Math.floor((left % 3600) / 60);
-  const s = left % 60;
-  const pad = (n: number) => (n < 10 ? "0" + n : String(n));
+  const selectedPackage = store.selectedPackage || snapshot?.selectedPackage || null;
+  const guestCount = store.guestCount || snapshot?.guestCount || 0;
+  const eventType = store.eventType || snapshot?.eventType || "Event";
+  const eventDate = store.eventDate || snapshot?.eventDate || "";
+  const eventTime = store.eventTime || snapshot?.eventTime || "";
+  const customerName = store.customerName || snapshot?.customerName || "Customer";
+  const venueName = store.venueName || snapshot?.venueName || "";
+  const venueAddress = store.venueAddress || snapshot?.venueAddress || "";
+  const venueCity = store.venueCity || snapshot?.venueCity || "";
+  const grandTotal = store.grandTotal || snapshot?.grandTotal || 0;
 
-  if (!store.orderId) return null;
+  if (!mounted || !effectiveOrderId) return null;
 
-  const orderLabel = "MH-ORD-" + store.orderId;
+  const orderLabel = "MH-ORD-" + effectiveOrderId;
+  const eventDateTime = [eventDate, eventTime].filter(Boolean).join(" • ");
+  const venueValue = [venueName, venueAddress, venueCity].filter(Boolean).join(", ");
+  const advanceAmount = Math.round(grandTotal * 0.3);
+  const remainingAmount = Math.max(grandTotal - advanceAmount, 0);
 
   return (
-    <main className="min-h-screen bg-[#F8F4EF] pb-12">
+    <main className="min-h-screen bg-[linear-gradient(180deg,#FCFAF6_0%,#F7F0E6_55%,#F4EBDD_100%)] pb-14">
       <BookingStepper current={5} />
 
-      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-5 flex justify-center">
-          <div className="rounded-full border border-[#E8D5B7] bg-white px-5 py-3 shadow-[0_14px_30px_rgba(35,25,20,0.06)]">
-            <Image src={LogoOrange} alt="Mera Halwai" className="h-8 w-auto object-contain" priority />
-          </div>
-        </div>
-
-        <motion.div
-          initial={{ scale: 0 }}
-          animate={{ scale: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 15 }}
-          className="mx-auto flex h-20 w-20 items-center justify-center rounded-full border-4 border-green-400 bg-green-100"
-        >
-          <CheckCircle className="h-10 w-10 fill-green-500 text-green-500" />
-        </motion.div>
-
-        <h1 className="mt-4 text-center text-[24px] font-bold text-[#1E1E1E]">Booking Request Sent!</h1>
-        <p className="mt-1 text-center text-[13px] text-[#8B7355]">
-          We&apos;ll review and confirm your request shortly.
-        </p>
-
-        <div className="mt-6 flex justify-center">
-          <div className="flex items-center gap-3 rounded-xl border-2 border-[#DE903E] bg-[#FFF3E8] px-5 py-3">
-            <Clock className="h-[18px] w-[18px] text-[#DE903E]" />
+      <div className="mx-auto max-w-5xl px-4 py-7 sm:px-6 lg:px-8">
+        <section className="rounded-[28px] border border-[#E8DDCE] bg-white/95 p-5 shadow-[0_24px_64px_rgba(35,25,20,0.08)] sm:p-7">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className="text-[10px] font-medium text-[#8B7355]">Slot held for</p>
-              {left > 0 ? (
-                <p className="font-mono text-[22px] font-extrabold text-[#804226]">
-                  {pad(h)}:{pad(m)}:{pad(s)}
-                </p>
-              ) : (
-                <p className="text-[13px] font-semibold text-[#804226]">Slot expired. Please rebook.</p>
-              )}
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#EAD9C6] bg-white px-3 py-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8A3E1D]" />
+                <span className="text-[11px] font-semibold tracking-wide text-[#8A3E1D]">BOOKING REQUEST CREATED</span>
+              </div>
+              <h1 className="mt-3 text-[32px] font-black leading-tight text-[#171513]">Booking Request Sent!</h1>
+              <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#6D6154]">
+                We are checking availability. Confirmation update is usually shared within{" "}
+                <span className="font-semibold text-[#8A3E1D]">up to 2 hours</span>.
+              </p>
             </div>
+            <span className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-[12px] font-semibold text-green-700">
+              <BadgeCheck className="h-4 w-4" />
+              Active Request
+            </span>
           </div>
-        </div>
 
-        <div className="mt-6 rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_20px_50px_rgba(35,25,20,0.05)]">
-          <h2 className="mb-4 text-[15px] font-bold text-[#1E1E1E]">Order Summary</h2>
-          <div className="mb-2 flex items-center justify-between">
-            <span className="text-[12px] font-medium text-[#8B7355]">Order ID</span>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[13px] font-bold text-[#804226]">{orderLabel}</span>
-              <button
-                type="button"
-                onClick={() => {
-                  void navigator.clipboard.writeText(orderLabel);
-                }}
-                className="text-[#DE903E]"
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <ActionButton href="/my-bookings" label="Go to Orders" icon={<ArrowRight className="h-4 w-4" />} />
+            <ActionButton
+              asButton
+              onClick={() => router.push("/invoice/" + effectiveOrderId)}
+              label="View Invoice"
+              icon={<FileText className="h-4 w-4" />}
+              primary
+            />
+            <ActionButton href="https://wa.me/919876543210" label="WhatsApp" icon={<MessageCircle className="h-4 w-4 fill-[#25D366] text-[#25D366]" />} external />
+            <ActionButton href="tel:+919876543210" label="Call Us" icon={<Phone className="h-4 w-4" />} external />
+          </div>
+
+          <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-[22px] border border-[#ECDFCF] bg-[linear-gradient(160deg,#FFF9F1_0%,#FFFFFF_60%,#FFF5E8_100%)] p-4 sm:p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8A7560]">Order Summary</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <KeyValue label="Order ID" value={orderLabel} mono />
+                <KeyValue label="Package" value={packageTitle(selectedPackage)} />
+                <KeyValue label="Guests" value={`${guestCount}`} />
+                <KeyValue label="Total" value={`₹${grandTotal.toLocaleString("en-IN")}`} />
+              </div>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <DetailLine icon={<UserRound className="h-4 w-4" />} label="Customer" value={customerName} />
+                <DetailLine
+                  icon={<CalendarDays className="h-4 w-4" />}
+                  label="Event"
+                  value={`${eventType}${eventDateTime ? ` • ${eventDateTime}` : ""}`}
+                />
+                <DetailLine icon={<MapPin className="h-4 w-4" />} label="Venue" value={venueValue || "Venue details pending"} full />
+              </div>
+            </div>
+
+            <PaymentSplitCard advanceAmount={advanceAmount} remainingAmount={remainingAmount} />
+          </div>
+
+          <div className="mt-4 grid gap-3 rounded-[22px] border border-[#E7DDCF] bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <TimelineCard done title="Request Received" sub="Your booking request is created." />
+            <TimelineCard current title="Admin Review" sub="Availability validation in progress." />
+            <TimelineCard title="Vendor Confirmation" sub="Vendor confirms slot and service." />
+            <TimelineCard title="Payment Link" sub="30% payment link is shared post confirmation." />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[#EADFCF] bg-[#FFFCF8] px-4 py-3">
+            <div className="inline-flex items-center gap-2 text-[12px] text-[#6F6153]">
+              <Clock3 className="h-4 w-4 text-[#8A3E1D]" />
+              Confirmation expected in up to 2 hours.
+            </div>
+            <div className="flex gap-2">
+              <Link
+                href="/account/profile"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E7D8C6] bg-[#FFF9F2] px-4 text-[12px] font-semibold text-[#8A3E1D]"
               >
-                <Copy className="h-4 w-4" />
-              </button>
+                Go to Profile
+                <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
+              </Link>
+              <Link
+                href="/caterers"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E1D7CB] bg-white px-4 text-[12px] font-semibold text-[#3A342E]"
+              >
+                Browse Caterers
+              </Link>
             </div>
           </div>
-          <div className="space-y-2 text-[12px]">
-            <Row label="Vendor" value={store.vendorName} />
-            <Row
-              label="Package"
-              value={packageTitle(store.selectedPackage) + " · " + store.selectedItems.length + " items"}
-            />
-            <Row label="Event" value={store.eventType} />
-            <Row label="Date" value={store.eventDate + " at " + store.eventTime} />
-            <Row label="Guests" value={String(store.guestCount)} />
-            <Row label="Venue" value={store.venueName + ", " + store.venueCity} />
-            <div className="flex justify-between">
-              <span className="text-[#8B7355]">Total</span>
-              <span className="font-bold text-[#804226]">₹{store.grandTotal.toLocaleString("en-IN")}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#8B7355]">Payment</span>
-              <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
-                Pending
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[24px] border border-[#E8D5B7] bg-[#FFFAF5] p-5">
-          <p className="mb-3 text-[13px] font-semibold text-[#804226]">What Happens Next</p>
-          <div className="flex flex-col gap-0">
-            <StepRow
-              done
-              title="Request Received"
-              sub="Your booking is in queue"
-            />
-            <StepRow
-              current
-              title="Team Reviews Request"
-              sub={"We are checking availability for " + store.eventDate}
-            />
-            <StepRow title="Vendor Confirmed" sub="We lock your caterer and event slot" />
-            <StepRow title="Payment Link Sent" sub="Shared after confirmation on WhatsApp and email" last />
-          </div>
-        </div>
-
-        <div className="mt-6 flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={() => router.push("/invoice/" + store.orderId)}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] text-[14px] font-bold text-white shadow-[0_18px_36px_rgba(138,62,29,0.18)]"
-          >
-            <FileText className="h-[18px] w-[18px]" />
-            View Invoice
-          </button>
-          <div className="flex gap-3">
-            <a
-              href="tel:+919876543210"
-              className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-[#E8D5B7] text-[13px] font-semibold text-[#8B7355]"
-            >
-              <Phone className="h-4 w-4" />
-              Call Us
-            </a>
-            <a
-              href="https://wa.me/919876543210"
-              className="flex h-11 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-[#E8D5B7] text-[13px] font-semibold text-[#8B7355]"
-            >
-              <MessageCircle className="h-4 w-4" />
-              WhatsApp
-            </a>
-          </div>
-          <Link
-            href="/account"
-            className="mt-1 inline-flex h-11 items-center justify-center rounded-2xl border border-[#E8D5B7] bg-white text-[13px] font-semibold text-[#8A3E1D]"
-          >
-            Go to Dashboard
-          </Link>
-        </div>
+        </section>
       </div>
     </main>
+  );
+}
+
+function ActionButton({
+  href,
+  label,
+  icon,
+  external,
+  asButton,
+  onClick,
+  primary,
+}: {
+  href?: string;
+  label: string;
+  icon: ReactNode;
+  external?: boolean;
+  asButton?: boolean;
+  onClick?: () => void;
+  primary?: boolean;
+}) {
+  const className =
+    "inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-[12px] font-semibold transition " +
+    (primary
+      ? "border-[#8A3E1D] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] text-white shadow-[0_10px_18px_rgba(138,62,29,0.15)] hover:opacity-95"
+      : "border-[#E1D7CB] bg-white text-[#3A342E] hover:bg-[#FAF6F1]");
+
+  if (asButton) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {icon}
+        {label}
+      </button>
+    );
+  }
+
+  if (!href) return null;
+
+  if (external) {
+    return (
+      <a href={href} className={className}>
+        {icon}
+        {label}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {icon}
+      {label}
+    </Link>
   );
 }
 
@@ -185,50 +231,102 @@ function packageTitle(value: string | null) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function KeyValue({
+  label,
+  value,
+  mono,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div className="flex justify-between gap-2">
-      <span className="text-[#8B7355]">{label}</span>
-      <span className="max-w-[60%] text-right font-semibold text-[#1E1E1E]">{value}</span>
+    <div className="rounded-xl border border-[#EFE4D6] bg-white px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#877664]">{label}</p>
+      <p className={"mt-1 text-[14px] font-bold text-[#25201A] " + (mono ? "font-mono text-[#8A3E1D]" : "")}>{value}</p>
     </div>
   );
 }
 
-function StepRow({
+function DetailLine({
+  icon,
+  label,
+  value,
+  full,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+  full?: boolean;
+}) {
+  return (
+    <div className={"rounded-xl border border-[#EFE4D7] bg-white px-3 py-2.5 " + (full ? "sm:col-span-2" : "")}>
+      <p className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.13em] text-[#7D6D5D]">
+        <span className="text-[#D57A1A]">{icon}</span>
+        {label}
+      </p>
+      <p className="mt-1 text-[13px] font-medium text-[#2D2924]">{value}</p>
+    </div>
+  );
+}
+
+function PaymentSplitCard({
+  advanceAmount,
+  remainingAmount,
+}: {
+  advanceAmount: number;
+  remainingAmount: number;
+}) {
+  return (
+    <div className="rounded-[22px] border border-[#E8D7C1] bg-[linear-gradient(180deg,#FFF8EF_0%,#FFFDF9_100%)] p-4">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.17em] text-[#8A6A4B]">Payment Split (After Confirmation)</p>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EFE4D6]">
+        <div className="h-full w-[30%] rounded-full bg-[linear-gradient(90deg,#EC9925_0%,#8A3E1D_100%)]" />
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-[#E1C9AA] bg-[linear-gradient(145deg,#FFF0D8_0%,#FFE3BF_100%)] px-3 py-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#8A3E1D]">30% Online</p>
+          <p className="mt-1 text-[24px] font-black text-[#20150E]">₹{advanceAmount.toLocaleString("en-IN")}</p>
+          <p className="text-[11px] text-[#7C5634]">Pay after booking confirmation link is shared.</p>
+        </div>
+        <div className="rounded-xl border border-[#ECE5DB] bg-[#FAF7F2] px-3 py-3 opacity-70">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#7E756B]">70% At Property</p>
+          <p className="mt-1 text-[24px] font-black text-[#575047]">₹{remainingAmount.toLocaleString("en-IN")}</p>
+          <p className="text-[11px] text-[#7E756B]">Remaining amount is paid offline at venue.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TimelineCard({
   done,
   current,
   title,
   sub,
-  last,
 }: {
   done?: boolean;
   current?: boolean;
   title: string;
   sub: string;
-  last?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="flex flex-col items-center">
-        <div
-          className={
-            "flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white " +
-            (done ? "bg-[#804226]" : current ? "bg-[#DE903E] ring-4 ring-[#DE903E]/30" : "bg-[#F0EBE3]")
-          }
-        >
-          {done ? (
-            <Check className="h-3 w-3 text-white" />
-          ) : current ? (
-            <span className="block h-2 w-2 rounded-full bg-white" />
-          ) : (
-            <span className="block h-2 w-2 rounded-full bg-[#8B7355]" />
-          )}
-        </div>
-        {!last ? <div className="h-6 w-px bg-[#E8D5B7]" /> : null}
+    <div className="flex items-start gap-3 rounded-2xl border border-[#ECE3D7] bg-[#FFFCF8] px-3 py-3">
+      <div
+        className={
+          "mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full " +
+          (done
+            ? "bg-[#8A3E1D] text-white"
+            : current
+              ? "bg-[#EB8B23] text-white ring-4 ring-[#EB8B23]/20"
+              : "bg-[#EEE5D9] text-[#8A7868]")
+        }
+      >
+        {done ? <Check className="h-3.5 w-3.5" /> : <span className="block h-2 w-2 rounded-full bg-current" />}
       </div>
-      <div className="pb-3">
-        <p className="text-[13px] font-semibold text-[#1E1E1E]">{title}</p>
-        <p className="text-[11px] text-[#8B7355]">{sub}</p>
+      <div>
+        <p className="text-[13px] font-semibold text-[#28231D]">{title}</p>
+        <p className="text-[11px] text-[#756656]">{sub}</p>
       </div>
     </div>
   );

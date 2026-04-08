@@ -10,22 +10,17 @@ import {
   Droplets,
   Edit3,
   Loader2,
-  Soup,
-  Sparkles,
-  UtensilsCrossed,
-  Wheat,
-  CakeSlice,
+  Plus,
 } from "lucide-react";
-import bronzeIcon from "@/icons_webapp/bronzeee.png";
-import silverIcon from "@/icons_webapp/silver_pac.png";
-import goldIcon from "@/icons_webapp/gold_pac.png";
+import bronzeIcon from "@/Group 8284.png";
+import silverIcon from "@/silver.png";
+import goldIcon from "@/gold.png";
 import BookingStepper from "@/components/book/BookingStepper";
 import { getVendorDetailBySlug } from "@/data/vendors";
 import { hasAuthCookie } from "@/lib/authCookie";
 import { calculateBill } from "@/lib/calculateBill";
 import {
   buildBookingMenuGroups,
-  getAutoAddonItems,
   getCategorySelectionSummary,
   getWaterOptions,
   meetsCategoryMinimums,
@@ -36,25 +31,34 @@ import { useBookingStore } from "@/store/bookingStore";
 import { useToastStore } from "@/store/toastStore";
 import type { BookingCategoryKey, FoodPreference, PackageTier, WaterType } from "@/store/bookingStore";
 
-const CATEGORY_ICONS: Record<BookingCategoryKey, typeof Soup> = {
-  soupsDrinks: Soup,
-  starters: Sparkles,
-  mainCourse: UtensilsCrossed,
-  riceBreads: Wheat,
-  desserts: CakeSlice,
-};
-
 const PACKAGE_META: Record<PackageTier, { icon: StaticImageData; title: string }> = {
   bronze: { icon: bronzeIcon, title: "Bronze" },
   silver: { icon: silverIcon, title: "Silver" },
   gold: { icon: goldIcon, title: "Gold" },
 };
 
-function vegTone(isVeg: boolean) {
-  return isVeg
-    ? "border-green-600 text-green-700 bg-green-50"
-    : "border-red-600 text-red-700 bg-red-50";
-}
+const ADDON_GROUPS = [
+  {
+    key: "beverages",
+    title: "Beverages",
+    items: ["Soft Drink", "Buttermilk / Chaas", "Sweet Lassi", "Salted Lassi", "Mocktail"],
+  },
+  {
+    key: "extras",
+    title: "Extras",
+    items: ["Extra Raita", "Extra Papad"],
+  },
+  {
+    key: "dessertAddons",
+    title: "Dessert Add-ons",
+    items: ["Ice Cream", "Falooda", "Kulfi Counter"],
+  },
+  {
+    key: "premium",
+    title: "Premium / Event Add-ons",
+    items: ["Chaat Counter", "Live Counter", "Tea / Coffee Counter"],
+  },
+];
 
 function packageTitle(value: PackageTier | null) {
   if (!value) return "";
@@ -93,10 +97,10 @@ export default function BookCustomizeClient() {
   const [specialNote, setSpecialNote] = useState(store.vendorSlug === slug ? store.specialNote : "");
   const [openGroups, setOpenGroups] = useState<Record<BookingCategoryKey, boolean>>({
     soupsDrinks: true,
-    starters: true,
-    mainCourse: true,
-    riceBreads: true,
-    desserts: true,
+    starters: false,
+    mainCourse: false,
+    riceBreads: false,
+    desserts: false,
   });
   const [continuing, setContinuing] = useState(false);
 
@@ -145,10 +149,6 @@ export default function BookCustomizeClient() {
     () => (selectedPackage && foodPreference ? getCategorySelectionSummary(slug, selectedPackage, selectedItems, foodPreference) : []),
     [foodPreference, selectedItems, selectedPackage, slug]
   );
-  const autoAddOnItems = useMemo(
-    () => (selectedPackage && foodPreference ? getAutoAddonItems(slug, selectedPackage, selectedItems, foodPreference) : []),
-    [foodPreference, selectedItems, selectedPackage, slug]
-  );
   const waterOptions = useMemo(() => getWaterOptions(slug), [slug]);
   const activeWater = waterOptions.find((option) => option.id === waterType) ?? null;
   const liveBill = useMemo(
@@ -188,7 +188,7 @@ export default function BookCustomizeClient() {
       foodPreference,
       selectedItems,
       addOnItems: selectedAddOns,
-      autoAddOnItems: autoAddOnItems.map((item) => item.key),
+      autoAddOnItems: [],
       categorySelectionSummary: categorySummary,
       specialNote,
       waterType,
@@ -294,45 +294,49 @@ export default function BookCustomizeClient() {
                   <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-stone-500">Menu Builder</p>
                   <h2 className="mt-1 text-[22px] font-black text-stone-950">Grouped categories</h2>
                 </div>
-                {autoAddOnItems.length ? (
-                  <span className="rounded-full border border-[#F5C77B] bg-[#FFF4DB] px-3 py-1.5 text-[12px] font-semibold text-[#8A3E1D]">
-                    {autoAddOnItems.length} extra selection{autoAddOnItems.length > 1 ? "s" : ""} will be charged
-                  </span>
-                ) : null}
               </div>
 
               <div className="mt-5 space-y-4">
                 {groups.map((group) => {
-                  const Icon = CATEGORY_ICONS[group.categoryKey];
                   const open = openGroups[group.categoryKey];
+                  const previewImage = group.items[0]?.image ?? vendor.images[0];
                   return (
-                    <div key={group.categoryKey} className="overflow-hidden rounded-[24px] border border-stone-200 bg-[#FCFBF9]">
+                    <div
+                      key={group.categoryKey}
+                      className="overflow-hidden rounded-[24px] border border-[#E8DAC9] bg-[#FFFCF8] shadow-[0_14px_34px_rgba(138,62,29,0.04)]"
+                    >
                       <button
                         type="button"
                         onClick={() =>
-                          setOpenGroups((current) => ({ ...current, [group.categoryKey]: !current[group.categoryKey] }))
+                          setOpenGroups((current) => {
+                            const next = Object.fromEntries(
+                              Object.keys(current).map((key) => [key, false])
+                            ) as Record<BookingCategoryKey, boolean>;
+                            next[group.categoryKey] = !current[group.categoryKey];
+                            return next;
+                          })
                         }
-                        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left"
+                        className="flex w-full items-center justify-between gap-3 bg-[#FFFDF9] px-4 py-4 text-left"
                       >
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
-                            <Icon className="h-4 w-4 text-[#8A3E1D]" />
+                          <div className="relative mt-0.5 h-12 w-12 overflow-hidden rounded-[16px] border border-[#F1D7B5] bg-white shadow-sm">
+                            <Image src={previewImage} alt={group.label} fill className="object-cover" sizes="48px" />
                           </div>
                           <div>
-                            <p className="text-[16px] font-bold text-stone-950">{group.label}</p>
-                            <p className="mt-1 text-[13px] text-stone-500">{group.helperText}</p>
+                            <p className="text-[17px] font-black tracking-[-0.02em] text-stone-950">{group.label}</p>
+                            <p className="mt-1 text-[13px] font-medium text-stone-500">{group.helperText}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-stone-700 shadow-sm">
+                          <span className="rounded-full border border-[#F0D4A8] bg-[#FFF0CF] px-3 py-1 text-[12px] font-bold text-[#8A3E1D] shadow-[0_8px_20px_rgba(235,139,35,0.08)]">
                             {group.selectedCount}/{group.maxSelectableCount}
                           </span>
-                          <ChevronDown className={"h-4 w-4 text-stone-400 transition " + (open ? "rotate-180" : "")} />
+                          <ChevronDown className={"h-4 w-4 text-[#8A3E1D] transition " + (open ? "rotate-180" : "")} />
                         </div>
                       </button>
 
                       {open ? (
-                        <div className="grid gap-3 border-t border-stone-200 p-4 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 border-t border-[#F2E5D8] p-4 sm:grid-cols-2 lg:grid-cols-3">
                           {group.items.map((item) => {
                             const selected = item.selected;
                             const nextSummary = groups.find((entry) => entry.categoryKey === group.categoryKey);
@@ -347,49 +351,32 @@ export default function BookCustomizeClient() {
                                 disabled={atMax}
                                 onClick={() => onMenuToggle(group.categoryKey, item.key)}
                                 className={
-                                  "group flex items-start gap-3 rounded-[22px] border p-3 text-left transition " +
+                                  "group flex items-center gap-3 rounded-[16px] border p-3 text-left transition " +
                                   (selected
-                                    ? item.isAddOn
-                                      ? "border-[#E8B14A] bg-[#FFF8E8]"
-                                      : "border-[#8A3E1D] bg-[#FCF3EE]"
+                                    ? "border-[#8A3E1D] bg-[#FCF3EE]"
                                     : "border-stone-200 bg-white hover:border-stone-300") +
                                   (atMax ? " cursor-not-allowed opacity-45" : "")
                                 }
                               >
-                                <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-2xl bg-stone-100">
-                                  <Image src={item.image} alt={item.name} fill className="object-cover" sizes="80px" />
-                                </div>
                                 <div className="min-w-0 flex-1">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                      <p className="line-clamp-1 text-[15px] font-bold text-stone-950">{item.name}</p>
-                                      <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-stone-500">{item.description}</p>
-                                    </div>
-                                    <span className={"inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-semibold " + vegTone(item.isVeg)}>
-                                      <VegDotInline isVeg={item.isVeg} size={14} />
-                                      <span className="hidden sm:inline">{item.isVeg ? "Veg" : "Non-Veg"}</span>
-                                    </span>
-                                  </div>
-
-                                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                                    {item.isDefault ? (
-                                      <span className="rounded-full bg-stone-900 px-2.5 py-1 text-[10px] font-semibold text-white">
-                                        Default
-                                      </span>
-                                    ) : null}
-                                    {item.isAddOn ? (
-                                      <span className="rounded-full bg-[#E8B14A] px-2.5 py-1 text-[10px] font-semibold text-white">
-                                        Charged as add-on
-                                      </span>
-                                    ) : null}
-                                    {selected ? (
-                                      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-[10px] font-semibold text-green-700">
-                                        <Check className="h-3 w-3" />
-                                        Selected
-                                      </span>
-                                    ) : null}
+                                  <div className="flex items-center gap-2">
+                                    <VegDotInline isVeg={item.isVeg} size={12} />
+                                    <p className="text-[13px] font-semibold leading-5 text-stone-950 sm:text-[14px]">{item.name}</p>
                                   </div>
                                 </div>
+                                  <span
+                                    className={
+                                      "inline-flex min-w-[84px] flex-shrink-0 items-center justify-center gap-1 rounded-full px-3 py-1 text-[11px] font-semibold transition " +
+                                      (selected
+                                        ? "bg-[#8A3E1D] text-white shadow-sm"
+                                        : "border border-stone-200 bg-white text-stone-700")
+                                    }
+                                  >
+                                    <span className={"transition-transform " + (selected ? "scale-110" : "scale-100")}>
+                                      {selected ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                                    </span>
+                                    {selected ? "Added" : "Add"}
+                                  </span>
                               </button>
                             );
                           })}
@@ -409,40 +396,57 @@ export default function BookCustomizeClient() {
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {vendor.addons.map((addon) => {
-                  const active = selectedAddOns.includes(addon.name);
+              <div className="mt-5 space-y-6">
+                {ADDON_GROUPS.map((group) => {
+                  const groupItems = vendor.addons.filter((addon) => group.items.includes(addon.name));
+                  if (!groupItems.length) return null;
                   return (
-                    <button
-                      key={addon.name}
-                      type="button"
-                      onClick={() =>
-                        setSelectedAddOns((current) =>
-                          current.includes(addon.name)
-                            ? current.filter((item) => item !== addon.name)
-                            : [...current, addon.name]
-                        )
-                      }
-                      className={
-                        "flex items-center justify-between rounded-[22px] border p-4 text-left transition " +
-                        (active
-                          ? "border-[#8A3E1D] bg-[#FCF3EE]"
-                          : "border-stone-200 bg-[#FCFBF9] hover:border-stone-300")
-                      }
-                    >
-                      <div>
-                        <p className="text-[15px] font-bold text-stone-950">{addon.name}</p>
-                        <p className="mt-1 text-[13px] text-stone-500">₹{addon.pricePerPax}/guest</p>
+                    <div key={group.key} className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-1.5 rounded-full bg-[linear-gradient(180deg,#EB8B23_0%,#8A3E1D_100%)]" />
+                        <p className="text-[17px] font-black tracking-[-0.02em] text-stone-950">{group.title}</p>
                       </div>
-                      <div className={"relative h-7 w-12 rounded-full transition " + (active ? "bg-[#8A3E1D]" : "bg-stone-200")}>
-                        <span
-                          className={
-                            "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition " +
-                            (active ? "right-0.5" : "left-0.5")
-                          }
-                        />
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {groupItems.map((addon) => {
+                          const active = selectedAddOns.includes(addon.name);
+                          return (
+                            <button
+                              key={addon.name}
+                              type="button"
+                              onClick={() =>
+                                setSelectedAddOns((current) =>
+                                  current.includes(addon.name)
+                                    ? current.filter((item) => item !== addon.name)
+                                    : [...current, addon.name]
+                                )
+                              }
+                              className={
+                                "flex min-h-[88px] items-center justify-between rounded-[18px] border px-4 py-3 text-left transition " +
+                                (active
+                                  ? "border-[#8A3E1D] bg-[#FCF3EE] shadow-[0_12px_24px_rgba(138,62,29,0.08)]"
+                                  : "border-stone-200 bg-[#FCFBF9] hover:border-[#E6C49B]")
+                              }
+                            >
+                              <div>
+                                <p className="text-[14px] font-bold leading-5 text-stone-950">{addon.name}</p>
+                                <p className="mt-1 text-[12px] font-medium text-stone-500">₹{addon.pricePerPax}/guest</p>
+                              </div>
+                              <span
+                                className={
+                                  "inline-flex min-w-[72px] items-center justify-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold transition " +
+                                  (active
+                                    ? "bg-[#8A3E1D] text-white"
+                                    : "border border-[#E4D6C8] bg-white text-stone-700")
+                                }
+                              >
+                                {active ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                                {active ? "Added" : "Add"}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
@@ -456,26 +460,48 @@ export default function BookCustomizeClient() {
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {waterOptions.map((option) => (
                   <button
                     key={option.id}
                     type="button"
                     onClick={() => setWaterType(option.id)}
                     className={
-                      "rounded-[22px] border p-4 text-left transition " +
+                      "relative overflow-hidden rounded-[22px] border p-4 text-left transition " +
                       (waterType === option.id
-                        ? "border-[#8A3E1D] bg-[#FCF3EE]"
-                        : "border-stone-200 bg-[#FCFBF9] hover:border-stone-300")
+                        ? "border-[#2F6FD6] bg-[linear-gradient(180deg,#F7FBFF_0%,#EAF3FF_100%)] shadow-[0_14px_28px_rgba(47,111,214,0.10)]"
+                        : "border-[#DDE6F2] bg-[#FCFEFF] hover:border-[#BFD4F4]")
                     }
                   >
+                    <div
+                      className={
+                        "absolute right-3 top-3 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] " +
+                        (waterType === option.id ? "bg-[#DCEBFF] text-[#2F6FD6]" : "bg-[#F3F7FD] text-[#6E8DB6]")
+                      }
+                    >
+                      {waterType === option.id ? "Selected" : "Water"}
+                    </div>
                     <div className="flex items-center gap-3">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white shadow-sm">
-                        <Droplets className="h-4 w-4 text-[#8A3E1D]" />
+                      <div className="flex h-14 w-14 items-center justify-center rounded-[18px] border border-[#D6E4F7] bg-white shadow-sm">
+                        <div
+                          className={
+                            "flex h-10 w-10 items-center justify-center rounded-2xl transition " +
+                            (waterType === option.id ? "bg-[#E5F0FF]" : "bg-[#F4F8FD]")
+                          }
+                        >
+                          <Droplets
+                            className={
+                              "h-5 w-5 " + (waterType === option.id ? "text-[#2F6FD6]" : "text-[#7A97BF]")
+                            }
+                          />
+                        </div>
                       </div>
                       <div>
                         <p className="text-[15px] font-bold text-stone-950">{option.label}</p>
-                        <p className="text-[13px] text-stone-500">{option.helperText}</p>
+                        <p className="mt-1 text-[13px] text-stone-500">{option.helperText}</p>
+                        <p className="mt-1 text-[12px] font-medium text-[#2F6FD6]">
+                          {option.id === "packaged" ? "Sealed bottle service" : "Venue water setup"}
+                        </p>
                       </div>
                     </div>
                   </button>
@@ -568,7 +594,7 @@ export default function BookCustomizeClient() {
             className={
               "flex h-12 items-center justify-center gap-2 rounded-[18px] px-5 text-[14px] font-bold transition " +
               (canContinue
-                ? "bg-[#EB8B23] text-white"
+                ? "bg-[linear-gradient(135deg,#F2B24C_0%,#EC9925_45%,#8A3E1D_100%)] text-white"
                 : "cursor-not-allowed bg-stone-200 text-stone-500")
             }
           >

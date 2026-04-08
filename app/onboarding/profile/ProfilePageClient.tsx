@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Camera, Loader2 } from "lucide-react";
 import { useDemoAuth } from "@/components/auth/DemoAuthProvider";
@@ -14,6 +14,10 @@ function inputClass(readOnly = false) {
   );
 }
 
+function normalizePhone(value: string) {
+  return value.replace(/\D/g, "").slice(-10);
+}
+
 export default function ProfilePageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -21,14 +25,19 @@ export default function ProfilePageClient() {
   const { ready, session, completeProfile } = useDemoAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [confirmPhone, setConfirmPhone] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const redirectStartedRef = useRef(false);
 
   useEffect(() => {
     if (!session) return;
+    const normalizedPhone = normalizePhone(session.user.phone);
     setFullName(session.user.fullName);
     setEmail(session.user.email);
+    setPhone(normalizedPhone);
+    setConfirmPhone(normalizedPhone);
     setPhotoUrl(session.user.profilePhotoUrl ?? "");
   }, [session]);
 
@@ -40,6 +49,12 @@ export default function ProfilePageClient() {
     }
   }, [ready, redirect, router, session]);
 
+  const phoneValid = useMemo(() => normalizePhone(phone).length === 10, [phone]);
+  const confirmMatches = useMemo(
+    () => normalizePhone(phone) === normalizePhone(confirmPhone) && normalizePhone(confirmPhone).length === 10,
+    [confirmPhone, phone]
+  );
+
   if (!ready || !session) return null;
 
   const handleContinue = () => {
@@ -49,7 +64,15 @@ export default function ProfilePageClient() {
       return;
     }
     if (!email.trim() || !/\S+@\S+\.\S+/.test(email)) {
-      useToastStore.getState().show("Enter a valid email address.");
+      useToastStore.getState().show("Google email is missing. Please sign in again.");
+      return;
+    }
+    if (!phoneValid) {
+      useToastStore.getState().show("Enter a valid 10-digit mobile number.");
+      return;
+    }
+    if (!confirmMatches) {
+      useToastStore.getState().show("Mobile number confirmation does not match.");
       return;
     }
 
@@ -58,6 +81,8 @@ export default function ProfilePageClient() {
     const next = completeProfile({
       fullName,
       email,
+      phone,
+      whatsapp: phone,
       profilePhotoUrl: photoUrl,
     });
 
@@ -71,16 +96,12 @@ export default function ProfilePageClient() {
   };
 
   const handleBack = () => {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
-      return;
-    }
     router.replace(`/login?redirect=${encodeURIComponent(redirect)}`);
   };
 
   return (
     <main className="min-h-screen bg-[#FBF7F1] px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-[720px]">
+      <div className="mx-auto max-w-[760px]">
         <button
           type="button"
           onClick={handleBack}
@@ -92,9 +113,9 @@ export default function ProfilePageClient() {
 
         <section className="mt-5 rounded-[28px] border border-[#E7D5C4] bg-white p-5 shadow-[0_18px_40px_rgba(35,25,20,0.05)] sm:p-7">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#A06D38]">Step 1 of 2</p>
-          <h1 className="mt-2 text-[28px] font-black tracking-[-0.03em] text-[#151515]">Complete your profile</h1>
+          <h1 className="mt-2 text-[28px] font-black tracking-[-0.03em] text-[#151515]">Set up your account</h1>
           <p className="mt-2 text-[14px] leading-[1.7] text-stone-600">
-            Save the details we need to identify your account and prefill future bookings.
+            Your Google email is already linked. Add your mobile number once and we will use it for WhatsApp booking updates too.
           </p>
 
           <div className="mt-6 flex items-center gap-4 rounded-[24px] border border-[#EEE2D4] bg-[#FFFAF4] p-4">
@@ -132,20 +153,45 @@ export default function ProfilePageClient() {
 
             <div className="sm:col-span-2">
               <label className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.14em] text-stone-500">
-                Email Address *
+                Google Email
               </label>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass()} />
+              <input value={email} readOnly className={inputClass(true)} />
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.14em] text-stone-500">
-                Verified Mobile Number
+                Mobile Number *
               </label>
-              <input value={session.user.phone} readOnly className={inputClass(true)} />
-              <p className="mt-2 text-[12px] text-stone-500">
-                This number came from your verified sign-in. Change number uses a separate OTP flow later.
-              </p>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(normalizePhone(e.target.value))}
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="Enter 10-digit mobile number"
+                className={inputClass()}
+              />
             </div>
+
+            <div>
+              <label className="mb-2 block text-[12px] font-semibold uppercase tracking-[0.14em] text-stone-500">
+                Confirm Mobile Number *
+              </label>
+              <input
+                value={confirmPhone}
+                onChange={(e) => setConfirmPhone(normalizePhone(e.target.value))}
+                inputMode="numeric"
+                maxLength={10}
+                placeholder="Re-enter mobile number"
+                className={inputClass()}
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-[20px] border border-[#EEE4D8] bg-[#FFF9F2] px-4 py-3">
+            <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8A6D4B]">WhatsApp updates</p>
+            <p className="mt-1 text-[13px] leading-[1.6] text-[#6F6257]">
+              The same mobile number will be used for booking alerts and WhatsApp updates.
+            </p>
           </div>
 
           <button
@@ -157,7 +203,7 @@ export default function ProfilePageClient() {
             {saving ? (
               <span className="inline-flex items-center gap-2">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Saving Profile...
+                Saving Account...
               </span>
             ) : (
               "Continue to Address Setup"

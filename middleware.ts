@@ -4,8 +4,23 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   try {
     const auth = request.cookies.get("mh_auth")?.value;
+    const adminAuth = request.cookies.get("mh_admin_auth")?.value;
     const isAuthed = auth === "1";
+    const isAdminAuthed = adminAuth === "1";
     const { pathname } = request.nextUrl;
+
+    const isAdminPath = pathname.startsWith("/admin");
+    if (isAdminPath) {
+      if (pathname === "/admin/login") {
+        if (!isAdminAuthed) return NextResponse.next();
+        return NextResponse.redirect(new URL("/admin", request.url));
+      }
+
+      if (isAdminAuthed) return NextResponse.next();
+      const login = new URL("/admin/login", request.url);
+      login.searchParams.set("redirect", pathname + request.nextUrl.search);
+      return NextResponse.redirect(login);
+    }
 
     const isProtected =
       pathname === "/account" ||
@@ -19,6 +34,9 @@ export function middleware(request: NextRequest) {
       pathname.startsWith("/my-bookings/");
 
     if (!isProtected) return NextResponse.next();
+    if (pathname.startsWith("/invoice/") && (isAuthed || isAdminAuthed)) {
+      return NextResponse.next();
+    }
     if (isAuthed) return NextResponse.next();
 
     const login = new URL("/login", request.url);
@@ -35,6 +53,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    "/admin/:path*",
     "/book/details",
     "/book/review",
     "/booking/success",

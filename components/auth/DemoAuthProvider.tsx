@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { type DemoAccountUser, type DemoAddress } from "@/data/mockAccount";
 import {
   authenticateWithGoogle,
-  authenticateWithOtp,
   clearDemoSession,
   completeProfile as persistCompletedProfile,
   deleteCurrentDemoAccount,
@@ -25,9 +24,14 @@ type DemoAuthContextValue = {
   session: DemoAuthSession | null;
   user: DemoAccountUser | null;
   loginWithGoogle: (mode?: DemoAuthMode) => DemoAuthSession;
-  loginWithOtp: (input?: { mode?: DemoAuthMode; phone?: string }) => DemoAuthSession;
   updateProfile: (partial: Partial<DemoAccountUser>) => void;
-  completeProfile: (input: { fullName: string; email: string; profilePhotoUrl?: string }) => DemoAuthSession | null;
+  completeProfile: (input: {
+    fullName: string;
+    email: string;
+    phone: string;
+    whatsapp?: string;
+    profilePhotoUrl?: string;
+  }) => DemoAuthSession | null;
   saveAddress: (
     input: Omit<DemoAddress, "id"> & { id?: string },
     options?: { setDefault?: boolean }
@@ -74,16 +78,6 @@ export function DemoAuthProvider({ children }: { children: React.ReactNode }) {
           next.user.onboardingComplete
             ? "Signed in with demo Google account."
             : "Google sign-in complete. Finish your profile to continue."
-        );
-        return next;
-      },
-      loginWithOtp: (input) => {
-        const next = authenticateWithOtp(input?.phone ?? "");
-        setSession(next);
-        useToastStore.getState().show(
-          next.user.onboardingComplete
-            ? "Phone verified. You are now logged in."
-            : "Phone verified. Complete your profile to continue."
         );
         return next;
       },

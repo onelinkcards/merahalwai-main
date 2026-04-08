@@ -1,11 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { type ReactNode, useEffect, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useWatch, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDays, CheckCircle2, MapPin, PencilLine, UserRound } from "lucide-react";
+import { CalendarDays, Check, CheckCircle2, ChevronDown, MapPin, PencilLine, UserRound } from "lucide-react";
 import BookingStepper from "@/components/book/BookingStepper";
 import { useDemoAuth } from "@/components/auth/DemoAuthProvider";
 import { getDefaultAddress } from "@/lib/demoAuth";
@@ -49,6 +49,12 @@ export default function BookDetailsPage() {
     if (!store.vendorSlug) router.replace("/caterers");
   }, [router, store.vendorSlug]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, []);
+
   const vendor = useMemo(
     () => (store.vendorSlug ? getVendorDetailBySlug(store.vendorSlug) : null),
     [store.vendorSlug]
@@ -86,6 +92,9 @@ export default function BookDetailsPage() {
 
   const watchPhone = useWatch({ control, name: "customerPhone" });
   const watchSameAsPhone = useWatch({ control, name: "whatsappSameAsPhone" });
+  const watchWhatsappOptIn = useWatch({ control, name: "whatsappOptIn" });
+  const [addressPickerOpen, setAddressPickerOpen] = useState(false);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
 
   useEffect(() => {
     if (watchSameAsPhone && watchPhone) {
@@ -120,6 +129,23 @@ export default function BookDetailsPage() {
   );
 
   const hasAutofill = Boolean(store.customerName || store.customerPhone || store.customerEmail || store.otpPhone);
+
+  const applyAddress = (address: {
+    id: string;
+    venueName: string;
+    address: string;
+    city: string;
+    pincode: string;
+    state: string;
+  }) => {
+    setSelectedAddressId(address.id);
+    setAddressPickerOpen(false);
+    setValue("venueName", address.venueName);
+    setValue("venueAddress", address.address);
+    setValue("venueCity", address.city);
+    setValue("venuePincode", address.pincode);
+    setValue("venueState", address.state);
+  };
 
   const onSubmit = (values: BookFormValues) => {
     setMany({
@@ -173,22 +199,32 @@ export default function BookDetailsPage() {
                 </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
+            <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => router.push("/book/basics?vendor=" + encodeURIComponent(store.vendorSlug))}
-                className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2 text-[13px] font-semibold text-stone-700 transition hover:border-[#8A3E1D] hover:text-[#8A3E1D]"
+                className="flex min-w-[168px] items-center gap-3 rounded-[18px] border border-stone-200 bg-[#FFFCF8] px-4 py-3 text-left transition hover:border-[#8A3E1D] hover:bg-[#FFF7ED]"
               >
-                <CalendarDays className="h-4 w-4" />
-                Edit Basics
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#FCF3EE]">
+                  <PencilLine className="h-4 w-4 text-[#8A3E1D]" />
+                </span>
+                <span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Booking</span>
+                  <span className="block text-[13px] font-bold text-stone-900">Edit Basics</span>
+                </span>
               </button>
               <button
                 type="button"
                 onClick={() => router.push("/book/customize?vendor=" + encodeURIComponent(store.vendorSlug))}
-                className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2 text-[13px] font-semibold text-stone-700 transition hover:border-[#8A3E1D] hover:text-[#8A3E1D]"
+                className="flex min-w-[168px] items-center gap-3 rounded-[18px] border border-stone-200 bg-[#FFFCF8] px-4 py-3 text-left transition hover:border-[#8A3E1D] hover:bg-[#FFF7ED]"
               >
-                <PencilLine className="h-4 w-4" />
-                Edit Menu
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#FCF3EE]">
+                  <CalendarDays className="h-4 w-4 text-[#8A3E1D]" />
+                </span>
+                <span>
+                  <span className="block text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">Selections</span>
+                  <span className="block text-[13px] font-bold text-stone-900">Edit Menu</span>
+                </span>
               </button>
             </div>
           </div>
@@ -199,6 +235,8 @@ export default function BookDetailsPage() {
           <input type="hidden" {...register("eventType")} />
           <input type="hidden" {...register("eventDate")} />
           <input type="hidden" {...register("eventTime")} />
+          <input type="hidden" {...register("whatsappSameAsPhone")} />
+          <input type="hidden" {...register("whatsappOptIn")} />
 
           <section className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_20px_50px_rgba(35,25,20,0.04)]">
             <div className="flex items-start justify-between gap-4">
@@ -207,7 +245,7 @@ export default function BookDetailsPage() {
                 <h2 className="mt-1 text-[24px] font-black text-stone-950">Your Details</h2>
               </div>
               {hasAutofill ? (
-                <span className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-[12px] font-semibold text-green-700">
+                <span className="hidden items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-[11px] font-semibold text-green-700 sm:inline-flex">
                   <CheckCircle2 className="h-4 w-4" />
                   Auto-filled from your account
                 </span>
@@ -250,45 +288,51 @@ export default function BookDetailsPage() {
               </Field>
             </div>
 
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <label className="inline-flex items-center gap-2 text-[13px] text-stone-600">
-                <input type="checkbox" {...register("whatsappSameAsPhone")} className="h-4 w-4 rounded border-stone-300 accent-[#8A3E1D]" />
-                Same as phone
-              </label>
-              <label className="inline-flex items-center gap-2 text-[13px] text-stone-600">
-                <input type="checkbox" {...register("whatsappOptIn")} className="h-4 w-4 rounded border-stone-300 accent-[#8A3E1D]" />
-                Send booking updates on WhatsApp
-              </label>
+            <div className="mt-4 grid gap-2.5 md:grid-cols-2">
+              <ToggleCard
+                label="Same as phone"
+                helper="Use your phone number for WhatsApp updates"
+                checked={Boolean(watchSameAsPhone)}
+                onChange={(next) => setValue("whatsappSameAsPhone", next)}
+              />
+              <ToggleCard
+                label="Send booking updates on WhatsApp"
+                helper="Receive status updates and reminders"
+                checked={Boolean(watchWhatsappOptIn)}
+                onChange={(next) => setValue("whatsappOptIn", next)}
+              />
             </div>
           </section>
 
           <section className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_20px_50px_rgba(35,25,20,0.04)]">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FCF3EE]">
-                <CalendarDays className="h-4 w-4 text-[#8A3E1D]" />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#FCF3EE]">
+                  <CalendarDays className="h-4 w-4 text-[#8A3E1D]" />
+                </div>
+                <div>
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-stone-500">Booking Basics</p>
+                  <h2 className="text-[24px] font-black text-stone-950">Already selected</h2>
+                </div>
               </div>
-              <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-stone-500">Booking Basics</p>
-                <h2 className="text-[24px] font-black text-stone-950">Already selected</h2>
-              </div>
+              <button
+                type="button"
+                onClick={() => router.push("/book/basics?vendor=" + encodeURIComponent(store.vendorSlug))}
+                className="inline-flex items-center gap-2 self-start rounded-full border border-[#E8D5C4] bg-[#FFFCF8] px-4 py-2 text-[13px] font-semibold text-[#8A3E1D] transition hover:bg-[#FFF6EC]"
+              >
+                <PencilLine className="h-4 w-4" />
+                Edit Basics
+              </button>
             </div>
 
             <div className="mt-5 rounded-[24px] border border-stone-200 bg-[#FCFBF9] p-4">
-              <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-4 md:grid-cols-3 xl:grid-cols-6">
                 <InfoTile label="Event Type" value={store.eventType || "Not set"} />
                 <InfoTile label="Event Date" value={store.eventDate || "Not set"} />
                 <InfoTile label="Event Time" value={store.eventTime || "Not set"} />
                 <InfoTile label="Guests" value={`${store.guestCount} guests`} />
                 <InfoTile label="Food Preference" value={foodPreferenceLabel(store.foodPreference)} />
-                <div className="flex items-end">
-                  <button
-                    type="button"
-                    onClick={() => router.push("/book/basics?vendor=" + encodeURIComponent(store.vendorSlug))}
-                    className="inline-flex h-11 items-center justify-center rounded-full border border-stone-200 px-4 text-[13px] font-semibold text-stone-700 transition hover:border-[#8A3E1D] hover:text-[#8A3E1D]"
-                  >
-                    Edit Basics
-                  </button>
-                </div>
+                <InfoTile label="Package" value={`${store.selectedPackage || "Not set"} · ₹${store.pricePerPlate || 0}/plate`} />
               </div>
             </div>
           </section>
@@ -305,31 +349,51 @@ export default function BookDetailsPage() {
             </div>
 
             {savedAddresses.length ? (
-              <div className="mt-5 flex flex-col gap-3 rounded-[22px] border border-[#E7D5C4] bg-[#FFF9F2] p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-stone-900">Choose from saved addresses</p>
-                  <p className="mt-1 text-[12px] text-stone-500">Pick a saved venue and the form will fill instantly.</p>
+              <div className="relative mt-5 rounded-[22px] border border-[#E7D5C4] bg-[#FFF9F2] p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[13px] font-semibold text-stone-900">Choose from saved addresses</p>
+                    <p className="mt-1 text-[12px] text-stone-500">Pick a saved venue and the form will fill instantly.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAddressPickerOpen((current) => !current)}
+                    className="inline-flex h-11 min-w-[250px] items-center justify-between rounded-[18px] border border-[#E3C9AF] bg-white px-4 text-[13px] font-semibold text-[#8A3E1D] shadow-sm"
+                  >
+                    <span className="truncate">
+                      {selectedAddressId
+                        ? (() => {
+                            const chosen = savedAddresses.find((item) => item.id === selectedAddressId);
+                            return chosen ? `${chosen.label} · ${chosen.venueName}` : "Select saved address";
+                          })()
+                        : "Select saved address"}
+                    </span>
+                    <ChevronDown className={"h-4 w-4 transition " + (addressPickerOpen ? "rotate-180" : "")} />
+                  </button>
                 </div>
-                <select
-                  defaultValue=""
-                  onChange={(e) => {
-                    const address = savedAddresses.find((item) => item.id === e.target.value);
-                    if (!address) return;
-                    setValue("venueName", address.venueName);
-                    setValue("venueAddress", address.address);
-                    setValue("venueCity", address.city);
-                    setValue("venuePincode", address.pincode);
-                    setValue("venueState", address.state);
-                  }}
-                  className="h-11 min-w-[220px] rounded-full border border-[#E3C9AF] bg-white px-4 text-[13px] font-semibold text-[#8A3E1D] outline-none"
-                >
-                  <option value="">Select saved address</option>
-                  {savedAddresses.map((address) => (
-                    <option key={address.id} value={address.id}>
-                      {address.label} · {address.venueName}
-                    </option>
-                  ))}
-                </select>
+
+                {addressPickerOpen ? (
+                  <div className="absolute right-4 top-[calc(100%-2px)] z-20 mt-2 w-[min(320px,calc(100%-2rem))] rounded-[22px] border border-[#E3C9AF] bg-white p-2 shadow-[0_24px_50px_rgba(35,25,20,0.12)]">
+                    {savedAddresses.map((address) => (
+                      <button
+                        key={address.id}
+                        type="button"
+                        onClick={() => applyAddress(address)}
+                        className={
+                          "flex w-full items-start justify-between gap-3 rounded-[18px] px-3 py-3 text-left transition " +
+                          (selectedAddressId === address.id ? "bg-[#FCF3EE]" : "hover:bg-[#FAF6F1]")
+                        }
+                      >
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-bold text-stone-950">{address.label}</p>
+                          <p className="mt-1 text-[12px] font-medium text-stone-700">{address.venueName}</p>
+                          <p className="mt-1 line-clamp-2 text-[11px] text-stone-500">{address.address}</p>
+                        </div>
+                        {selectedAddressId === address.id ? <Check className="mt-1 h-4 w-4 flex-shrink-0 text-[#8A3E1D]" /> : null}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             ) : defaultAddress ? (
               <div className="mt-5 flex flex-col gap-3 rounded-[22px] border border-[#E7D5C4] bg-[#FFF9F2] p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -341,13 +405,7 @@ export default function BookDetailsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    setValue("venueName", defaultAddress.venueName);
-                    setValue("venueAddress", defaultAddress.address);
-                    setValue("venueCity", defaultAddress.city);
-                    setValue("venuePincode", defaultAddress.pincode);
-                    setValue("venueState", defaultAddress.state);
-                  }}
+                  onClick={() => applyAddress(defaultAddress)}
                   className="inline-flex h-10 items-center justify-center rounded-full border border-[#E3C9AF] bg-white px-4 text-[13px] font-semibold text-[#8A3E1D]"
                 >
                   Autofill Address
@@ -450,6 +508,51 @@ function InfoTile({ label, value }: { label: string; value: string }) {
       <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-400">{label}</p>
       <p className="mt-2 text-[14px] font-semibold text-stone-950">{value}</p>
     </div>
+  );
+}
+
+function ToggleCard({
+  label,
+  helper,
+  checked,
+  onChange,
+}: {
+  label: string;
+  helper: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className={
+        "flex items-center justify-between rounded-[18px] border px-3.5 py-2.5 text-left transition " +
+        (checked
+          ? "border-[#8A3E1D] bg-[#FCF3EE] shadow-[0_12px_30px_rgba(138,62,29,0.06)]"
+          : "border-stone-200 bg-[#FFFCF8] hover:border-[#D7B08E]")
+      }
+    >
+      <div>
+        <p className="text-[13px] font-bold text-stone-950">{label}</p>
+        <p className="mt-0.5 text-[11px] leading-4 text-stone-500">{helper}</p>
+      </div>
+      <span
+        className={
+          "relative ml-3 flex h-6 w-11 flex-shrink-0 rounded-full transition " +
+          (checked ? "bg-[#8A3E1D]" : "bg-stone-200")
+        }
+      >
+        <span
+          className={
+            "absolute top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm transition-all " +
+            (checked ? "left-[21px]" : "left-0.5")
+          }
+        >
+          {checked ? <Check className="h-3 w-3 text-[#8A3E1D]" /> : null}
+        </span>
+      </span>
+    </button>
   );
 }
 

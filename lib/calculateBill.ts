@@ -1,6 +1,6 @@
-import type { BookingStore, PackageTier } from "@/store/bookingStore";
+import type { BookingStore } from "@/store/bookingStore";
 import { getVendorDetailBySlug } from "@/data/vendors";
-import { getAutoAddonItems, getWaterOptions } from "@/lib/bookingMenuHelpers";
+import { getWaterOptions } from "@/lib/bookingMenuHelpers";
 
 const CONVENIENCE_FEE_RATE = 0.02;
 const GST_RATE = 0.18;
@@ -18,24 +18,6 @@ export type BillBreakdown = {
   convenienceFee: number;
   grandTotal: number;
 };
-
-function menuAddOnTotal(
-  slug: string,
-  packageId: PackageTier,
-  selectedKeys: string[],
-  guestCount: number,
-  foodPreference?: BookingStore["foodPreference"]
-) {
-  const vendor = getVendorDetailBySlug(slug);
-  if (!vendor || !vendor.autoAddonPricing) return 0;
-
-  return getAutoAddonItems(slug, packageId, selectedKeys, foodPreference).reduce((total, item) => {
-    const rate = item.isVeg
-      ? vendor.autoAddonPricing.vegPerItemPerPax
-      : vendor.autoAddonPricing.nonVegPerItemPerPax;
-    return total + rate * guestCount;
-  }, 0);
-}
 
 function optionalAddOnTotal(slug: string, addOnNames: string[], guestCount: number) {
   const vendor = getVendorDetailBySlug(slug);
@@ -59,11 +41,7 @@ export function calculateBill(state: Partial<BookingStore>): BillBreakdown {
   const baseAmount = Math.round(guestCount * pricePerPlate);
 
   const slug = state.vendorSlug ?? "";
-  const packageId: PackageTier = state.selectedPackage ?? "silver";
-  const selectedItems = state.selectedItems ?? [];
-  const autoAddOnAmount = slug
-    ? menuAddOnTotal(slug, packageId, selectedItems, guestCount, state.foodPreference)
-    : 0;
+  const autoAddOnAmount = 0;
   const optionalAddOnAmount = slug
     ? optionalAddOnTotal(slug, state.addOnItems ?? [], guestCount)
     : 0;

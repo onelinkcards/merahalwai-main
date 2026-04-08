@@ -290,6 +290,10 @@ export default function CatererDetailClient() {
   }, [vendor]);
 
   const highlightedReviews = vendor?.reviews.slice(0, 3) ?? [];
+  const googlePlaceId = vendor ? (vendor as VendorDetailFull & { googlePlaceId?: string }).googlePlaceId : undefined;
+  const googleReviewsLink = googlePlaceId
+    ? `https://search.google.com/local/reviews?placeid=${googlePlaceId}`
+    : null;
   const mapsQuery = useMemo(() => encodeURIComponent(locality), [locality]);
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${mapsQuery}`;
   const mapsEmbedUrl = `https://www.google.com/maps?q=${mapsQuery}&z=14&output=embed`;
@@ -359,7 +363,7 @@ export default function CatererDetailClient() {
   };
 
   const handlePackageAction = (pkgId: PackageTier) => {
-    applyPackageSelection(pkgId, { focusPanel: true });
+    applyPackageSelection(pkgId);
     beginBookingIntent(pkgId);
   };
 
@@ -444,11 +448,7 @@ export default function CatererDetailClient() {
                       >
                         {pkg.name}
                       </p>
-                      {pkg.id === "silver" ? (
-                        <span className="inline-flex rounded-full bg-[linear-gradient(135deg,#EC9925_0%,#8A3E1D_100%)] px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-white">
-                          Most Popular
-                        </span>
-                      ) : null}
+                      {pkg.id === "silver" ? null : null}
                     </div>
                     <p className="mt-1.5 text-[11px] font-semibold text-[#8A7560]">
                       {shortLabel}
@@ -470,13 +470,16 @@ export default function CatererDetailClient() {
         <button
           type="button"
           onClick={() => beginBookingIntent(selectedPackage?.id as PackageTier | undefined)}
-          className="mt-5 flex h-13 w-full items-center justify-center rounded-[18px] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] px-5 text-[16px] font-bold text-white shadow-[0_18px_36px_rgba(138,62,29,0.2)] transition-all hover:brightness-[1.03]"
+          className="mt-5 flex h-14 w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#F2B24C_0%,#EC9925_45%,#8A3E1D_100%)] px-5 text-[16px] font-bold text-white shadow-[0_20px_40px_rgba(138,62,29,0.22)] transition-all hover:brightness-[1.03]"
         >
           Book Now
         </button>
 
         <p className="mt-3 text-center text-[12px] font-medium leading-[1.6] text-[#7D766E]">
-          Menu customization continues in the next step
+          Menu customization continues in the next step.
+        </p>
+        <p className="mt-1 text-center text-[11px] font-medium leading-[1.6] text-[#8A6D52]">
+          After booking confirmation: pay 30% online, remaining 70% at property (offline).
         </p>
       </div>
     </div>
@@ -484,8 +487,8 @@ export default function CatererDetailClient() {
 
   return (
     <main className="min-h-screen bg-[#F6F4EF] pb-32 text-[#1E1E1E] md:pb-16">
-      <Navbar />
-      <div className="mx-auto max-w-[1440px] px-4 pb-14 pt-5 md:px-8 md:pt-8 xl:px-10">
+      {!lightboxOpen ? <Navbar /> : null}
+      <div className="mx-auto max-w-[1440px] px-4 pb-14 pt-3 md:px-8 md:pt-8 xl:px-10">
         <div className="hidden items-center justify-between md:flex">
           <div className="flex items-center gap-4">
             <button
@@ -565,12 +568,12 @@ export default function CatererDetailClient() {
                         <Share2 className="h-4 w-4" />
                       </span>
                     </div>
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-                      <span className="inline-flex h-10 items-center justify-center rounded-full bg-[rgba(29,26,22,0.8)] px-4 text-[12px] font-bold text-white shadow-[0_8px_20px_rgba(0,0,0,0.22)]">
-                        View gallery
-                      </span>
-                    </div>
-                  </button>
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
+                    <span className="inline-flex h-10 items-center justify-center rounded-full border border-[#E6DED3] bg-white px-4 text-[12px] font-bold text-[#1E1E1E] shadow-[0_8px_20px_rgba(0,0,0,0.22)]">
+                      View Album
+                    </span>
+                  </div>
+                </button>
 
                   <button
                     type="button"
@@ -684,7 +687,7 @@ export default function CatererDetailClient() {
                     </button>
                   </div>
 
-                  <div className="mt-5">{bookingPanel}</div>
+                  <div className="mt-5 hidden md:block">{bookingPanel}</div>
                 </div>
               </div>
             </section>
@@ -713,8 +716,8 @@ export default function CatererDetailClient() {
                   </span>
                 </div>
                 {imageList.length > 1 ? (
-                  <div className="absolute bottom-4 left-4">
-                    <span className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-[13px] font-bold text-[#1E1E1E] shadow-[0_12px_28px_rgba(0,0,0,0.14)]">
+                  <div className="absolute bottom-4 left-4 z-10">
+                    <span className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#E6DED3] bg-white px-5 text-[13px] font-bold text-[#1E1E1E] shadow-[0_12px_28px_rgba(0,0,0,0.14)]">
                       <Camera className="h-4 w-4 text-[#1E1E1E]" />
                       View Album
                     </span>
@@ -856,9 +859,9 @@ export default function CatererDetailClient() {
                   return (
                     <article
                       key={pkg.id}
-                      onClick={() => applyPackageSelection(pkg.id as PackageTier, { focusPanel: true })}
+                      onClick={() => applyPackageSelection(pkg.id as PackageTier)}
                       className={
-                        "cursor-pointer border bg-white p-6 shadow-[0_18px_40px_rgba(24,20,16,0.05)] transition-all " +
+                        "flex h-full cursor-pointer flex-col border bg-white p-6 shadow-[0_18px_40px_rgba(24,20,16,0.05)] transition-all " +
                         (isSelected
                           ? "border-[#1F1E1B] rounded-[28px]"
                           : "rounded-[24px] border-[#E5DED4]")
@@ -893,10 +896,10 @@ export default function CatererDetailClient() {
                           </p>
                         </div>
                         {pkg.id === "silver" ? (
-                          <span className="rounded-full bg-[#1F1E1B] px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white">
-                            Most Popular
-                          </span>
-                        ) : null}
+                    <span className="rounded-full border border-[#E7C15C] bg-[#FFF5D7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#9B6A00]">
+                      Most Popular
+                    </span>
+                  ) : null}
                       </div>
 
                       <div className="mt-6 flex items-end gap-1.5">
@@ -906,9 +909,11 @@ export default function CatererDetailClient() {
                         <span className="text-[14px] font-semibold text-[#6D6760]">/plate</span>
                       </div>
 
-                      <p className="mt-4 text-[14px] leading-[1.7] text-[#3F3932]">{pkg.description}</p>
+                      <p className="mt-4 line-clamp-2 min-h-[44px] text-[14px] leading-[1.7] text-[#3F3932]">
+                        {pkg.description}
+                      </p>
 
-                      <div className="mt-5 flex items-center justify-between gap-4 border-t border-[#EEE7DD] pt-4">
+                      <div className="mt-auto flex items-center justify-between gap-4 border-t border-[#EEE7DD] pt-4">
                         <div className="space-y-1 text-[12px] text-[#6D6760]">
                           <p>Package-first booking flow</p>
                           <p>No guest restriction by package</p>
@@ -1086,62 +1091,79 @@ export default function CatererDetailClient() {
             </section>
 
             <section ref={reviewsRef} className="border-t border-[#E7E1D8] pt-12">
-              <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                <div>
-                  <h2 className="text-[28px] font-black tracking-tight text-[#161513] md:text-[34px]">
-                    Customer Reviews
-                  </h2>
-                  <p className="mt-2 text-[15px] text-[#6D6760]">
-                    {vendor.rating} average rating across {vendor.reviewsCount} reviews
-                  </p>
-                </div>
-                <button
-                  onClick={() => setReviewsOpen(true)}
-                  className="text-[14px] font-bold text-[#1E1E1E] transition-colors hover:text-[#5A534B]"
-                >
-                  See all reviews
-                </button>
-              </div>
+              {(() => {
+                const title = googleReviewsLink ? "Google Reviews" : "Customer Reviews";
+                const handleReviewsClick = () => {
+                  if (googleReviewsLink) {
+                    window.open(googleReviewsLink, "_blank", "noopener,noreferrer");
+                  } else {
+                    setReviewsOpen(true);
+                  }
+                };
 
-              <div className="mt-8 hidden gap-4 md:grid lg:grid-cols-[280px_minmax(0,1fr)]">
-                <div className="rounded-[28px] border border-[#E6E0D7] bg-white p-5 shadow-[0_18px_40px_rgba(24,20,16,0.05)]">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A3E1D]">Average Rating</p>
-                  <div className="mt-3 flex items-end gap-2">
-                    <span className="text-[46px] font-black leading-none tracking-tight text-[#1E1E1E]">
-                      {vendor.rating}
-                    </span>
-                    <span className="mb-1 text-[14px] font-semibold text-[#6D6760]">/ 5</span>
-                  </div>
-                  <div className="mt-4 flex items-center gap-1">
-                    {Array.from({ length: 5 }).map((_, index) => (
-                      <Star
-                        key={index}
-                        className={
-                          "h-4 w-4 " +
-                          (index < Math.round(vendor.rating)
-                            ? "fill-[#EB8B23] text-[#EB8B23]"
-                            : "text-[#E8D5B7]")
-                        }
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-4 text-[14px] leading-[1.8] text-[#5A534B]">
-                    Shortlisted feedback from recent wedding, family, and city-event bookings.
-                  </p>
-                </div>
+                return (
+                  <>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                      <div>
+                        <h2 className="text-[28px] font-black tracking-tight text-[#161513] md:text-[34px]">
+                          {title}
+                        </h2>
+                        <p className="mt-2 text-[15px] text-[#6D6760]">
+                          {vendor.rating} average rating across {vendor.reviewsCount} reviews
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleReviewsClick}
+                        className="text-[14px] font-bold text-[#1E1E1E] transition-colors hover:text-[#5A534B]"
+                      >
+                        See all reviews
+                      </button>
+                    </div>
 
-                <div className="space-y-4">
-                  {highlightedReviews.map((review) => (
-                    <ReviewCard key={review.id} review={review} />
-                  ))}
-                </div>
-              </div>
+                    <div className="mt-8 hidden gap-4 md:grid lg:grid-cols-[280px_minmax(0,1fr)]">
+                      <div className="rounded-[26px] border border-[#E6E0D7] bg-white p-5 shadow-[0_18px_40px_rgba(24,20,16,0.05)]">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A3E1D]">Average Rating</p>
+                        <div className="mt-3 flex items-end gap-2">
+                          <span className="text-[46px] font-black leading-none tracking-tight text-[#1E1E1E]">
+                            {vendor.rating}
+                          </span>
+                          <span className="mb-1 text-[14px] font-semibold text-[#6D6760]">/ 5</span>
+                        </div>
+                        <div className="mt-4 flex items-center gap-1">
+                          {Array.from({ length: 5 }).map((_, index) => (
+                            <Star
+                              key={index}
+                              className={
+                                "h-4 w-4 " +
+                                (index < Math.round(vendor.rating)
+                                  ? "fill-[#EB8B23] text-[#EB8B23]"
+                                  : "text-[#E8D5B7]")
+                              }
+                            />
+                          ))}
+                        </div>
+                        <p className="mt-4 text-[14px] leading-[1.8] text-[#5A534B]">
+                          {googleReviewsLink
+                            ? "Live Google reviews synced for this caterer."
+                            : "Verified customer feedback from recent bookings."}
+                        </p>
+                      </div>
 
-              <div className="mt-6 space-y-4 md:hidden">
-                {highlightedReviews.map((review) => (
-                  <ReviewCard key={review.id} review={review} />
-                ))}
-              </div>
+                      <div className="space-y-4">
+                        {highlightedReviews.map((review) => (
+                          <ReviewCard key={review.id} review={review} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="mt-6 space-y-4 md:hidden">
+                      {highlightedReviews.map((review) => (
+                        <ReviewCard key={review.id} review={review} />
+                      ))}
+                    </div>
+                  </>
+                );
+              })()}
             </section>
 
             <section className="mt-12 overflow-hidden rounded-[30px] bg-[#1F1E1B] px-6 py-7 text-white md:px-8 md:py-8">
@@ -1171,18 +1193,34 @@ export default function CatererDetailClient() {
         style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}
       >
         <div className="mx-auto flex max-w-[720px] items-center gap-3">
-          <div className="min-w-[92px]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#9F8B77]">Selected</p>
-            <p className="mt-1 text-[20px] font-black tracking-tight text-[#1E1E1E]">
+          <div className="flex min-w-[0px] flex-1 items-center gap-3">
+            <div className="relative h-10 w-10 flex-shrink-0">
+              <Image
+                src={packageTone(selectedPackage?.id ?? "silver").icon}
+                alt="Package icon"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#9F8B77]">Selected Package</p>
+              <p className="mt-1 text-[14px] font-black tracking-tight text-[#1E1E1E] truncate">
+                {selectedPackage?.name ?? "Package"}
+              </p>
+            </div>
+          </div>
+
+          <div className="text-right">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#9F8B77]">Price</p>
+            <p className="mt-1 text-[16px] font-black text-[#1E1E1E]">
               ₹{selectedPackage?.pricePerPlate ?? startingPrice}
-              <span className="ml-1 text-[11px] font-semibold text-[#8B7355]">/plate</span>
+              <span className="ml-1 text-[10px] font-semibold text-[#8B7355]">/plate</span>
             </p>
-            <p className="text-[10px] font-semibold text-[#8B7355]">{selectedPackage?.name ?? "Package"}</p>
           </div>
 
           <button
             onClick={() => beginBookingIntent()}
-            className="flex h-11 flex-1 items-center justify-center rounded-xl bg-[#22201D] px-4 text-[13px] font-bold text-white transition-colors hover:bg-[#2F2B27]"
+            className="flex h-10 min-w-[110px] items-center justify-center rounded-xl bg-[#EC9925] px-4 text-[12px] font-bold text-white transition-colors hover:bg-[#D98314]"
           >
             Book Now
           </button>
@@ -1195,23 +1233,19 @@ export default function CatererDetailClient() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] bg-black/90"
+            className="fixed inset-0 z-[90] bg-white md:bg-[#F7F3EC]"
           >
-            <div className="flex items-center justify-between px-5 py-4">
-              <button
-                type="button"
-                onClick={() => setLightboxOpen(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/12"
-              >
-                <X className="h-5 w-5 text-white" />
-              </button>
-              <span className="text-[14px] font-semibold text-white">
-                {lightboxIndex + 1} / {imageList.length}
-              </span>
-              <span className="w-10" />
-            </div>
-            <div className="relative flex h-[calc(100vh-136px)] items-center justify-center px-4">
-              <div className="relative h-full w-full max-w-6xl">
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              className="absolute left-5 top-5 z-10 flex h-11 items-center gap-2 rounded-full border border-black/30 bg-white px-4 text-[13px] font-bold text-[#1E1E1E] shadow-[0_12px_24px_rgba(24,20,16,0.16)]"
+            >
+              <ChevronLeft className="h-5 w-5" />
+              Back
+            </button>
+
+            <div className="relative flex h-[calc(100vh-140px)] items-center justify-center px-4 md:px-12">
+              <div className="relative h-full w-full max-w-5xl">
                 <Image
                   src={imageList[lightboxIndex] ?? imageList[0] ?? ""}
                   alt=""
@@ -1220,36 +1254,43 @@ export default function CatererDetailClient() {
                   sizes="100vw"
                 />
               </div>
+
               {imageList.length > 1 ? (
                 <>
                   <button
                     onClick={() => setLightboxIndex((prev) => (prev - 1 + imageList.length) % imageList.length)}
-                    className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/12"
+                    className="absolute left-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-white shadow-[0_16px_28px_rgba(24,20,16,0.2)]"
                   >
-                    <ChevronLeft className="h-5 w-5 text-white" />
+                    <ChevronLeft className="h-5 w-5 text-[#1E1E1E]" />
                   </button>
                   <button
                     onClick={() => setLightboxIndex((prev) => (prev + 1) % imageList.length)}
-                    className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/12"
+                    className="absolute right-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-white shadow-[0_16px_28px_rgba(24,20,16,0.2)]"
                   >
-                    <ChevronRight className="h-5 w-5 text-white" />
+                    <ChevronRight className="h-5 w-5 text-[#1E1E1E]" />
                   </button>
                 </>
               ) : null}
             </div>
-            <div className="flex gap-2 overflow-x-auto px-5 pb-5 scrollbar-hide">
-              {imageList.map((image, index) => (
-                <button
-                  key={image + index}
-                  onClick={() => setLightboxIndex(index)}
-                  className={
-                    "relative h-14 w-20 flex-shrink-0 overflow-hidden rounded-xl " +
-                    (lightboxIndex === index ? "ring-2 ring-[#EB8B23]" : "opacity-70")
-                  }
-                >
-                  <Image src={image} alt="" fill className="object-cover" sizes="80px" />
-                </button>
-              ))}
+
+            <div className="flex flex-col items-center gap-2 pb-5">
+              <span className="text-[13px] font-semibold text-[#5F5A54]">
+                {lightboxIndex + 1} / {imageList.length}
+              </span>
+              <div className="flex gap-2 overflow-x-auto px-5 scrollbar-hide">
+                {imageList.map((image, index) => (
+                  <button
+                    key={image + index}
+                    onClick={() => setLightboxIndex(index)}
+                    className={
+                      "relative h-14 w-20 flex-shrink-0 overflow-hidden rounded-xl " +
+                      (lightboxIndex === index ? "ring-2 ring-[#EB8B23]" : "opacity-70")
+                    }
+                  >
+                    <Image src={image} alt="" fill className="object-cover" sizes="80px" />
+                  </button>
+                ))}
+              </div>
             </div>
           </motion.div>
         ) : null}
@@ -1273,7 +1314,7 @@ export default function CatererDetailClient() {
             >
               <div className="mb-5 flex items-center justify-between">
                 <div>
-                  <h3 className="text-[22px] font-black text-[#1E1E1E]">Customer Reviews</h3>
+                  <h3 className="text-[22px] font-black text-[#1E1E1E]">{googleReviewsLink ? "Google Reviews" : "Customer Reviews"}</h3>
                   <p className="mt-1 text-[13px] text-[#8B7355]">{vendor.reviewsCount} reviews · {vendor.rating} average</p>
                 </div>
                 <button

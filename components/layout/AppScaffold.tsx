@@ -12,11 +12,12 @@ export default function AppScaffold({ children }: { children: React.ReactNode })
     pathname?.startsWith("/account") ||
     pathname?.startsWith("/my-bookings") ||
     pathname?.startsWith("/invoice");
+  const isAdminFlow = pathname?.startsWith("/admin") || pathname?.startsWith("/vendor-order");
 
   return (
     <div className="flex min-h-screen flex-col">
       <div className="flex-1">{children}</div>
-      {!isBookingFlow && !isAccountFlow ? <Footer /> : null}
+      {!isBookingFlow && !isAccountFlow && !isAdminFlow ? <Footer /> : null}
     </div>
   );
 }

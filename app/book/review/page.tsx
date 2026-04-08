@@ -5,10 +5,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ChevronDown,
-  ChevronRight,
   Clock,
   Loader2,
   Lock,
+  PencilLine,
   ShieldCheck,
 } from "lucide-react";
 import BookingStepper from "@/components/book/BookingStepper";
@@ -45,6 +45,12 @@ export default function BookReviewPage() {
 
   useEffect(() => {
     setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, []);
 
   useEffect(() => {
@@ -134,7 +140,24 @@ export default function BookReviewPage() {
         convenienceFee: bill.convenienceFee,
         grandTotal: bill.grandTotal,
       });
-      router.push("/booking/success");
+      if (typeof window !== "undefined") {
+        const snapshot = {
+          orderId: id,
+          vendorName: store.vendorName,
+          selectedPackage: store.selectedPackage,
+          guestCount: store.guestCount,
+          eventType: store.eventType,
+          eventDate: store.eventDate,
+          eventTime: store.eventTime,
+          venueName: store.venueName,
+          venueAddress: store.venueAddress,
+          venueCity: store.venueCity,
+          customerName: store.customerName,
+          grandTotal: bill.grandTotal,
+        };
+        window.localStorage.setItem("mh_last_success_booking", JSON.stringify(snapshot));
+      }
+      router.push(`/booking/success?orderId=${encodeURIComponent(id)}`);
     } catch {
       useToastStore.getState().show("Could not place request. Try again.");
     } finally {
@@ -143,7 +166,7 @@ export default function BookReviewPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F8F4EF] pb-12">
+    <main className="min-h-screen bg-[#F8F4EF] pb-32 lg:pb-12">
       <BookingStepper current={4} />
 
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
@@ -167,11 +190,37 @@ export default function BookReviewPage() {
             <button
               type="button"
               onClick={() => router.push("/book/details")}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-stone-200 px-4 text-[13px] font-semibold text-stone-700 transition hover:border-[#8A3E1D] hover:text-[#8A3E1D]"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#E7D5C4] bg-[#FFFCF8] px-4 text-[13px] font-semibold text-[#8A3E1D] transition hover:bg-[#FFF5EA]"
             >
+              <PencilLine className="h-4 w-4" />
               Edit Details
-              <ChevronRight className="h-4 w-4" />
             </button>
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-[24px] border border-stone-200 bg-white p-4 shadow-[0_18px_40px_rgba(35,25,20,0.05)] lg:hidden">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">Review Total</p>
+              <p className="mt-2 text-[30px] font-black tracking-tight text-stone-950">
+                ₹{bill.grandTotal.toLocaleString("en-IN")}
+              </p>
+              <p className="mt-1 text-[12px] font-medium text-stone-500">Scroll to view all summary</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => router.push("/book/details")}
+              className="inline-flex min-w-[92px] items-center justify-center gap-2 rounded-full border border-[#E7D5C4] bg-[#FFF8EF] px-4 py-2.5 text-[12px] font-semibold text-[#8A3E1D] shadow-[0_10px_20px_rgba(138,62,29,0.08)]"
+            >
+              <PencilLine className="h-3.5 w-3.5" />
+              Edit
+            </button>
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-3 rounded-[18px] border border-[#F0E4D8] bg-[#FFFCF8] p-3">
+            <MobileBillMini label="Base Amount" value={bill.baseAmount} />
+            <MobileBillMini label="GST Included" value={bill.gstAmount} />
+            <MobileBillMini label="Add-ons" value={bill.autoAddOnAmount + bill.optionalAddOnAmount + bill.waterAmount} />
+            <MobileBillMini label="Subtotal" value={bill.subtotal} />
           </div>
         </section>
 
@@ -258,17 +307,17 @@ export default function BookReviewPage() {
 
             <ReviewSection kicker="Coupon" title="Apply Coupon">
               {!store.couponCode ? (
-                <div className="flex flex-col gap-3 sm:flex-row">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <input
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
                     placeholder="Enter coupon code"
-                    className="h-11 flex-1 rounded-[18px] border border-stone-200 bg-[#FCFBF9] px-4 text-[13px] uppercase outline-none focus:border-[#8A3E1D]"
+                    className="h-12 w-full min-w-0 flex-1 rounded-[18px] border border-stone-200 bg-[#FCFBF9] px-4 text-[13px] font-semibold uppercase outline-none transition focus:border-[#8A3E1D] sm:h-11"
                   />
                   <button
                     type="button"
                     onClick={applyCoupon}
-                    className="inline-flex h-11 items-center justify-center rounded-[18px] bg-stone-900 px-5 text-[13px] font-semibold text-white"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-[18px] bg-stone-900 px-5 text-[13px] font-semibold text-white transition hover:bg-[#8A3E1D] sm:h-11 sm:w-auto sm:min-w-[140px]"
                   >
                     Apply Coupon
                   </button>
@@ -287,10 +336,11 @@ export default function BookReviewPage() {
             </ReviewSection>
           </div>
 
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-[28px] border border-stone-200 bg-white p-5 shadow-[0_24px_56px_rgba(35,25,20,0.08)]">
+          <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
+            <div className="rounded-[30px] border border-stone-200 bg-[linear-gradient(180deg,#FFFFFF_0%,#FFFCF8_100%)] p-6 shadow-[0_24px_56px_rgba(35,25,20,0.08)]">
               <p className="text-[12px] font-semibold uppercase tracking-[0.22em] text-stone-500">Billing</p>
               <h2 className="mt-2 text-[24px] font-black text-stone-950">Review your total</h2>
+              <p className="mt-1 text-[12px] text-stone-500">Final amount before booking request submission.</p>
 
               <div className="mt-5 space-y-3">
                 <BillRow label="Base Amount" value={bill.baseAmount} helper={`${store.guestCount} guests × ₹${store.pricePerPlate}/plate`} />
@@ -326,19 +376,65 @@ export default function BookReviewPage() {
               <div className="mt-4 space-y-2 text-[12px] text-stone-500">
                 <p className="inline-flex items-center gap-2">
                   <Lock className="h-3.5 w-3.5 text-[#8A3E1D]" />
-                  No payment now
+                  No payment at request stage
                 </p>
                 <p className="inline-flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5 text-[#8A3E1D]" />
-                  Slot will be held after request
+                  After confirmation, pay 30% online
                 </p>
                 <p className="inline-flex items-center gap-2">
                   <ShieldCheck className="h-3.5 w-3.5 text-[#8A3E1D]" />
-                  Payment happens after confirmation
+                  Remaining 70% is paid at property (offline)
                 </p>
               </div>
             </div>
           </aside>
+        </div>
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-stone-200 bg-white/95 px-4 py-3 shadow-[0_-18px_40px_rgba(35,25,20,0.08)] backdrop-blur lg:hidden">
+        <div className="mx-auto max-w-2xl space-y-3">
+          <div className="rounded-[22px] border border-stone-200 bg-[#FFFCF8] px-4 py-4 shadow-[0_12px_28px_rgba(35,25,20,0.05)]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Review Total</p>
+                <p className="mt-1 text-[28px] font-black tracking-tight text-stone-950">
+                  ₹{bill.grandTotal.toLocaleString("en-IN")}
+                </p>
+                <p className="mt-1 text-[12px] font-medium text-stone-500">
+                  GST ₹{bill.gstAmount.toLocaleString("en-IN")} included
+                </p>
+              </div>
+              <div className="rounded-[16px] border border-[#F0E4D8] bg-white px-3 py-2 text-right">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">Final Bill</p>
+                <p className="mt-1 text-[12px] font-bold text-stone-900">
+                  ₹{bill.subtotal.toLocaleString("en-IN")} + GST
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2 rounded-[18px] border border-[#F0E4D8] bg-white px-3 py-3">
+              <MobileBillRow label="Base Amount" value={bill.baseAmount} />
+              <MobileBillRow label="Auto Add-ons" value={bill.autoAddOnAmount} />
+              <MobileBillRow label="Optional Add-ons" value={bill.optionalAddOnAmount} />
+              <MobileBillRow label="Water" value={bill.waterAmount} />
+              <MobileBillRow label="Subtotal" value={bill.subtotal} />
+              <MobileBillRow label="GST (18%)" value={bill.gstAmount} />
+            </div>
+          </div>
+
+          <button
+            type="button"
+            disabled={confirming}
+            onClick={() => void confirm()}
+            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[20px] bg-[#EB8B23] text-[14px] font-bold text-white transition hover:bg-[#8A3E1D] disabled:cursor-wait disabled:bg-stone-300"
+          >
+            {confirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+            {confirming ? "Submitting..." : "Confirm Booking Request"}
+          </button>
+          <p className="text-center text-[11px] text-stone-500">
+            After confirmation, pay 30% online. Remaining 70% at property.
+          </p>
         </div>
       </div>
     </main>
@@ -371,7 +467,12 @@ function ReviewSection({
           <h2 className="mt-2 text-[22px] font-black text-stone-950">{title}</h2>
         </div>
         {actionLabel && onAction ? (
-          <button type="button" onClick={onAction} className="text-[13px] font-semibold text-[#8A3E1D]">
+          <button
+            type="button"
+            onClick={onAction}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#E7D5C4] bg-[#FFFCF8] px-4 text-[12px] font-semibold text-[#8A3E1D] transition hover:bg-[#FFF5EA] sm:text-[13px]"
+          >
+            <PencilLine className="h-3.5 w-3.5" />
             {actionLabel}
           </button>
         ) : null}
@@ -419,6 +520,24 @@ function BillRow({
       <p className={"text-[13px] font-semibold " + (positive ? "text-green-700" : "text-stone-900")}>
         {value < 0 ? "-" : ""}₹{Math.abs(value).toLocaleString("en-IN")}
       </p>
+    </div>
+  );
+}
+
+function MobileBillMini({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-[16px] border border-[#F0E4D8] bg-white px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">{label}</p>
+      <p className="mt-1 text-[14px] font-bold text-stone-900">₹{value.toLocaleString("en-IN")}</p>
+    </div>
+  );
+}
+
+function MobileBillRow({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-center justify-between gap-3 text-[12px]">
+      <span className="text-stone-600">{label}</span>
+      <span className="font-semibold text-stone-950">₹{value.toLocaleString("en-IN")}</span>
     </div>
   );
 }

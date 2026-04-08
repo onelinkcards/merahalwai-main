@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download, Printer } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import {
   formatCurrency,
@@ -61,7 +61,7 @@ export default function InvoiceClient() {
           <button
             type="button"
             onClick={() => router.back()}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#E2D7CA] bg-white px-5 text-[13px] font-bold text-[#3E362F]"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#E6E6E6] bg-white px-5 text-[13px] font-bold text-[#111111]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back
@@ -69,16 +69,8 @@ export default function InvoiceClient() {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => window.print()}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#E2D7CA] bg-white px-5 text-[13px] font-bold text-[#3E362F]"
-            >
-              <Printer className="h-4 w-4" />
-              View Invoice
-            </button>
-            <button
-              type="button"
               onClick={() => void handleDownload()}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#1F1E1B] px-5 text-[13px] font-bold text-white"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#111111] px-5 text-[13px] font-bold text-white"
             >
               <Download className="h-4 w-4" />
               Download PDF
@@ -186,19 +178,19 @@ export default function InvoiceClient() {
                 </div>
               </div>
 
-              <div className="mt-6 rounded-[28px] border border-[#E8DED1] bg-white px-5 py-5 shadow-[0_18px_42px_rgba(24,20,16,0.04)]">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A3E1D]">Actions</p>
+              <div className="mt-6 rounded-[24px] border border-[#E6E6E6] bg-white px-5 py-5 shadow-[0_12px_26px_rgba(0,0,0,0.05)]">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#111111]">Actions</p>
                 <div className="mt-4 space-y-3">
                   <Link
                     href={`/my-bookings/${order.id}`}
-                    className="flex h-11 items-center justify-center rounded-full border border-[#E2D7CA] bg-white px-4 text-[13px] font-bold text-[#3A322B]"
+                    className="flex h-11 items-center justify-center rounded-full border border-[#E6E6E6] bg-white px-4 text-[13px] font-bold text-[#111111]"
                   >
                     View Order Detail
                   </Link>
                   <button
                     type="button"
                     onClick={() => void handleDownload()}
-                    className="flex h-11 w-full items-center justify-center rounded-full bg-[#1F1E1B] px-4 text-[13px] font-bold text-white"
+                    className="flex h-11 w-full items-center justify-center rounded-full bg-[#111111] px-4 text-[13px] font-bold text-white"
                   >
                     Download PDF
                   </button>
@@ -218,4 +210,3 @@ export default function InvoiceClient() {
     </main>
   );
 }
-

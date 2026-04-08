@@ -90,15 +90,6 @@ const PACKAGE_RULES: Record<PackageTier, Record<BookingCategoryKey, CategoryRule
   },
 };
 
-const DRINK_ITEMS: RawMenuItem[] = [
-  { name: "Rose Sharbat", isVeg: true },
-  { name: "Mango Lassi", isVeg: true },
-  { name: "Fresh Lime Soda", isVeg: true },
-  { name: "Masala Chaas", isVeg: true },
-  { name: "Jaljeera", isVeg: true },
-  { name: "Cold Coffee", isVeg: true },
-];
-
 function sourceToGroup(categoryName: string): BookingCategoryKey {
   const lower = categoryName.toLowerCase();
   if (lower.includes("drink") || lower.includes("soup")) return "soupsDrinks";
@@ -173,20 +164,16 @@ function buildSourceMenu(slug: string, packageId: PackageTier, foodPreference?: 
   );
   const masterSources: Record<string, BookingCategoryKey> = {
     Soups: "soupsDrinks",
-    Starters: "starters",
-    "Main Course": "mainCourse",
-    "Dal & Legumes": "mainCourse",
-    Rice: "riceBreads",
+    "Veg Starters": "starters",
+    "Non-Veg Starters": "starters",
+    "Veg Main Course": "mainCourse",
+    "Non-Veg Main Course": "mainCourse",
+    "Dal / Kadhi / Legumes": "mainCourse",
+    "Rice / Biryani": "riceBreads",
     "Indian Breads": "riceBreads",
-    "Sides & Accompaniments": "riceBreads",
-    "Sweets / Desserts": "desserts",
+    Accompaniments: "riceBreads",
+    Desserts: "desserts",
   };
-
-  for (const item of DRINK_ITEMS) {
-    if (shouldIncludeItem(vendor.isVeg, foodPreference, item.isVeg)) {
-      grouped.get("soupsDrinks")?.push(item);
-    }
-  }
 
   for (const category of MASTER_MENU) {
     const categoryKey = masterSources[category.name];
@@ -316,8 +303,8 @@ function helperCopy(summary: CategorySelectionSummary) {
   if (summary.selectedCount < summary.minRequired) {
     return `Select at least ${summary.minRequired}`;
   }
-  if (summary.extraSelectedCount > 0) {
-    return `${summary.extraSelectedCount} extra item${summary.extraSelectedCount > 1 ? "s" : ""} will be charged`;
+  if (summary.selectedCount >= summary.maxSelectableCount) {
+    return "Max reached";
   }
   return `${summary.includedCount} included · Max ${summary.maxSelectableCount}`;
 }
