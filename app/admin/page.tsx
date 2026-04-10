@@ -1,8 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ClipboardList, Clock3, Handshake, WalletCards } from "lucide-react";
+import {
+  ArrowRight,
+  ClipboardList,
+  Clock3,
+  Handshake,
+  WalletCards,
+} from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
+import {
+  AdminButton,
+  AdminMetricCard,
+  AdminPanel,
+  AdminTableCard,
+} from "@/components/admin/AdminUi";
 import { AdminOrderStatusBadge, AdminPaymentStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { formatCurrency } from "@/data/mockAccount";
 import { useAdmin } from "@/components/admin/AdminProvider";
@@ -42,22 +54,18 @@ export default function AdminDashboardPage() {
     {
       label: "New requests",
       value: state.orders.filter((order) => order.status === "bookingRequestSubmitted").length,
-      tone: "bg-[#F4BE5B]",
     },
     {
       label: "Vendor follow-up",
       value: state.orders.filter((order) => ["vendorNotified", "vendorDeclined"].includes(order.status)).length,
-      tone: "bg-[#CC7D32]",
     },
     {
       label: "Payment follow-up",
       value: state.orders.filter((order) => ["paymentLinkSent", "paymentPending"].includes(order.status)).length,
-      tone: "bg-[#8A3E1D]",
     },
     {
       label: "Confirmed",
       value: state.orders.filter((order) => ["paymentDone", "bookingConfirmed"].includes(order.status)).length,
-      tone: "bg-[#2F7D5B]",
     },
   ];
 
@@ -77,66 +85,63 @@ export default function AdminDashboardPage() {
   return (
     <AdminShell
       title="Dashboard"
-      description="Track booking requests, vendor confirmations, payments, and recent activity in one view."
+      description="Daily operating view for incoming bookings, vendor follow-ups, payments, and live workload."
       actions={
         <>
-          <Link
-            href="/admin/vendors/new"
-            className="inline-flex h-10 items-center justify-center rounded-full border border-[#E3E8F0] bg-white px-5 text-[12px] font-bold text-[#1C2430]"
-          >
-            Add Vendor
+          <Link href="/admin/vendors/new">
+            <AdminButton variant="secondary">Add Vendor</AdminButton>
           </Link>
-          <Link
-            href="/admin/orders"
-            className="inline-flex h-10 items-center justify-center rounded-full bg-[#2F6FED] px-5 text-[12px] font-bold text-white"
-          >
-            Open Orders
+          <Link href="/admin/orders">
+            <AdminButton>Open Queue</AdminButton>
           </Link>
         </>
       }
     >
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={ClipboardList} label="New Requests" value={String(newRequests)} helper="Needs review" />
-        <MetricCard icon={Clock3} label="Slot Held" value={String(slotHeld)} helper="Watch expiries" />
-        <MetricCard icon={Handshake} label="Vendor Follow-up" value={String(pendingVendor)} helper="Awaiting response" />
-        <MetricCard icon={WalletCards} label="Revenue Closed" value={formatCurrency(confirmedRevenue)} helper="Paid + confirmed" />
+        <AdminMetricCard icon={ClipboardList} label="New Requests" value={String(newRequests)} helper="Needs review" tone="blue" />
+        <AdminMetricCard icon={Clock3} label="Slot Held" value={String(slotHeld)} helper="Watch expiries" tone="amber" />
+        <AdminMetricCard icon={Handshake} label="Vendor Follow-up" value={String(pendingVendor)} helper="Awaiting response" tone="slate" />
+        <AdminMetricCard icon={WalletCards} label="Revenue Closed" value={formatCurrency(confirmedRevenue)} helper="Paid + confirmed" tone="green" />
       </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_380px]">
+      <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_380px]">
         <div className="space-y-6">
-          <article className="grid gap-6 rounded-[26px] border border-[#E3E8F0] bg-white p-6 shadow-[0_16px_34px_rgba(16,24,40,0.08)] lg:grid-cols-2">
+          <AdminPanel
+            title="Booking activity"
+            eyebrow="Trend"
+            description="Request volume and queue mix for the last 7 days."
+            className="grid gap-6 lg:grid-cols-2"
+          >
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#2F6FED]">Booking Trend</p>
-              <h2 className="mt-2 text-[24px] font-black tracking-[-0.04em] text-[#1C2430]">Requests in the last 7 days</h2>
-              <div className="mt-6 flex items-end gap-3">
+              <p className="text-[13px] font-semibold text-[#475569]">Incoming requests</p>
+              <div className="mt-5 flex items-end gap-3">
                 {recentDays.map((day) => (
                   <div key={day.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                    <div className="flex h-[160px] w-full items-end rounded-[18px] bg-[#F3F6FB] p-2">
+                    <div className="flex h-[148px] w-full items-end rounded-[16px] bg-[#F8FAFC] p-2">
                       <div
-                        className="w-full rounded-[12px] bg-[linear-gradient(180deg,#5B8CFF_0%,#2F6FED_70%,#1F4FD6_100%)]"
+                        className="w-full rounded-[10px] bg-[#0F172A]"
                         style={{ height: `${Math.max((day.count / maxDayCount) * 100, day.count ? 18 : 8)}%` }}
                       />
                     </div>
-                    <span className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#6B7480]">{day.label}</span>
-                    <span className="text-[14px] font-black text-[#1C2430]">{day.count}</span>
+                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#64748B]">{day.label}</span>
+                    <span className="text-[13px] font-bold text-[#0F172A]">{day.count}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             <div>
-              <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#2F6FED]">Status Mix</p>
-              <h2 className="mt-2 text-[24px] font-black tracking-[-0.04em] text-[#1C2430]">What needs attention right now</h2>
-              <div className="mt-6 space-y-4">
+              <p className="text-[13px] font-semibold text-[#475569]">Queue composition</p>
+              <div className="mt-5 space-y-4">
                 {statusBreakdown.map((item) => (
                   <div key={item.label}>
                     <div className="mb-2 flex items-center justify-between gap-4">
-                      <span className="text-[14px] font-semibold text-[#2E3640]">{item.label}</span>
-                      <span className="text-[14px] font-black text-[#1C2430]">{item.value}</span>
+                      <span className="text-[14px] font-medium text-[#334155]">{item.label}</span>
+                      <span className="text-[14px] font-bold text-[#0F172A]">{item.value}</span>
                     </div>
-                    <div className="h-3 rounded-full bg-[#EDF1F7]">
+                    <div className="h-2.5 rounded-full bg-[#E9EEF5]">
                       <div
-                        className="h-3 rounded-full bg-[#2F6FED]"
+                        className="h-2.5 rounded-full bg-[#334155]"
                         style={{ width: `${Math.max((item.value / maxStatusValue) * 100, item.value ? 16 : 8)}%` }}
                       />
                     </div>
@@ -144,138 +149,112 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
             </div>
-          </article>
+          </AdminPanel>
 
-          <article className="overflow-hidden rounded-[26px] border border-[#E3E8F0] bg-white shadow-[0_16px_34px_rgba(16,24,40,0.08)]">
-            <div className="flex items-center justify-between border-b border-[#E9EDF4] px-6 py-5">
-              <div>
-                <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#2F6FED]">Recent Orders</p>
-                <h2 className="mt-2 text-[22px] font-black tracking-[-0.04em] text-[#1C2430]">Latest booking requests</h2>
-              </div>
-              <Link href="/admin/orders" className="text-[13px] font-bold text-[#2F6FED]">
-                View all
+          <AdminTableCard
+            title="Recent booking requests"
+            eyebrow="Latest"
+            action={
+              <Link href="/admin/orders">
+                <AdminButton variant="ghost">View all</AdminButton>
               </Link>
-            </div>
+            }
+          >
             <div className="overflow-x-auto">
               <table className="min-w-full text-left">
-                <thead className="bg-[#F3F6FB] text-[11px] font-bold uppercase tracking-[0.16em] text-[#6B7480]">
+                <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
                   <tr>
                     {["Order ID", "Customer", "Vendor", "Event", "Status", "Payment", "Total"].map((label) => (
-                      <th key={label} className="px-6 py-4">{label}</th>
+                      <th key={label} className="px-5 py-4">{label}</th>
                     ))}
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#EEF2F6]">
+                <tbody className="divide-y divide-[#E8EDF4]">
                   {recentOrders.map((order) => (
-                    <tr key={order.id} className="text-[14px] text-[#3A4550]">
-                      <td className="px-6 py-5 font-bold text-[#1C2430]">
-                        <Link href={`/admin/orders/${order.id}`} className="hover:text-[#2F6FED]">
+                    <tr key={order.id} className="text-[14px] text-[#334155]">
+                      <td className="px-5 py-4 font-bold text-[#0F172A]">
+                        <Link href={`/admin/orders/${order.id}`} className="hover:text-[#1D4ED8]">
                           {order.id}
                         </Link>
                       </td>
-                      <td className="px-6 py-5">
-                        <p className="font-semibold text-[#1C2430]">{order.customer.name}</p>
-                        <p className="text-[12px] text-[#7B8694]">{order.customer.phone}</p>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-[#0F172A]">{order.customer.name}</p>
+                        <p className="text-[12px] text-[#64748B]">{order.customer.phone}</p>
                       </td>
-                      <td className="px-6 py-5">{order.vendorName}</td>
-                      <td className="px-6 py-5">
-                        <p className="font-semibold text-[#1C2430]">{order.eventType}</p>
-                        <p className="text-[12px] text-[#7B8694]">{formatDate(order.eventDate)}</p>
+                      <td className="px-5 py-4">{order.vendorName}</td>
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-[#0F172A]">{order.eventType}</p>
+                        <p className="text-[12px] text-[#64748B]">{formatDate(order.eventDate)}</p>
                       </td>
-                      <td className="px-6 py-5"><AdminOrderStatusBadge status={order.status} compact /></td>
-                      <td className="px-6 py-5"><AdminPaymentStatusBadge status={order.paymentStatus} compact /></td>
-                      <td className="px-6 py-5 font-bold text-[#1C2430]">{formatCurrency(order.bill.finalTotal)}</td>
+                      <td className="px-5 py-4"><AdminOrderStatusBadge status={order.status} compact /></td>
+                      <td className="px-5 py-4"><AdminPaymentStatusBadge status={order.paymentStatus} compact /></td>
+                      <td className="px-5 py-4 font-bold text-[#0F172A]">{formatCurrency(order.bill.finalTotal)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </article>
+          </AdminTableCard>
         </div>
 
         <div className="space-y-6">
-          <article className="rounded-[26px] border border-[#E3E8F0] bg-white p-6 shadow-[0_16px_34px_rgba(16,24,40,0.08)]">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#2F6FED]">Action Queue</p>
-                <h2 className="mt-2 text-[22px] font-black tracking-[-0.04em] text-[#1C2430]">Handle these next</h2>
-              </div>
-              <span className="rounded-full border border-[#E3E8F0] bg-[#F3F6FB] px-3 py-1 text-[12px] font-bold text-[#1C2430]">
-                {actionQueue.length} open
-              </span>
-            </div>
-            <div className="mt-5 space-y-4">
+          <AdminPanel title="Action queue" eyebrow="Priority" description="Orders that need manual handling next.">
+            <div className="space-y-3">
               {actionQueue.map((order) => (
                 <Link
                   key={order.id}
                   href={`/admin/orders/${order.id}`}
-                  className="block rounded-[20px] border border-[#E3E8F0] bg-[#F7FAFF] p-4 transition hover:bg-white"
+                  className="block rounded-[18px] border border-[#D9E1EC] bg-[#F8FAFC] px-4 py-4 transition hover:border-[#BFC9D9] hover:bg-white"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#7B8694]">{order.id}</p>
-                      <p className="mt-1 text-[17px] font-black text-[#1C2430]">{order.vendorName}</p>
-                      <p className="mt-1 text-[13px] text-[#6B7480]">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">{order.id}</p>
+                      <p className="mt-1 text-[16px] font-bold text-[#0F172A]">{order.vendorName}</p>
+                      <p className="mt-1 text-[13px] text-[#64748B]">
                         {order.eventType} · {order.guests} guests
                       </p>
                     </div>
                     <AdminOrderStatusBadge status={order.status} compact />
                   </div>
-                  <p className="mt-3 inline-flex items-center gap-2 text-[13px] font-bold text-[#2F6FED]">
+                  <p className="mt-3 inline-flex items-center gap-2 text-[13px] font-bold text-[#0F172A]">
                     Open order
                     <ArrowRight className="h-4 w-4" />
                   </p>
                 </Link>
               ))}
             </div>
-          </article>
+          </AdminPanel>
 
-          <article className="rounded-[26px] border border-[#E3E8F0] bg-white p-6 shadow-[0_16px_34px_rgba(16,24,40,0.08)]">
-            <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#2F6FED]">Quick Actions</p>
-            <div className="mt-5 grid gap-3">
-              <ActionLink href="/admin/orders" label="Open booking requests" />
-              <ActionLink href="/admin/vendors/new" label="Add a new vendor" />
-              <ActionLink href="/admin/invoices" label="Review invoices" />
-              <ActionLink href="/admin/reports" label="Open reports" />
+          <AdminPanel title="Quick actions" eyebrow="Shortcuts">
+            <div className="grid gap-3">
+              <Link href="/admin/orders"><AdminButton variant="secondary" className="w-full">Open booking requests</AdminButton></Link>
+              <Link href="/admin/vendors/new"><AdminButton variant="secondary" className="w-full">Add new vendor</AdminButton></Link>
+              <Link href="/admin/invoices"><AdminButton variant="secondary" className="w-full">Review invoices</AdminButton></Link>
+              <Link href="/admin/reports"><AdminButton variant="secondary" className="w-full">Open reports</AdminButton></Link>
             </div>
-          </article>
+          </AdminPanel>
+
+          <AdminPanel title="Payments" eyebrow="Follow-up">
+            <div className="space-y-3">
+              {state.orders
+                .filter((order) => ["paymentLinkSent", "paymentPending"].includes(order.status))
+                .slice(0, 4)
+                .map((order) => (
+                  <div key={order.id} className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+                    <div>
+                      <p className="text-[13px] font-bold text-[#0F172A]">{order.id}</p>
+                      <p className="text-[12px] text-[#64748B]">{order.customer.name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[13px] font-bold text-[#0F172A]">{formatCurrency(order.bill.finalTotal)}</p>
+                      <AdminPaymentStatusBadge status={order.paymentStatus} compact />
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </AdminPanel>
         </div>
       </section>
     </AdminShell>
-  );
-}
-
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  helper,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: string;
-  helper: string;
-}) {
-  return (
-    <article className="rounded-[22px] border border-[#E3E8F0] bg-white p-5 shadow-[0_12px_28px_rgba(16,24,40,0.08)]">
-      <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2F6FED] text-white">
-        <Icon className="h-5 w-5" />
-      </div>
-      <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.16em] text-[#6B7480]">{label}</p>
-      <p className="mt-2 text-[30px] font-black tracking-[-0.04em] text-[#1C2430]">{value}</p>
-      <p className="mt-2 text-[13px] font-medium text-[#6B7480]">{helper}</p>
-    </article>
-  );
-}
-
-function ActionLink({ href, label }: { href: string; label: string }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center justify-between rounded-[16px] border border-[#E3E8F0] bg-[#F7FAFF] px-4 py-3 text-[14px] font-semibold text-[#1C2430] transition hover:bg-white"
-    >
-      <span>{label}</span>
-      <ArrowRight className="h-4 w-4 text-[#2F6FED]" />
-    </Link>
   );
 }

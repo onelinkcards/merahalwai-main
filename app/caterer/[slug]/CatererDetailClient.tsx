@@ -4,7 +4,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowUpRight,
-  Bookmark,
   Camera,
   ChevronDown,
   ChevronLeft,
@@ -20,16 +19,11 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import { getVendorDetailBySlug, type VendorDetailFull } from "@/data/vendors";
-import { useBookingStore, type PackageTier } from "@/store/bookingStore";
+import { buildMenuPreviewGroups } from "@/lib/bookingMenuHelpers";
+import { useBookingStore, type FoodPreference, type PackageTier } from "@/store/bookingStore";
 
-type PackageData = VendorDetailFull["packages"][number];
 type ReviewData = VendorDetailFull["reviews"][number];
 type FoodViewMode = "veg" | "all";
-type MenuPreviewGroup = {
-  title: string;
-  items: { name: string; isVeg: boolean }[];
-  more: number;
-};
 
 function packageTone(id: string) {
   if (id === "gold") {
@@ -142,78 +136,6 @@ function ReviewCard({ review }: { review: ReviewData }) {
   );
 }
 
-function buildMenuPreview(pkg: PackageData, foodView: FoodViewMode): MenuPreviewGroup[] {
-  const grouped: Record<string, { name: string; isVeg: boolean }[]> = {
-    "Drinks / Soups": [],
-    Starters: [],
-    "Main Course": [],
-    Breads: [],
-    Rice: [],
-    Desserts: [],
-  };
-
-  const pushMany = (title: keyof typeof grouped, items: { name: string; isVeg: boolean }[]) => {
-    grouped[title].push(...items);
-  };
-
-  for (const category of pkg.categories) {
-    const lower = category.name.toLowerCase();
-    const mappedItems = category.items
-      .filter((item) => (foodView === "veg" ? item.isVeg : true))
-      .map((item) => ({ name: item.name, isVeg: item.isVeg }));
-
-    if (lower.includes("starter")) {
-      pushMany("Starters", mappedItems);
-      continue;
-    }
-
-    if (lower.includes("main")) {
-      pushMany("Main Course", mappedItems);
-      continue;
-    }
-
-    if (lower.includes("dessert")) {
-      pushMany("Desserts", mappedItems);
-      continue;
-    }
-
-    if (lower.includes("soup") || lower.includes("drink")) {
-      pushMany("Drinks / Soups", mappedItems);
-      continue;
-    }
-
-    if (lower.includes("rice") && lower.includes("bread")) {
-      const breads = mappedItems.filter((item) =>
-        /(naan|roti|paratha|kulcha|bread)/i.test(item.name)
-      );
-      const rice = mappedItems.filter((item) => !breads.some((bread) => bread.name === item.name));
-      pushMany("Breads", breads);
-      pushMany("Rice", rice);
-      continue;
-    }
-
-    if (lower.includes("bread")) {
-      pushMany("Breads", mappedItems);
-      continue;
-    }
-
-    if (lower.includes("rice")) {
-      pushMany("Rice", mappedItems);
-    }
-  }
-
-  return Object.entries(grouped)
-    .map(([title, items]) => {
-      const unique = items.filter((item, index, arr) => arr.findIndex((x) => x.name === item.name) === index);
-      return {
-        title,
-        items: unique.slice(0, 4),
-        more: Math.max(unique.length - 4, 0),
-      };
-    })
-    .filter((group) => group.items.length > 0);
-}
-
 export default function CatererDetailClient() {
   const params = useParams<{ slug: string | string[] }>();
   const router = useRouter();
@@ -264,8 +186,15 @@ export default function CatererDetailClient() {
   }, [selectedPkg, vendor]);
 
   const menuGroups = useMemo(
-    () => (selectedPackage ? buildMenuPreview(selectedPackage, vendor?.isVeg ? "veg" : foodView) : []),
-    [foodView, selectedPackage, vendor?.isVeg]
+    () =>
+      selectedPackage
+        ? buildMenuPreviewGroups(
+            slug,
+            selectedPackage.id as PackageTier,
+            (vendor?.isVeg || foodView === "veg" ? "veg" : "veg_nonveg") as FoodPreference
+          )
+        : [],
+    [foodView, selectedPackage, slug, vendor?.isVeg]
   );
 
   const imageList = vendor?.images ?? [];
@@ -331,17 +260,8 @@ export default function CatererDetailClient() {
     ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const focusBookingPanel = () => {
-    bookingPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const applyPackageSelection = (pkgId: PackageTier, options?: { focusPanel?: boolean }) => {
+  const applyPackageSelection = (pkgId: PackageTier) => {
     setSelectedPkg(pkgId);
-    if (options?.focusPanel) {
-      window.requestAnimationFrame(() => {
-        focusBookingPanel();
-      });
-    }
   };
 
   const beginBookingIntent = (pkgId?: PackageTier) => {
@@ -388,8 +308,8 @@ export default function CatererDetailClient() {
       ref={bookingPanelRef}
       className="overflow-hidden rounded-[30px] border border-[#DDD6CC] bg-[linear-gradient(180deg,#FFFDF9_0%,#FFF8F0_100%)] shadow-[0_28px_60px_rgba(20,18,15,0.08)]"
     >
-      <div className="border-b border-[#EEE4D7] bg-[linear-gradient(135deg,rgba(236,153,37,0.08),rgba(138,62,29,0.02))] px-5 py-5">
-        <h3 className="text-[28px] font-black leading-[1] tracking-[-0.03em] text-[#1E1E1E]">
+      <div className="border-b border-[#EEE4D7] bg-[linear-gradient(135deg,rgba(236,153,37,0.08),rgba(138,62,29,0.02))] px-5 py-4">
+        <h3 className="text-[26px] font-black leading-[1] tracking-[-0.03em] text-[#1E1E1E]">
           Choose Package
         </h3>
       </div>
@@ -399,8 +319,6 @@ export default function CatererDetailClient() {
           {vendor.packages.map((pkg) => {
             const active = selectedPackage?.id === pkg.id;
             const tone = packageTone(pkg.id);
-            const shortLabel =
-              pkg.id === "bronze" ? "Small events" : pkg.id === "silver" ? "Most booked" : "Premium";
             return (
               <button
                 key={pkg.id}
@@ -448,11 +366,7 @@ export default function CatererDetailClient() {
                       >
                         {pkg.name}
                       </p>
-                      {pkg.id === "silver" ? null : null}
                     </div>
-                    <p className="mt-1.5 text-[11px] font-semibold text-[#8A7560]">
-                      {shortLabel}
-                    </p>
                   </div>
 
                   <div className="mt-auto xl:mt-0 xl:text-right">
@@ -470,18 +384,40 @@ export default function CatererDetailClient() {
         <button
           type="button"
           onClick={() => beginBookingIntent(selectedPackage?.id as PackageTier | undefined)}
-          className="mt-5 flex h-14 w-full items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#F2B24C_0%,#EC9925_45%,#8A3E1D_100%)] px-5 text-[16px] font-bold text-white shadow-[0_20px_40px_rgba(138,62,29,0.22)] transition-all hover:brightness-[1.03]"
+          className="mt-5 flex h-14 w-full items-center justify-center rounded-[20px] px-5 text-[16px] font-bold text-white shadow-[0_20px_40px_rgba(138,62,29,0.18)] transition-all hover:brightness-[1.03]"
+          style={{
+            background: "linear-gradient(135deg,#8A3E1D 0%,#682C13 100%)",
+          }}
         >
           Book Now
         </button>
-
-        <p className="mt-3 text-center text-[12px] font-medium leading-[1.6] text-[#7D766E]">
-          Menu customization continues in the next step.
-        </p>
-        <p className="mt-1 text-center text-[11px] font-medium leading-[1.6] text-[#8A6D52]">
-          After booking confirmation: pay 30% online, remaining 70% at property (offline).
-        </p>
       </div>
+    </div>
+  );
+
+  const paymentSplitBar = (
+    <div className="overflow-hidden rounded-[18px] border border-[#E7DED2] bg-white shadow-[0_14px_28px_rgba(24,20,16,0.05)]">
+      <div className="border-b border-[#EFE5D9] px-4 py-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8A6D52]">Payment after confirmation</p>
+        <p className="mt-1 text-[12px] font-medium text-[#5F5A54]">30% online now, remaining 70% at property.</p>
+      </div>
+      <div className="grid grid-cols-2">
+        <div className="flex items-center justify-center gap-2 bg-[#682C13] px-3 py-2.5 text-white">
+          <span className="text-[21px] font-black leading-none tracking-[-0.04em]">30%</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/84">Online</span>
+        </div>
+        <div className="flex items-center justify-center gap-2 bg-[#FBF4E8] px-3 py-2.5 text-[#7D776F]">
+          <span className="text-[21px] font-black leading-none tracking-[-0.04em] text-[#78736B]">70%</span>
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8D867B]">Offline</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const bookingSidebar = (
+    <div className="space-y-4">
+      {bookingPanel}
+      {paymentSplitBar}
     </div>
   );
 
@@ -542,7 +478,7 @@ export default function CatererDetailClient() {
                         e.stopPropagation();
                         router.push("/caterers");
                       }}
-                      className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-[rgba(138,62,29,0.76)] text-white shadow-[0_10px_24px_rgba(0,0,0,0.22)]"
+                      className="absolute left-3 top-3 flex h-11 w-11 items-center justify-center rounded-full border border-[#E8DDD1] bg-white/96 text-[#1E1E1E] shadow-[0_12px_24px_rgba(0,0,0,0.16)]"
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </button>
@@ -560,16 +496,9 @@ export default function CatererDetailClient() {
                       className="object-cover"
                       sizes="34vw"
                     />
-                    <div className="absolute right-3 top-3 flex items-center gap-2">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/92 text-[#1E1E1E] shadow-[0_10px_22px_rgba(0,0,0,0.18)]">
-                        <Bookmark className="h-4 w-4" />
-                      </span>
-                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/92 text-[#1E1E1E] shadow-[0_10px_22px_rgba(0,0,0,0.18)]">
-                        <Share2 className="h-4 w-4" />
-                      </span>
-                    </div>
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none">
-                    <span className="inline-flex h-10 items-center justify-center rounded-full border border-[#E6DED3] bg-white px-4 text-[12px] font-bold text-[#1E1E1E] shadow-[0_8px_20px_rgba(0,0,0,0.22)]">
+                  <div className="pointer-events-none absolute bottom-3 left-3">
+                    <span className="inline-flex h-9 items-center justify-center gap-1.5 rounded-full border border-[#E6DED3] bg-white/96 px-3.5 text-[11px] font-bold text-[#1E1E1E] shadow-[0_10px_22px_rgba(0,0,0,0.18)]">
+                      <Camera className="h-3.5 w-3.5 text-[#1E1E1E]" />
                       View Album
                     </span>
                   </div>
@@ -593,7 +522,7 @@ export default function CatererDetailClient() {
                 <div className="px-4 pb-4 pt-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h1 className="truncate text-[30px] font-black leading-[1] tracking-tight text-[#1E1E1E]">
+                      <h1 className="text-[28px] font-black leading-[1.04] tracking-tight text-[#1E1E1E] break-words">
                         {vendor.name}
                       </h1>
                       <p className="mt-2 text-[14px] font-medium text-[#625B53]">
@@ -621,13 +550,13 @@ export default function CatererDetailClient() {
                     ))}
                   </div>
 
-                  <div className="mt-4 grid grid-cols-2 gap-2.5">
+                  <div className="mt-4 grid grid-cols-3 gap-2.5">
                     <button
                       onClick={() => openLightbox(0)}
                       className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#E7DED2] bg-[#FBF8F3] px-3 text-[12px] font-bold text-[#3B3530]"
                     >
                       <Camera className="h-4 w-4 text-[#8A3E1D]" />
-                      Album
+                      View Album
                     </button>
                     <a
                       href={mapsUrl}
@@ -639,13 +568,6 @@ export default function CatererDetailClient() {
                       Directions
                     </a>
                     <button
-                      onClick={handleShareProfile}
-                      className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#E7DED2] bg-[#FBF8F3] px-3 text-[12px] font-bold text-[#3B3530]"
-                    >
-                      <Share2 className="h-4 w-4 text-[#8A3E1D]" />
-                      Share
-                    </button>
-                    <button
                       onClick={() => scrollToSection(reviewsRef)}
                       className="flex h-11 items-center justify-center gap-2 rounded-[14px] border border-[#E7DED2] bg-[#FBF8F3] px-3 text-[12px] font-bold text-[#3B3530]"
                     >
@@ -654,7 +576,9 @@ export default function CatererDetailClient() {
                     </button>
                   </div>
 
-                  <div className="mt-5 flex gap-5 overflow-x-auto border-b border-[#ECE4D8] pb-2 scrollbar-hide">
+                  <div className="mt-5 md:hidden">{paymentSplitBar}</div>
+
+                  <div className="mt-5 flex gap-5 overflow-x-auto pb-1 scrollbar-hide">
                     <button
                       onClick={() => scrollToSection(overviewRef)}
                       className="border-b-2 border-[#8A3E1D] pb-2 text-[14px] font-bold text-[#1E1E1E]"
@@ -820,9 +744,9 @@ export default function CatererDetailClient() {
                 </div>
               </div>
 
-              <div className="mt-6 xl:hidden">{bookingPanel}</div>
+              <div className="mt-6 xl:hidden">{bookingSidebar}</div>
 
-              <div className="mt-7 flex gap-8 overflow-x-auto border-t border-[#EEE8DF] pt-5 scrollbar-hide">
+              <div className="mt-7 flex gap-8 overflow-x-auto pt-1 scrollbar-hide">
                 <button onClick={() => scrollToSection(overviewRef)} className="border-b-2 border-[#8A3E1D] pb-3 text-[14px] font-bold text-[#1E1E1E]">
                   Overview
                 </button>
@@ -887,20 +811,15 @@ export default function CatererDetailClient() {
                             <h3
                               className="text-[22px] font-black tracking-tight"
                               style={{ color: tone.text }}
-                            >
-                              {pkg.name}
-                            </h3>
+                              >
+                                {pkg.name}
+                              </h3>
+                            </div>
+                            <p className="mt-2 text-[13px] font-semibold text-[#6D6760]">
+                              Structured package for MeraHalwai booking
+                            </p>
                           </div>
-                          <p className="mt-2 text-[13px] font-semibold text-[#6D6760]">
-                            Structured package for MeraHalwai booking
-                          </p>
                         </div>
-                        {pkg.id === "silver" ? (
-                    <span className="rounded-full border border-[#E7C15C] bg-[#FFF5D7] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-[#9B6A00]">
-                      Most Popular
-                    </span>
-                  ) : null}
-                      </div>
 
                       <div className="mt-6 flex items-end gap-1.5">
                         <span className="text-[40px] font-black leading-none tracking-tight text-[#1E1E1E]">
@@ -913,23 +832,20 @@ export default function CatererDetailClient() {
                         {pkg.description}
                       </p>
 
-                      <div className="mt-auto flex items-center justify-between gap-4 border-t border-[#EEE7DD] pt-4">
-                        <div className="space-y-1 text-[12px] text-[#6D6760]">
-                          <p>Package-first booking flow</p>
-                          <p>No guest restriction by package</p>
-                        </div>
+                      <div className="mt-auto flex items-center justify-end gap-4 border-t border-[#EEE7DD] pt-4">
                         <button
                           type="button"
                           onClick={(event) => {
                             event.stopPropagation();
                             handlePackageAction(pkg.id as PackageTier);
                           }}
-                          className={
-                            "flex h-11 min-w-[120px] items-center justify-center rounded-xl px-4 text-[13px] font-bold transition-all " +
-                            (isSelected
-                              ? "bg-[#1F1E1B] text-white hover:bg-[#2B2925]"
-                              : "border border-[#DDD5CA] bg-white text-[#1E1E1E] hover:bg-[#F7F5F1]")
-                          }
+                          className="flex h-11 min-w-[132px] items-center justify-center rounded-xl px-4 text-[13px] font-bold text-white transition-all hover:brightness-[1.03]"
+                          style={{
+                            background: "linear-gradient(135deg,#8A3E1D 0%,#682C13 100%)",
+                            boxShadow: isSelected
+                              ? "0 16px 28px rgba(24,20,16,0.14)"
+                              : "0 10px 20px rgba(24,20,16,0.08)",
+                          }}
                         >
                           Book Now
                         </button>
@@ -940,7 +856,7 @@ export default function CatererDetailClient() {
               </div>
             </section>
 
-            <section ref={menuRef} className="border-t border-[#E7E1D8] pt-12">
+            <section ref={menuRef} className="pt-12">
               <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-[28px] font-black tracking-tight text-[#161513] md:text-[34px]">
@@ -966,7 +882,7 @@ export default function CatererDetailClient() {
                         onClick={() => setFoodView("all")}
                         className={
                           "px-4 py-2 text-[12px] font-bold transition-colors " +
-                          (foodView === "all" ? "bg-[#8A3E1D] text-white" : "text-[#5A534B]")
+                          (foodView === "all" ? "bg-[#B64532] text-white" : "text-[#5A534B]")
                         }
                       >
                         Veg & Non-Veg
@@ -980,9 +896,9 @@ export default function CatererDetailClient() {
                   ) : null}
                   <button
                     onClick={() => beginBookingIntent()}
-                    className="text-[14px] font-bold text-[#1E1E1E] transition-colors hover:text-[#5A534B]"
+                    className="hidden h-11 items-center justify-center rounded-full border border-[#E3D5C4] bg-white px-5 text-[13px] font-bold text-[#682C13] shadow-[0_10px_24px_rgba(24,20,16,0.05)] transition-colors hover:bg-[#FFF7EF] md:inline-flex"
                   >
-                    View Full Menu
+                    Book Now
                   </button>
                 </div>
               </div>
@@ -1103,7 +1019,7 @@ export default function CatererDetailClient() {
 
                 return (
                   <>
-                    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                    <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                       <div>
                         <h2 className="text-[28px] font-black tracking-tight text-[#161513] md:text-[34px]">
                           {title}
@@ -1114,7 +1030,7 @@ export default function CatererDetailClient() {
                       </div>
                       <button
                         onClick={handleReviewsClick}
-                        className="text-[14px] font-bold text-[#1E1E1E] transition-colors hover:text-[#5A534B]"
+                        className="self-start text-[14px] font-bold text-[#1E1E1E] transition-colors hover:text-[#5A534B] md:self-auto"
                       >
                         See all reviews
                       </button>
@@ -1183,7 +1099,7 @@ export default function CatererDetailClient() {
           </div>
 
           <aside className="hidden xl:sticky xl:top-24 xl:block xl:self-start">
-            {bookingPanel}
+            {bookingSidebar}
           </aside>
         </section>
       </div>
@@ -1194,33 +1110,18 @@ export default function CatererDetailClient() {
       >
         <div className="mx-auto flex max-w-[720px] items-center gap-3">
           <div className="flex min-w-[0px] flex-1 items-center gap-3">
-            <div className="relative h-10 w-10 flex-shrink-0">
-              <Image
-                src={packageTone(selectedPackage?.id ?? "silver").icon}
-                alt="Package icon"
-                fill
-                className="object-contain"
-              />
-            </div>
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#9F8B77]">Selected Package</p>
-              <p className="mt-1 text-[14px] font-black tracking-tight text-[#1E1E1E] truncate">
-                {selectedPackage?.name ?? "Package"}
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#9F8B77]">Price</p>
+              <p className="mt-1 text-[26px] font-black leading-none tracking-tight text-[#1E1E1E]">
+                ₹{selectedPackage?.pricePerPlate ?? startingPrice}
+                <span className="ml-1 text-[13px] font-semibold text-[#8B7355]">/plate</span>
               </p>
             </div>
           </div>
 
-          <div className="text-right">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#9F8B77]">Price</p>
-            <p className="mt-1 text-[16px] font-black text-[#1E1E1E]">
-              ₹{selectedPackage?.pricePerPlate ?? startingPrice}
-              <span className="ml-1 text-[10px] font-semibold text-[#8B7355]">/plate</span>
-            </p>
-          </div>
-
           <button
             onClick={() => beginBookingIntent()}
-            className="flex h-10 min-w-[110px] items-center justify-center rounded-xl bg-[#EC9925] px-4 text-[12px] font-bold text-white transition-colors hover:bg-[#D98314]"
+            className="flex h-[58px] min-w-[168px] items-center justify-center rounded-[20px] bg-[linear-gradient(135deg,#8A3E1D_0%,#682C13_100%)] px-5 text-[15px] font-bold text-white shadow-[0_14px_28px_rgba(104,44,19,0.18)] transition-colors hover:brightness-[1.03]"
           >
             Book Now
           </button>
@@ -1235,17 +1136,16 @@ export default function CatererDetailClient() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[90] bg-white md:bg-[#F7F3EC]"
           >
-            <button
-              type="button"
-              onClick={() => setLightboxOpen(false)}
-              className="absolute left-5 top-5 z-10 flex h-11 items-center gap-2 rounded-full border border-black/30 bg-white px-4 text-[13px] font-bold text-[#1E1E1E] shadow-[0_12px_24px_rgba(24,20,16,0.16)]"
-            >
-              <ChevronLeft className="h-5 w-5" />
-              Back
-            </button>
-
             <div className="relative flex h-[calc(100vh-140px)] items-center justify-center px-4 md:px-12">
               <div className="relative h-full w-full max-w-5xl">
+                <button
+                  type="button"
+                  onClick={() => setLightboxOpen(false)}
+                  className="absolute left-4 top-4 z-10 flex h-12 w-12 items-center justify-center rounded-full border border-black/15 bg-white text-[#1E1E1E] shadow-[0_14px_28px_rgba(24,20,16,0.16)] md:h-11 md:w-auto md:min-w-[112px] md:gap-2 md:px-4"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                  <span className="hidden text-[13px] font-bold md:inline">Back</span>
+                </button>
                 <Image
                   src={imageList[lightboxIndex] ?? imageList[0] ?? ""}
                   alt=""
@@ -1259,13 +1159,13 @@ export default function CatererDetailClient() {
                 <>
                   <button
                     onClick={() => setLightboxIndex((prev) => (prev - 1 + imageList.length) % imageList.length)}
-                    className="absolute left-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-white shadow-[0_16px_28px_rgba(24,20,16,0.2)]"
+                    className="absolute left-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-white shadow-[0_16px_28px_rgba(24,20,16,0.2)] md:left-6 md:h-12 md:w-12"
                   >
                     <ChevronLeft className="h-5 w-5 text-[#1E1E1E]" />
                   </button>
                   <button
                     onClick={() => setLightboxIndex((prev) => (prev + 1) % imageList.length)}
-                    className="absolute right-4 top-1/2 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-white shadow-[0_16px_28px_rgba(24,20,16,0.2)]"
+                    className="absolute right-4 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border-2 border-black bg-white shadow-[0_16px_28px_rgba(24,20,16,0.2)] md:right-6 md:h-12 md:w-12"
                   >
                     <ChevronRight className="h-5 w-5 text-[#1E1E1E]" />
                   </button>

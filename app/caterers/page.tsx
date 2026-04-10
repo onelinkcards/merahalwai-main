@@ -5,6 +5,8 @@ import {
   Calendar,
   Check,
   ChevronDown,
+  Minus,
+  Plus,
   Search,
   SlidersHorizontal,
   TrendingUp,
@@ -72,6 +74,12 @@ const EVENT_OPTIONS = [
   "Funeral Bhoj",
 ];
 
+const GUEST_OPTIONS = (() => {
+  const values = new Set<number>([10, 25, 50, 75, 100]);
+  for (let value = 150; value <= 2000; value += 50) values.add(value);
+  return Array.from(values).sort((a, b) => a - b);
+})();
+
 const toggle = (arr: string[], val: string) =>
   arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
 
@@ -86,9 +94,23 @@ export default function CaterersPage() {
   const [openDropdown, setOpenDropdown] = useState<"eventType" | "guests" | "cuisines" | null>(null);
   const [searchText, setSearchText] = useState("");
   const searchBarRef = useRef<HTMLDivElement | null>(null);
+  const mobileQuickSheetRef = useRef<HTMLDivElement | null>(null);
+  const mobileFilterSheetRef = useRef<HTMLDivElement | null>(null);
+  const mobileSortSheetRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      if (typeof window !== "undefined" && window.innerWidth < 768) {
+        return;
+      }
+      const target = e.target as Node;
+      if (
+        (mobileQuickSheetRef.current && mobileQuickSheetRef.current.contains(target)) ||
+        (mobileFilterSheetRef.current && mobileFilterSheetRef.current.contains(target)) ||
+        (mobileSortSheetRef.current && mobileSortSheetRef.current.contains(target))
+      ) {
+        return;
+      }
       if (searchBarRef.current && !searchBarRef.current.contains(e.target as Node)) {
         setOpenDropdown(null);
       }
@@ -101,6 +123,21 @@ export default function CaterersPage() {
     () => [...new Set(filters.eventTypes.filter(Boolean))],
     [filters.eventTypes]
   );
+
+  const selectedGuestIndex = filters.guests != null ? GUEST_OPTIONS.indexOf(filters.guests) : -1;
+
+  const shiftGuestSelection = (direction: -1 | 1) => {
+    if (selectedGuestIndex === -1) {
+      if (direction === 1) {
+        setFilters((p) => ({ ...p, guests: GUEST_OPTIONS[0] ?? null }));
+      }
+      return;
+    }
+
+    const nextIndex = selectedGuestIndex + direction;
+    if (nextIndex < 0 || nextIndex >= GUEST_OPTIONS.length) return;
+    setFilters((p) => ({ ...p, guests: GUEST_OPTIONS[nextIndex] }));
+  };
 
   const eventDisplayLabel =
     selectedEventTypes.length === 0
@@ -633,7 +670,7 @@ export default function CaterersPage() {
                 <TrendingUp className="h-3.5 w-3.5" />
                 Premium Caterers in Jaipur
               </p>
-              <h1 className="max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-[18px] font-black leading-[1.08] tracking-tight text-[#1E1E1E] md:max-w-[820px] md:overflow-visible md:whitespace-normal md:text-[22px]">
+              <h1 className="max-w-full pr-2 text-[18px] font-black leading-[1.16] tracking-tight text-[#1E1E1E] break-words whitespace-normal md:max-w-[820px] md:pr-0 md:text-[22px]">
                 Showing{" "}
                 <span className="text-[#EB8B23]">
                   {filteredVendors.length} verified {filteredVendors.length === 1 ? "caterer" : "caterers"}
@@ -741,7 +778,7 @@ export default function CaterersPage() {
 
       <AnimatePresence>
         {openDropdown ? (
-          <div className="fixed inset-0 z-[120] md:hidden">
+          <div className="fixed inset-0 z-[420] md:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -754,7 +791,8 @@ export default function CaterersPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 26, stiffness: 300 }}
-              className="mh-glass-sheet absolute bottom-0 left-0 right-0 flex max-h-[78vh] flex-col rounded-t-[30px]"
+              ref={mobileQuickSheetRef}
+              className="mh-glass-sheet absolute inset-x-0 bottom-0 flex max-h-[84dvh] max-w-full flex-col overflow-hidden rounded-t-[30px] bg-[linear-gradient(180deg,#FFFDF9_0%,#FFF7EE_100%)] shadow-[0_-20px_48px_rgba(35,25,20,0.18)]"
             >
               <div className="flex-shrink-0 border-b border-[#E8D5B7]/70 px-5 pb-3 pt-5">
                 <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#E5E0D8]" />
@@ -774,14 +812,14 @@ export default function CaterersPage() {
                   <button
                     type="button"
                     onClick={() => setOpenDropdown(null)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F5F0E6] text-[#1E1E1E] transition-transform active:scale-90"
+                    className="flex h-12 w-12 items-center justify-center rounded-full border border-[#682C13] bg-[#682C13] text-white shadow-[0_12px_24px_rgba(104,44,19,0.2)] transition-transform active:scale-90"
                   >
                     <X className="h-4 w-4" strokeWidth={3} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 pb-8 pt-3 scrollbar-hide">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 pb-8 pt-3 scrollbar-hide [overscroll-behavior:contain]">
                 {openDropdown === "eventType" ? (
                   <>
                     <button
@@ -821,25 +859,12 @@ export default function CaterersPage() {
                     <div className="flex items-center justify-between">
                       <span className="text-[13px] font-bold uppercase tracking-[0.18em] text-[#8A3E1D]">Guest Count</span>
                       <span className="rounded-full bg-[#F5F0E6] px-3 py-1 text-[13px] font-bold text-[#804226]">
-                        {filters.guests ?? "Any"}
+                        {filters.guests ? `${filters.guests}` : "Select"}
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setFilters((p) => ({ ...p, guests: null }))}
-                      className={
-                        "mt-4 flex h-[42px] w-full items-center justify-center rounded-[16px] border text-[13px] font-bold transition-all " +
-                        (!filters.guests
-                          ? "border-[#8A3E1D] bg-[#8A3E1D] text-white"
-                          : "border-[#E8D5B7] bg-white text-[#804226]")
-                      }
-                    >
-                      Any Guests
-                    </button>
-
                     <div className="mt-4 grid grid-cols-3 gap-2.5">
-                      {[50, 100, 200, 350, 500, 1000].map((value) => (
+                      {[10, 25, 50, 75, 100, 150].map((value) => (
                         <button
                           type="button"
                           key={value}
@@ -856,27 +881,74 @@ export default function CaterersPage() {
                       ))}
                     </div>
 
-                    <div className="mt-6 rounded-[22px] border border-[#E8D5B7] bg-[rgba(255,250,245,0.9)] px-4 py-4">
-                      <div className="mb-3 flex items-center justify-between text-[12px] font-semibold text-[#8B7355]">
-                        <span>25</span>
-                        <span>500</span>
-                        <span>1000</span>
-                        <span>2000+</span>
+                    <div className="mt-5 rounded-[22px] border border-[#E8D5B7] bg-[rgba(255,250,245,0.9)] p-4">
+                      <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#8A3E1D]">
+                        Select from all guest slabs
+                      </p>
+                      <div className="mt-3 rounded-[18px] border border-[#E8D5B7] bg-[linear-gradient(180deg,#FFFFFF_0%,#FFFBF5_100%)] p-3 shadow-[0_10px_22px_rgba(104,44,19,0.06)]">
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => shiftGuestSelection(-1)}
+                            disabled={selectedGuestIndex <= 0}
+                            className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#E8D5B7] bg-[#FFFCF8] text-[#804226] transition disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+                          <div className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-[14px] border border-[#F0E3D3] bg-[linear-gradient(180deg,#FFF9F3_0%,#FFF4E8_100%)] px-3 py-2 text-center">
+                            <span className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#9D7A5F]">
+                              Current selection
+                            </span>
+                            <span className="mt-1 text-[18px] font-black text-[#682C13]">
+                              {filters.guests ? `${filters.guests} guests` : "No guest selected"}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => shiftGuestSelection(1)}
+                            disabled={selectedGuestIndex === GUEST_OPTIONS.length - 1}
+                            className="flex h-11 w-11 items-center justify-center rounded-[14px] border border-[#E8D5B7] bg-[#FFFCF8] text-[#804226] transition disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        <div className="mt-3 max-h-[196px] overflow-y-auto rounded-[16px] border border-[#EFE4D7] bg-[#FFFCF8] p-2">
+                          <div className="grid grid-cols-2 gap-2">
+                            {GUEST_OPTIONS.map((value) => {
+                              const selected = filters.guests === value;
+                              return (
+                                <button
+                                  type="button"
+                                  key={value}
+                                  onClick={() => {
+                                    setFilters((p) => ({ ...p, guests: value }));
+                                  }}
+                                  className={
+                                    "flex h-11 items-center justify-between rounded-[12px] border px-3 text-left transition " +
+                                    (selected
+                                      ? "border-[#8A3E1D] bg-[#FCF3EE] text-[#8A3E1D]"
+                                      : "border-[#E8D5B7] bg-white text-[#4C433A] hover:bg-[#FBF6F0]")
+                                  }
+                                >
+                                  <span className="text-[12px] font-semibold">{value} guests</span>
+                                  {selected ? <Check className="h-3.5 w-3.5" /> : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
-                      <input
-                        type="range"
-                        min={25}
-                        max={2000}
-                        step={25}
-                        value={filters.guests ?? 25}
-                        onChange={(e) => setFilters((p) => ({ ...p, guests: Number(e.target.value) }))}
-                        className="h-2 w-full appearance-none rounded-full bg-[#E5E0D8] accent-[#DE903E] outline-none"
-                      />
+                      <p className="mt-2 text-[11px] font-medium text-[#8B7355]">
+                        10, 25, 50, 75, 100 and then every 50 guests up to 2000.
+                      </p>
                     </div>
 
                     <button
                       type="button"
-                      onClick={() => setOpenDropdown(null)}
+                      onClick={() => {
+                        setOpenDropdown(null);
+                      }}
                       className="mh-primary-button mt-5 flex h-[48px] w-full items-center justify-center rounded-[16px] text-[14px] font-bold !text-white"
                     >
                       Done
@@ -933,7 +1005,7 @@ export default function CaterersPage() {
 
       <AnimatePresence>
         {mobileFilterOpen ? (
-          <div className="fixed inset-0 z-[120] md:hidden">
+          <div className="fixed inset-0 z-[420] md:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -946,7 +1018,8 @@ export default function CaterersPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 24, stiffness: 280 }}
-              className="mh-glass-sheet absolute bottom-0 left-0 right-0 top-[6vh] flex flex-col rounded-t-[32px]"
+              ref={mobileFilterSheetRef}
+              className="mh-glass-sheet absolute inset-x-0 bottom-0 flex max-h-[88dvh] max-w-full flex-col overflow-hidden rounded-t-[30px] bg-[linear-gradient(180deg,#FFFDF9_0%,#FFF7EE_100%)]"
             >
               <div className="flex-shrink-0 border-b border-[#E8D5B7]/70 px-5 pb-4 pt-5">
                 <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#E5E0D8]" />
@@ -960,14 +1033,14 @@ export default function CaterersPage() {
                   <button
                     type="button"
                     onClick={() => setMobileFilterOpen(false)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F5F0E6] text-[#1E1E1E] transition-transform active:scale-90"
+                    className="flex h-12 w-12 items-center justify-center rounded-full border border-[#682C13] bg-[#682C13] text-white shadow-[0_12px_24px_rgba(104,44,19,0.2)] transition-transform active:scale-90"
                   >
                     <X className="h-4 w-4" strokeWidth={3} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 pb-28 pt-4 scrollbar-hide">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 pb-28 pt-4 scrollbar-hide [overscroll-behavior:contain]">
                 <FilterSidebar
                   filters={filters}
                   setFilters={setFilters}
@@ -1002,7 +1075,7 @@ export default function CaterersPage() {
 
       <AnimatePresence>
         {mobileSortOpen ? (
-          <div className="fixed inset-0 z-[120] md:hidden">
+          <div className="fixed inset-0 z-[420] md:hidden">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1015,7 +1088,8 @@ export default function CaterersPage() {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", damping: 24, stiffness: 300 }}
-              className="mh-glass-sheet absolute bottom-0 left-0 right-0 flex max-h-[70vh] flex-col rounded-t-[30px]"
+              ref={mobileSortSheetRef}
+              className="mh-glass-sheet absolute inset-x-0 bottom-0 top-0 flex max-w-full flex-col overflow-hidden rounded-t-[30px] bg-[linear-gradient(180deg,#FFFDF9_0%,#FFF7EE_100%)]"
             >
               <div className="flex-shrink-0 border-b border-[#E8D5B7]/70 px-5 pb-3 pt-5">
                 <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-[#E5E0D8]" />
@@ -1027,14 +1101,14 @@ export default function CaterersPage() {
                   <button
                     type="button"
                     onClick={() => setMobileSortOpen(false)}
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F5F0E6] text-[#1E1E1E] transition-transform active:scale-90"
+                    className="flex h-12 w-12 items-center justify-center rounded-full border border-[#682C13] bg-[#682C13] text-white shadow-[0_12px_24px_rgba(104,44,19,0.2)] transition-transform active:scale-90"
                   >
                     <X className="h-4 w-4" strokeWidth={3} />
                   </button>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-5 pb-8 pt-3 scrollbar-hide">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 pb-8 pt-3 scrollbar-hide [overscroll-behavior:contain]">
                 <div className="space-y-2">
                   {MOBILE_SORT_OPTIONS.map((option) => (
                     <button

@@ -34,6 +34,12 @@ function foodPreferenceLabel(value: string) {
   return value === "veg" ? "Pure Veg" : value === "veg_nonveg" ? "Veg + Non-Veg" : "Not selected";
 }
 
+function formatSelectedAddOn(name: string, selections: Record<string, string[]>) {
+  const chosen = selections[name];
+  if (!chosen?.length) return name;
+  return `${name} (${chosen.join(", ")})`;
+}
+
 export default function BookReviewPage() {
   const router = useRouter();
   const store = useBookingStore();
@@ -102,6 +108,13 @@ export default function BookReviewPage() {
 
   if (!mounted || !vendor || !store.customerName) return <ReviewSkeleton />;
 
+  const bookingValue = bill.subtotal;
+  const upfrontBase = Math.round(bookingValue * 0.3);
+  const upfrontGst = Math.round(upfrontBase * 0.18);
+  const upfrontTotal = upfrontBase + upfrontGst;
+  const remainingAmount = Math.max(0, bookingValue - upfrontBase);
+  const orderGrandTotal = bookingValue + upfrontGst;
+
   const toggleCat = (name: string) => setOpenCats((prev) => ({ ...prev, [name]: !prev[name] }));
 
   const applyCoupon = () => {
@@ -136,9 +149,9 @@ export default function BookReviewPage() {
         orderStatus: "pending",
         baseTotal: bill.baseAmount,
         addOnTotal: bill.addOnTotal + bill.waterAmount,
-        gstAmount: bill.gstAmount,
-        convenienceFee: bill.convenienceFee,
-        grandTotal: bill.grandTotal,
+        gstAmount: upfrontGst,
+        convenienceFee: 0,
+        grandTotal: orderGrandTotal,
       });
       if (typeof window !== "undefined") {
         const snapshot = {
@@ -153,7 +166,7 @@ export default function BookReviewPage() {
           venueAddress: store.venueAddress,
           venueCity: store.venueCity,
           customerName: store.customerName,
-          grandTotal: bill.grandTotal,
+          grandTotal: orderGrandTotal,
         };
         window.localStorage.setItem("mh_last_success_booking", JSON.stringify(snapshot));
       }
@@ -198,34 +211,50 @@ export default function BookReviewPage() {
           </div>
         </section>
 
-        <section className="mb-6 rounded-[24px] border border-stone-200 bg-white p-4 shadow-[0_18px_40px_rgba(35,25,20,0.05)] lg:hidden">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-stone-500">Review Total</p>
-              <p className="mt-2 text-[30px] font-black tracking-tight text-stone-950">
-                ₹{bill.grandTotal.toLocaleString("en-IN")}
-              </p>
-              <p className="mt-1 text-[12px] font-medium text-stone-500">Scroll to view all summary</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => router.push("/book/details")}
-              className="inline-flex min-w-[92px] items-center justify-center gap-2 rounded-full border border-[#E7D5C4] bg-[#FFF8EF] px-4 py-2.5 text-[12px] font-semibold text-[#8A3E1D] shadow-[0_10px_20px_rgba(138,62,29,0.08)]"
-            >
-              <PencilLine className="h-3.5 w-3.5" />
-              Edit
-            </button>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 rounded-[18px] border border-[#F0E4D8] bg-[#FFFCF8] p-3">
-            <MobileBillMini label="Base Amount" value={bill.baseAmount} />
-            <MobileBillMini label="GST Included" value={bill.gstAmount} />
-            <MobileBillMini label="Add-ons" value={bill.autoAddOnAmount + bill.optionalAddOnAmount + bill.waterAmount} />
-            <MobileBillMini label="Subtotal" value={bill.subtotal} />
-          </div>
-        </section>
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-5">
+            <div className="lg:hidden">
+              <ReviewSection
+                kicker="Review Total"
+                title={`₹${orderGrandTotal.toLocaleString("en-IN")}`}
+                actionLabel="Edit"
+                onAction={() => router.push("/book/details")}
+              >
+                <p className="text-[13px] font-medium text-stone-500">Scroll to view full bill summary</p>
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <MobileBillMini label="Pay now" value={upfrontTotal} />
+                  <MobileBillMini label="Pay later" value={remainingAmount} />
+                </div>
+                <div className="mt-4 rounded-[20px] border border-[#F0E4D8] bg-[#FFFCF8] p-4">
+                  <div className="space-y-2.5">
+                    <MobileBillRow label="Base Amount" value={bill.baseAmount} />
+                    <MobileBillRow label="Optional Add-ons" value={bill.optionalAddOnAmount} />
+                    <MobileBillRow label="Water" value={bill.waterAmount} />
+                    <MobileBillRow label="Booking value" value={bookingValue} />
+                    <MobileBillRow label="30% pay now" value={upfrontBase} />
+                    <MobileBillRow label="GST on upfront" value={upfrontGst} />
+                    <MobileBillRow label="70% at property" value={remainingAmount} />
+                  </div>
+                </div>
+                <div className="mt-4 overflow-hidden rounded-[18px] border border-[#EADBC6] bg-white">
+                  <div className="grid grid-cols-2">
+                    <div className="flex items-center justify-center gap-2 bg-[#682C13] px-3 py-3 text-white">
+                      <span className="text-[22px] font-black leading-none">30%</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/82">+ GST now</span>
+                    </div>
+                    <div className="flex items-center justify-center gap-2 bg-[#FAF5EB] px-3 py-3 text-[#7D776F]">
+                      <span className="text-[22px] font-black leading-none text-[#78736B]">70%</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8D867B]">At property</span>
+                    </div>
+                  </div>
+                </div>
+                <p className="mt-3 text-[11px] leading-5 text-stone-500">
+                  Taxes on the remaining 70% are handled offline with the vendor at the property.
+                </p>
+              </ReviewSection>
+            </div>
+
             <ReviewSection
               kicker="Summary"
               title="Vendor & Event Summary"
@@ -284,7 +313,13 @@ export default function BookReviewPage() {
               <div className="mt-5 grid gap-3 md:grid-cols-3">
                 <SmallBlock
                   title="Optional Add-ons"
-                  value={store.addOnItems.length ? store.addOnItems.join(", ") : "None selected"}
+                  value={
+                    store.addOnItems.length
+                      ? store.addOnItems
+                          .map((item) => formatSelectedAddOn(item, store.addOnSelections))
+                          .join(", ")
+                      : "None selected"
+                  }
                 />
                 <SmallBlock title="Water" value={store.waterLabel || "Selection pending"} />
                 <SmallBlock title="Note for Caterer" value={store.specialNote || "No note added"} />
@@ -344,21 +379,28 @@ export default function BookReviewPage() {
 
               <div className="mt-5 space-y-3">
                 <BillRow label="Base Amount" value={bill.baseAmount} helper={`${store.guestCount} guests × ₹${store.pricePerPlate}/plate`} />
-                <BillRow label="Auto Add-ons" value={bill.autoAddOnAmount} />
                 <BillRow label="Optional Add-ons" value={bill.optionalAddOnAmount} />
                 <BillRow label="Water" value={bill.waterAmount} />
                 {store.couponDiscount > 0 ? <BillRow label={`Coupon (${store.couponCode})`} value={-store.couponDiscount} positive /> : null}
                 <div className="border-t border-stone-200 pt-3">
-                  <BillRow label="Subtotal" value={bill.subtotal} />
-                  <BillRow label="GST (18%)" value={bill.gstAmount} />
-                  <BillRow label="Convenience Fee" value={bill.convenienceFee} />
+                  <BillRow label="Booking value" value={bookingValue} />
                 </div>
-                <div className="border-t border-stone-900 pt-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-[15px] font-semibold text-stone-900">Final Total</span>
-                    <span className="text-[26px] font-black tracking-tight text-stone-950">
-                      ₹{bill.grandTotal.toLocaleString("en-IN")}
-                    </span>
+                <div className="rounded-[20px] border border-[#EADBC6] bg-[#FFFCF8] p-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-[18px] bg-[#682C13] px-4 py-4 text-white shadow-[0_12px_28px_rgba(104,44,19,0.14)]">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/74">Pay now</p>
+                      <p className="mt-2 text-[24px] font-black tracking-tight">₹{upfrontTotal.toLocaleString("en-IN")}</p>
+                      <p className="mt-1 text-[11px] leading-5 text-white/78">
+                        30% of booking value + GST
+                      </p>
+                    </div>
+                    <div className="rounded-[18px] border border-[#EFE1D1] bg-white px-4 py-4 text-[#5C544A]">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8B806F]">Pay later</p>
+                      <p className="mt-2 text-[24px] font-black tracking-tight text-[#4D4740]">₹{remainingAmount.toLocaleString("en-IN")}</p>
+                      <p className="mt-1 text-[11px] leading-5 text-[#8B806F]">
+                        70% at property. Taxes settle offline with vendor.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -380,7 +422,7 @@ export default function BookReviewPage() {
                 </p>
                 <p className="inline-flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5 text-[#8A3E1D]" />
-                  After confirmation, pay 30% online
+                  After confirmation, pay 30% + GST online
                 </p>
                 <p className="inline-flex items-center gap-2">
                   <ShieldCheck className="h-3.5 w-3.5 text-[#8A3E1D]" />
@@ -392,49 +434,26 @@ export default function BookReviewPage() {
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-stone-200 bg-white/95 px-4 py-3 shadow-[0_-18px_40px_rgba(35,25,20,0.08)] backdrop-blur lg:hidden">
-        <div className="mx-auto max-w-2xl space-y-3">
-          <div className="rounded-[22px] border border-stone-200 bg-[#FFFCF8] px-4 py-4 shadow-[0_12px_28px_rgba(35,25,20,0.05)]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-stone-500">Review Total</p>
-                <p className="mt-1 text-[28px] font-black tracking-tight text-stone-950">
-                  ₹{bill.grandTotal.toLocaleString("en-IN")}
-                </p>
-                <p className="mt-1 text-[12px] font-medium text-stone-500">
-                  GST ₹{bill.gstAmount.toLocaleString("en-IN")} included
-                </p>
-              </div>
-              <div className="rounded-[16px] border border-[#F0E4D8] bg-white px-3 py-2 text-right">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-500">Final Bill</p>
-                <p className="mt-1 text-[12px] font-bold text-stone-900">
-                  ₹{bill.subtotal.toLocaleString("en-IN")} + GST
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-4 space-y-2 rounded-[18px] border border-[#F0E4D8] bg-white px-3 py-3">
-              <MobileBillRow label="Base Amount" value={bill.baseAmount} />
-              <MobileBillRow label="Auto Add-ons" value={bill.autoAddOnAmount} />
-              <MobileBillRow label="Optional Add-ons" value={bill.optionalAddOnAmount} />
-              <MobileBillRow label="Water" value={bill.waterAmount} />
-              <MobileBillRow label="Subtotal" value={bill.subtotal} />
-              <MobileBillRow label="GST (18%)" value={bill.gstAmount} />
-            </div>
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t border-stone-200 bg-white/96 px-4 py-3 shadow-[0_-18px_40px_rgba(35,25,20,0.08)] backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-2xl items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">Pay after confirmation</p>
+            <p className="mt-1 text-[24px] font-black tracking-tight text-stone-950">
+              ₹{upfrontTotal.toLocaleString("en-IN")}
+            </p>
+            <p className="mt-1 text-[12px] font-medium text-stone-500">
+              30% + GST now · 70% at property later
+            </p>
           </div>
-
           <button
             type="button"
             disabled={confirming}
             onClick={() => void confirm()}
-            className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[20px] bg-[#EB8B23] text-[14px] font-bold text-white transition hover:bg-[#8A3E1D] disabled:cursor-wait disabled:bg-stone-300"
+            className="flex h-[56px] min-w-[186px] items-center justify-center gap-2 rounded-[18px] bg-[#EB8B23] px-5 text-[14px] font-bold text-white transition hover:bg-[#8A3E1D] disabled:cursor-wait disabled:bg-stone-300"
           >
             {confirming ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             {confirming ? "Submitting..." : "Confirm Booking Request"}
           </button>
-          <p className="text-center text-[11px] text-stone-500">
-            After confirmation, pay 30% online. Remaining 70% at property.
-          </p>
         </div>
       </div>
     </main>

@@ -714,6 +714,11 @@ export function buildLiveOrderFromStore(store: Partial<BookingStore>): DemoOrder
 
   const packageName =
     store.selectedPackage.charAt(0).toUpperCase() + store.selectedPackage.slice(1);
+  const addOnSelections = store.addOnSelections ?? {};
+  const formattedAddOns = (store.addOnItems ?? []).map((name) => {
+    const chosen = addOnSelections[name];
+    return chosen?.length ? `${name} (${chosen.join(", ")})` : name;
+  });
 
   return {
     id: store.orderId,
@@ -761,7 +766,7 @@ export function buildLiveOrderFromStore(store: Partial<BookingStore>): DemoOrder
       finalTotal: bill.grandTotal,
     },
     menuGroups: grouped,
-    optionalAddOns: store.addOnItems ?? [],
+    optionalAddOns: formattedAddOns,
     waterSelection: store.waterLabel || "Packaged Bottles",
     specialNote: store.specialNote || "",
     customer: {

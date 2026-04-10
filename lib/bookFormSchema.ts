@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const bookFormSchema = z.object({
-  guestCount: z.coerce.number().min(25, "Min 25 guests").max(2000),
+  guestCount: z.coerce.number().min(10, "Min 10 guests").max(2000),
   customerName: z.string().min(1, "Required"),
   customerPhone: z.string().regex(/^[0-9]{10}$/, "Enter 10-digit mobile"),
   customerEmail: z.string().email("Valid email required"),

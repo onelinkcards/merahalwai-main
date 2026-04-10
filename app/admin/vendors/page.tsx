@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
+import { AdminButton, AdminPanel, AdminSelect } from "@/components/admin/AdminUi";
 import { useAdmin } from "@/components/admin/AdminProvider";
 
 export default function AdminVendorsPage() {
@@ -25,26 +26,23 @@ export default function AdminVendorsPage() {
   return (
     <AdminShell
       title="Vendors"
-      description="Manage caterer onboarding, operational status, package configuration, menu rules, add-ons, and vendor order history."
+      description="Operational vendor list for onboarding, activation, package setup, menu configuration, and add-on control."
       actions={
-        <Link
-          href="/admin/vendors/new"
-          className="inline-flex h-10 items-center justify-center rounded-full bg-[#2F6FED] px-5 text-[12px] font-bold text-white"
-        >
-          Add New Vendor
+        <Link href="/admin/vendors/new">
+          <AdminButton>Add New Vendor</AdminButton>
         </Link>
       }
     >
-      <section className="rounded-[24px] border border-[#E3E8F0] bg-white p-5 shadow-[0_12px_26px_rgba(0,0,0,0.06)]">
+      <AdminPanel title="Vendor filters" eyebrow="Search & Segment">
         <div className="grid gap-4 md:grid-cols-3">
           <label className="block md:col-span-1">
-            <span className="mb-2 block text-[12px] font-bold uppercase tracking-[0.16em] text-[#2F6FED]">Search</span>
-            <div className="flex h-11 items-center gap-3 rounded-[14px] border border-[#E3E8F0] bg-white px-4">
-              <Search className="h-4 w-4 text-[#7B8694]" />
+            <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Search</span>
+            <div className="flex h-11 items-center gap-3 rounded-[12px] border border-[#CBD5E1] bg-white px-4">
+              <Search className="h-4 w-4 text-[#64748B]" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                className="w-full bg-transparent text-[14px] font-medium text-[#1C2430] outline-none"
+                className="w-full bg-transparent text-[14px] font-medium text-[#0F172A] outline-none"
                 placeholder="Vendor name or locality"
               />
             </div>
@@ -60,45 +58,46 @@ export default function AdminVendorsPage() {
             <option value="veg_and_non_veg">Veg + Non-Veg</option>
           </FilterSelect>
         </div>
-      </section>
+      </AdminPanel>
 
-      <section className="mt-6 space-y-3">
+      <div className="mt-6 space-y-4">
         {vendors.map((vendor) => (
-          <div key={vendor.id} className="rounded-[18px] border border-[#E3E8F0] bg-white px-4 py-4 shadow-[0_8px_18px_rgba(0,0,0,0.04)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-[220px]">
-                <p className="text-[16px] font-bold text-[#1C2430]">{vendor.name}</p>
-                <p className="text-[12px] text-[#6B7480]">{vendor.locality}, {vendor.city}</p>
+          <div key={vendor.id} className="rounded-[22px] border border-[#D9E1EC] bg-white px-5 py-5 shadow-[0_8px_20px_rgba(15,23,42,0.04)]">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_180px_120px_120px_260px] xl:items-center">
+              <div className="min-w-0">
+                <p className="text-[17px] font-bold text-[#0F172A]">{vendor.name}</p>
+                <p className="mt-1 text-[13px] text-[#64748B]">{vendor.locality}, {vendor.city}</p>
+                <p className="mt-2 text-[12px] text-[#64748B]">
+                  {vendor.menuType === "veg_only" ? "Veg Only" : "Veg + Non-Veg"} · {Object.values(vendor.packages).filter((pkg) => pkg.enabled).length} packages
+                </p>
               </div>
-              <div className="min-w-[200px] text-[12px] text-[#6B7480]">
-                Menu: {vendor.menuType === "veg_only" ? "Veg Only" : "Veg + Non-Veg"}
-              </div>
-              <div className="min-w-[160px] text-[12px] text-[#6B7480]">
-                Packages: {Object.values(vendor.packages).filter((pkg) => pkg.enabled).length}
-              </div>
-              <div className="min-w-[120px]">
-                <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${vendor.status === "active" ? "bg-[#E6F7ED] text-[#1F7A3F]" : "bg-[#FFF1F1] text-[#B54545]"}`}>
+
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">Status</p>
+                <span className={`mt-2 inline-flex rounded-full border px-3 py-1.5 text-[11px] font-bold ${vendor.status === "active" ? "border-[#B7E4C7] bg-[#ECFDF3] text-[#166534]" : "border-[#D7DEE8] bg-[#F8FAFC] text-[#475569]"}`}>
                   {vendor.status}
                 </span>
               </div>
-              <div className="min-w-[140px] text-[12px] text-[#6B7480]">
-                Rating {vendor.displayedRating.toFixed(1)}
+
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">Rating</p>
+                <p className="mt-2 text-[16px] font-bold text-[#0F172A]">{vendor.displayedRating.toFixed(1)}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Link href={`/admin/vendors/${vendor.id}/edit`} className="rounded-full border border-[#D7E3F4] px-3 py-2 text-[12px] font-bold text-[#2F6FED]">
-                  Edit
-                </Link>
-                <Link href={`/admin/vendors/${vendor.id}/menu`} className="rounded-full border border-[#D7E3F4] px-3 py-2 text-[12px] font-bold text-[#2F6FED]">
-                  Menu
-                </Link>
-                <Link href={`/admin/vendors/${vendor.id}/addons`} className="rounded-full border border-[#D7E3F4] px-3 py-2 text-[12px] font-bold text-[#2F6FED]">
-                  Add-ons
-                </Link>
+
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">Orders</p>
+                <p className="mt-2 text-[16px] font-bold text-[#0F172A]">{vendor.totalOrders}</p>
+              </div>
+
+              <div className="flex flex-wrap gap-2 xl:justify-end">
+                <Link href={`/admin/vendors/${vendor.id}/edit`}><AdminButton variant="secondary">Edit</AdminButton></Link>
+                <Link href={`/admin/vendors/${vendor.id}/menu`}><AdminButton variant="secondary">Menu</AdminButton></Link>
+                <Link href={`/admin/vendors/${vendor.id}/addons`}><AdminButton variant="secondary">Add-ons</AdminButton></Link>
               </div>
             </div>
           </div>
         ))}
-      </section>
+      </div>
     </AdminShell>
   );
 }
@@ -115,15 +114,8 @@ function FilterSelect({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-[12px] font-bold uppercase tracking-[0.16em] text-[#2F6FED]">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-[14px] border border-[#E3E8F0] bg-white px-4 text-[14px] font-medium text-[#1C2430] outline-none"
-      >
-        {children}
-      </select>
-    </label>
+    <AdminSelect label={label} value={value} onChange={(event) => onChange(event.target.value)}>
+      {children}
+    </AdminSelect>
   );
 }

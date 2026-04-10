@@ -34,6 +34,11 @@ export default function MyBookingDetailPage() {
   }, [orderId, store]);
 
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const bookingValue = order?.bill.subtotal ?? 0;
+  const upfrontBase = Math.round(bookingValue * 0.3);
+  const upfrontGst = Math.round(upfrontBase * 0.18);
+  const upfrontTotal = upfrontBase + upfrontGst;
+  const remainingAmount = Math.max(0, bookingValue - upfrontBase);
 
   if (!order) {
     return (
@@ -67,7 +72,7 @@ export default function MyBookingDetailPage() {
           {order.payNowEnabled ? (
             <Link
               href={`/pay/${order.id}`}
-              className="inline-flex h-10 items-center justify-center rounded-full bg-[#1A1713] px-4 text-[12px] font-semibold text-white"
+              className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#EB8B23_0%,#C86E17_48%,#682C13_100%)] px-4 text-[12px] font-semibold text-white shadow-[0_12px_24px_rgba(104,44,19,0.16)]"
             >
               Pay 30% Now
             </Link>
@@ -106,7 +111,7 @@ export default function MyBookingDetailPage() {
               {order.payNowEnabled ? (
                 <Link
                   href={`/pay/${order.id}`}
-                  className="inline-flex h-10 items-center justify-center rounded-full bg-[#1A1713] px-4 text-[12px] font-semibold text-white"
+                  className="inline-flex h-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,#EB8B23_0%,#C86E17_48%,#682C13_100%)] px-4 text-[12px] font-semibold text-white shadow-[0_12px_24px_rgba(104,44,19,0.16)]"
                 >
                   Pay 30% Now
                 </Link>
@@ -216,18 +221,26 @@ export default function MyBookingDetailPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A7D6F]">Bill Summary</p>
             <div className="mt-3 space-y-2 text-[13px] text-[#5E554B]">
               <AmountRow label="Base Amount" value={order.bill.baseAmount} />
-              <AmountRow label="Auto Add-ons" value={order.bill.autoAddOns} />
               <AmountRow label="Optional Add-ons" value={order.bill.optionalAddOns} />
               <AmountRow label="Water" value={order.bill.water} />
-              <AmountRow label="GST (18%)" value={order.bill.gst} />
-              <AmountRow label="Convenience Fee" value={order.bill.convenienceFee} />
+              <AmountRow label="Booking Value" value={bookingValue} />
             </div>
-            <div className="mt-3 rounded-[14px] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] px-3 py-3 text-white">
-              <p className="text-[11px] uppercase tracking-[0.12em] text-white/80">Final Total</p>
-              <p className="mt-1 text-[24px] font-black">{formatCurrency(order.bill.finalTotal)}</p>
+            <div className="mt-3 rounded-[18px] border border-[#EADBC6] bg-[#FFFCF8] p-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-[16px] bg-[#682C13] px-4 py-4 text-white shadow-[0_12px_24px_rgba(104,44,19,0.14)]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/74">Pay now</p>
+                  <p className="mt-2 text-[22px] font-black">{formatCurrency(upfrontTotal)}</p>
+                  <p className="mt-1 text-[11px] leading-5 text-white/80">30% booking value + GST</p>
+                </div>
+                <div className="rounded-[16px] border border-[#EFE1D1] bg-white px-4 py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8B806F]">Pay later</p>
+                  <p className="mt-2 text-[22px] font-black text-[#4D4740]">{formatCurrency(remainingAmount)}</p>
+                  <p className="mt-1 text-[11px] leading-5 text-[#8B806F]">70% at property. Taxes settle offline.</p>
+                </div>
+              </div>
             </div>
             <p className="mt-2 text-[11px] text-[#776A5D]">
-              30% online after confirmation, remaining 70% at property.
+              Booking value is split after confirmation. Online payment is only for the 30% advance plus GST.
             </p>
             <div className="mt-3 space-y-2">
               {order.invoiceAvailable ? (
@@ -242,7 +255,7 @@ export default function MyBookingDetailPage() {
               {order.payNowEnabled ? (
                 <Link
                   href={`/pay/${order.id}`}
-                  className="inline-flex h-10 w-full items-center justify-center rounded-full bg-[#1A1713] text-[12px] font-semibold text-white"
+                  className="inline-flex h-10 w-full items-center justify-center rounded-full bg-[linear-gradient(135deg,#EB8B23_0%,#C86E17_48%,#682C13_100%)] text-[12px] font-semibold text-white shadow-[0_12px_24px_rgba(104,44,19,0.16)]"
                 >
                   Pay 30% Now
                 </Link>

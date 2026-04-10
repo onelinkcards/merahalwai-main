@@ -31,7 +31,15 @@ function optionalAddOnTotal(slug: string, addOnNames: string[], guestCount: numb
 
 function waterTotal(slug: string, waterType: BookingStore["waterType"], guestCount: number) {
   if (!slug || !waterType) return 0;
-  const option = getWaterOptions(slug).find((entry) => entry.id === waterType);
+  const options = getWaterOptions(slug);
+
+  if (waterType === "both") {
+    return options
+      .filter((entry) => entry.id === "ro" || entry.id === "packaged")
+      .reduce((total, option) => total + option.pricePerPax * guestCount, 0);
+  }
+
+  const option = options.find((entry) => entry.id === waterType);
   return option ? option.pricePerPax * guestCount : 0;
 }
 

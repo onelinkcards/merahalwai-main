@@ -3,6 +3,7 @@
 import { useState } from "react";
 import AdminShell from "@/components/admin/AdminShell";
 import { useAdmin } from "@/components/admin/AdminProvider";
+import { AdminButton, AdminInput, AdminPanel, AdminTableCard } from "@/components/admin/AdminUi";
 
 export default function AdminCouponsPage() {
   const { state, createCoupon, updateCoupon } = useAdmin();
@@ -11,63 +12,58 @@ export default function AdminCouponsPage() {
   return (
     <AdminShell
       title="Coupons"
-      description="Create and manage booking coupons with package applicability, order minimums, expiry dates, and active state."
+      description="Simple coupon control for booking promotions, package applicability, and active state."
     >
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="overflow-hidden rounded-[32px] border border-[#E7DED2] bg-white shadow-[0_20px_44px_rgba(24,20,16,0.05)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <AdminTableCard title="Coupon list" eyebrow="Promotions">
           <div className="overflow-x-auto">
             <table className="min-w-full text-left">
-              <thead className="bg-[#FCFAF7] text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A7C6B]">
+              <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
                 <tr>
-                  {["Code", "Type", "Value", "Min Order", "Usage", "Expiry", "Status", "Actions"].map((label) => (
-                    <th key={label} className="px-6 py-4">{label}</th>
+                  {["Code", "Type", "Value", "Min Order", "Usage", "Expiry", "Status", "Action"].map((label) => (
+                    <th key={label} className="px-5 py-4">{label}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F0E8DE]">
+              <tbody className="divide-y divide-[#E8EDF4]">
                 {state.coupons.map((coupon) => (
-                  <tr key={coupon.id} className="text-[14px] text-[#4F463E]">
-                    <td className="px-6 py-5 font-bold text-[#171511]">{coupon.code}</td>
-                    <td className="px-6 py-5">{coupon.type}</td>
-                    <td className="px-6 py-5">{coupon.type === "flat" ? `₹${coupon.value}` : `${coupon.value}%`}</td>
-                    <td className="px-6 py-5">₹{coupon.minOrderValue}</td>
-                    <td className="px-6 py-5">{coupon.usage}</td>
-                    <td className="px-6 py-5">{coupon.expiry}</td>
-                    <td className="px-6 py-5">
-                      <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold ${coupon.status === "active" ? "bg-[#EAF7ED] text-[#166534]" : "bg-[#FFF1F1] text-[#B54545]"}`}>
+                  <tr key={coupon.id} className="text-[14px] text-[#334155]">
+                    <td className="px-5 py-4 font-bold text-[#0F172A]">{coupon.code}</td>
+                    <td className="px-5 py-4">{coupon.type}</td>
+                    <td className="px-5 py-4">{coupon.type === "flat" ? `₹${coupon.value}` : `${coupon.value}%`}</td>
+                    <td className="px-5 py-4">₹{coupon.minOrderValue}</td>
+                    <td className="px-5 py-4">{coupon.usage}</td>
+                    <td className="px-5 py-4">{coupon.expiry}</td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex rounded-full border px-3 py-1.5 text-[11px] font-bold ${coupon.status === "active" ? "border-[#B7E4C7] bg-[#ECFDF3] text-[#166534]" : "border-[#D7DEE8] bg-[#F8FAFC] text-[#475569]"}`}>
                         {coupon.status}
                       </span>
                     </td>
-                    <td className="px-6 py-5">
-                      <button
-                        type="button"
+                    <td className="px-5 py-4">
+                      <AdminButton
+                        variant="ghost"
                         onClick={() => updateCoupon(coupon.id, { status: coupon.status === "active" ? "inactive" : "active" })}
-                        className="rounded-full border border-[#E6D9CB] px-3 py-2 text-[12px] font-bold text-[#3E352C]"
                       >
                         Toggle
-                      </button>
+                      </AdminButton>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </section>
+        </AdminTableCard>
 
-        <aside className="rounded-[32px] border border-[#E7DED2] bg-white p-6 shadow-[0_20px_44px_rgba(24,20,16,0.05)]">
-          <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#8A3E1D]">Create Coupon</p>
-          <div className="mt-5 space-y-4">
-            <label className="block">
-              <span className="mb-2 block text-[12px] font-bold uppercase tracking-[0.16em] text-[#8A7C6B]">Code</span>
-              <input
-                value={draftCode}
-                onChange={(event) => setDraftCode(event.target.value.toUpperCase())}
-                className="h-12 w-full rounded-[20px] border border-[#E8DDD0] bg-[#FCFAF7] px-4 text-[14px] font-medium text-[#1A1815] outline-none"
-                placeholder="NEWCODE"
-              />
-            </label>
-            <button
-              type="button"
+        <AdminPanel title="Create coupon" eyebrow="New">
+          <div className="space-y-4">
+            <AdminInput
+              label="Coupon Code"
+              value={draftCode}
+              onChange={(event) => setDraftCode(event.target.value.toUpperCase())}
+              placeholder="NEWCODE"
+            />
+            <AdminButton
+              className="w-full"
               onClick={() => {
                 if (!draftCode.trim()) return;
                 createCoupon({
@@ -85,12 +81,11 @@ export default function AdminCouponsPage() {
                 });
                 setDraftCode("");
               }}
-              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-[linear-gradient(135deg,#F6B544_0%,#E58C28_54%,#8A3E1D_100%)] px-5 text-[13px] font-bold text-white"
             >
               Create Coupon
-            </button>
+            </AdminButton>
           </div>
-        </aside>
+        </AdminPanel>
       </div>
     </AdminShell>
   );

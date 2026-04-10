@@ -7,6 +7,14 @@ import { MessageCircle, Phone } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { AdminOrderStatusBadge } from "@/components/admin/AdminStatusBadge";
+import {
+  AdminButton,
+  AdminEmptyState,
+  AdminInfoGrid,
+  AdminMetricCard,
+  AdminPanel,
+  AdminTableCard,
+} from "@/components/admin/AdminUi";
 import { formatCurrency } from "@/data/mockAccount";
 
 export default function AdminCustomerDetailPage() {
@@ -14,13 +22,14 @@ export default function AdminCustomerDetailPage() {
   const { state } = useAdmin();
   const customer = useMemo(() => state.customers.find((entry) => entry.id === params?.id) ?? null, [params?.id, state.customers]);
   const orders = useMemo(() => state.orders.filter((order) => order.customerId === params?.id), [params?.id, state.orders]);
+  const openOrders = orders.filter((order) =>
+    ["bookingRequestSubmitted", "slotHeld", "pendingAdminReview", "vendorNotified", "paymentPending"].includes(order.status)
+  ).length;
 
   if (!customer) {
     return (
       <AdminShell title="Customer not found" description="The selected customer profile could not be loaded.">
-        <div className="rounded-[30px] border border-[#E7DED2] bg-white px-6 py-14 text-center shadow-[0_18px_40px_rgba(24,20,16,0.05)]">
-          Customer record unavailable.
-        </div>
+        <AdminEmptyState title="Customer record unavailable" body="This customer could not be found in the current admin state." />
       </AdminShell>
     );
   }
@@ -28,107 +37,158 @@ export default function AdminCustomerDetailPage() {
   return (
     <AdminShell
       title={customer.name}
-      description="Customer profile, saved addresses, booking history, spend summary, and internal support context."
+      description="Customer identity, saved addresses, booking history, and support context in one internal view."
       actions={
         <div className="flex flex-wrap gap-3">
-          <a href={`tel:${customer.phone.replace(/\D/g, "")}`} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#E6D9CB] bg-white px-5 text-[13px] font-bold text-[#3E352C]">
+          <a
+            href={`tel:${customer.phone.replace(/\D/g, "")}`}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
+          >
             <Phone className="h-4 w-4" />
             Call
           </a>
-          <a href={`https://wa.me/${customer.whatsapp.replace(/\D/g, "")}`} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#F6B544_0%,#E58C28_54%,#8A3E1D_100%)] px-5 text-[13px] font-bold text-white">
+          <a
+            href={`https://wa.me/${customer.whatsapp.replace(/\D/g, "")}`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
+          >
             <MessageCircle className="h-4 w-4" />
             WhatsApp
           </a>
         </div>
       }
     >
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
-          <Card title="Profile Details" eyebrow="Customer">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Info label="Name" value={customer.name} />
-              <Info label="Phone" value={customer.phone} />
-              <Info label="Email" value={customer.email} />
-              <Info label="WhatsApp" value={customer.whatsapp} />
-              <Info label="Auth Type" value={customer.authType.toUpperCase()} />
-              <Info label="Status" value={customer.status} />
-            </div>
-          </Card>
+      <div className="space-y-6">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <AdminMetricCard label="Total Orders" value={String(customer.totalOrders)} helper="Customer booking count" />
+          <AdminMetricCard label="Open Requests" value={String(openOrders)} helper="Needs follow-up or payment" tone="amber" />
+          <AdminMetricCard label="Lifetime Spend" value={formatCurrency(customer.lifetimeSpend)} helper="Across all bookings" tone="green" />
+          <AdminMetricCard label="Account Status" value={customer.status === "active" ? "Active" : "Blocked"} helper={customer.authType.toUpperCase()} tone={customer.status === "active" ? "blue" : "rose"} />
+        </section>
 
-          <Card title="Saved Addresses" eyebrow="Address Book">
-            <div className="space-y-4">
-              {customer.savedAddresses.map((address) => (
-                <div key={address.id} className="rounded-[24px] border border-[#ECE2D6] bg-[#FCFAF7] px-5 py-4">
-                  <p className="text-[16px] font-black text-[#171511]">{address.label} · {address.venueName}</p>
-                  <p className="mt-2 text-[14px] leading-[1.7] text-[#65594D]">
-                    {address.address}, {address.city}, {address.state} · {address.pincode}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </Card>
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-6">
+            <AdminPanel
+              eyebrow="Customer"
+              title="Profile Details"
+              description="Identity and access metadata synced to account and booking history."
+            >
+              <AdminInfoGrid
+                columns={3}
+                items={[
+                  { label: "Full Name", value: customer.name },
+                  { label: "Phone", value: customer.phone },
+                  { label: "Email", value: customer.email },
+                  { label: "WhatsApp", value: customer.whatsapp },
+                  { label: "Auth Type", value: customer.authType.toUpperCase() },
+                  { label: "Status", value: customer.status },
+                ]}
+              />
+            </AdminPanel>
 
-          <Card title="Order History" eyebrow="Bookings">
-            <div className="space-y-4">
-              {orders.map((order) => (
-                <Link key={order.id} href={`/admin/orders/${order.id}`} className="block rounded-[24px] border border-[#ECE2D6] bg-[#FCFAF7] px-5 py-4 transition hover:bg-white">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#9E8368]">{order.id}</p>
-                      <p className="mt-1 text-[18px] font-black text-[#171511]">{order.vendorName}</p>
-                      <p className="mt-1 text-[14px] text-[#65594D]">{order.eventType} · {order.eventDate} · {order.guests} guests</p>
+            <AdminPanel
+              eyebrow="Address Book"
+              title="Saved Addresses"
+              description="Frequently used venue snippets stored for faster booking details autofill."
+            >
+              <div className="grid gap-4 md:grid-cols-2">
+                {customer.savedAddresses.map((address) => (
+                  <div key={address.id} className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[14px] font-bold text-[#0F172A]">{address.label}</p>
+                      <span className="rounded-full border border-[#D7E3F4] bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">
+                        {address.city}
+                      </span>
                     </div>
-                    <AdminOrderStatusBadge status={order.status} compact />
+                    <p className="mt-3 text-[15px] font-semibold text-[#0F172A]">{address.venueName}</p>
+                    <p className="mt-2 text-[13px] leading-[1.7] text-[#5B6574]">
+                      {address.address}, {address.city}, {address.state} · {address.pincode}
+                    </p>
                   </div>
-                  <p className="mt-3 text-[15px] font-bold text-[#171511]">{formatCurrency(order.bill.finalTotal)}</p>
+                ))}
+              </div>
+            </AdminPanel>
+
+            <AdminTableCard title="Order History" eyebrow="Bookings">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left">
+                  <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+                    <tr>
+                      <th className="px-5 py-4">Order</th>
+                      <th className="px-5 py-4">Vendor</th>
+                      <th className="px-5 py-4">Event</th>
+                      <th className="px-5 py-4">Date</th>
+                      <th className="px-5 py-4">Total</th>
+                      <th className="px-5 py-4">Status</th>
+                      <th className="px-5 py-4">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E8EDF4] text-[14px] text-[#0F172A]">
+                    {orders.map((order) => (
+                      <tr key={order.id}>
+                        <td className="px-5 py-4">
+                          <p className="font-semibold">{order.id}</p>
+                          <p className="mt-1 text-[12px] text-[#64748B]">{order.packageName}</p>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="font-semibold">{order.vendorName}</p>
+                          <p className="mt-1 text-[12px] text-[#64748B]">{order.foodPreference === "veg" ? "Pure Veg" : "Veg + Non-Veg"}</p>
+                        </td>
+                        <td className="px-5 py-4">{order.eventType}</td>
+                        <td className="px-5 py-4">{order.eventDate}</td>
+                        <td className="px-5 py-4 font-semibold">{formatCurrency(order.bill.finalTotal)}</td>
+                        <td className="px-5 py-4">
+                          <AdminOrderStatusBadge status={order.status} compact />
+                        </td>
+                        <td className="px-5 py-4">
+                          <Link
+                            href={`/admin/orders/${order.id}`}
+                            className="inline-flex h-9 items-center justify-center rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[12px] font-bold text-[#0F172A]"
+                          >
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </AdminTableCard>
+          </div>
+
+          <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+            <AdminPanel eyebrow="Snapshot" title="Account Summary">
+              <div className="space-y-3">
+                <SummaryRow label="Last Booking" value={new Date(customer.lastBooking).toLocaleDateString("en-IN")} />
+                <SummaryRow label="Saved Addresses" value={String(customer.savedAddresses.length)} />
+                <SummaryRow label="Primary City" value={customer.savedAddresses[0]?.city ?? "Jaipur"} />
+              </div>
+            </AdminPanel>
+
+            <AdminPanel eyebrow="Support Notes" title="Internal Notes">
+              <p className="text-[14px] leading-[1.8] text-[#5B6574]">{customer.notes}</p>
+              <div className="mt-5 flex flex-wrap gap-3">
+                <Link href="/admin/orders" className="inline-flex">
+                  <AdminButton variant="secondary">Open Booking Queue</AdminButton>
                 </Link>
-              ))}
-            </div>
-          </Card>
+                <Link href="/admin/invoices" className="inline-flex">
+                  <AdminButton variant="ghost">Invoice Ledger</AdminButton>
+                </Link>
+              </div>
+            </AdminPanel>
+          </div>
         </div>
-
-        <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
-          <Card title="Account Summary" eyebrow="Snapshot">
-            <div className="space-y-3">
-              <Summary label="Total Orders" value={String(customer.totalOrders)} />
-              <Summary label="Lifetime Spend" value={formatCurrency(customer.lifetimeSpend)} />
-              <Summary label="Last Booking" value={new Date(customer.lastBooking).toLocaleDateString("en-IN")} />
-            </div>
-          </Card>
-
-          <Card title="Notes" eyebrow="Internal">
-            <p className="text-[14px] leading-[1.8] text-[#65594D]">{customer.notes}</p>
-          </Card>
-        </aside>
       </div>
     </AdminShell>
   );
 }
 
-function Card({ eyebrow, title, children }: { eyebrow: string; title: string; children: React.ReactNode }) {
+function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-[32px] border border-[#E7DED2] bg-white p-6 shadow-[0_20px_44px_rgba(24,20,16,0.05)]">
-      <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#8A3E1D]">{eyebrow}</p>
-      <h2 className="mt-2 text-[26px] font-black tracking-[-0.04em] text-[#171511]">{title}</h2>
-      <div className="mt-5 space-y-4">{children}</div>
-    </article>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[22px] border border-[#ECE2D6] bg-[#FCFAF7] px-4 py-4">
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E8368]">{label}</p>
-      <p className="mt-2 text-[15px] font-semibold text-[#171511]">{value}</p>
-    </div>
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-[20px] border border-[#ECE2D6] bg-[#FCFAF7] px-4 py-3">
-      <span className="font-semibold text-[#5D5248]">{label}</span>
-      <span className="font-bold text-[#171511]">{value}</span>
+    <div className="flex items-center justify-between rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-[14px]">
+      <span className="font-medium text-[#64748B]">{label}</span>
+      <span className="font-semibold text-[#0F172A]">{value}</span>
     </div>
   );
 }

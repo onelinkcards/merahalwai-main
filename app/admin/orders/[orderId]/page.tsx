@@ -5,15 +5,28 @@ import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
+  CheckCheck,
   Copy,
   ExternalLink,
   MessageCircle,
   Phone,
   Plus,
+  ReceiptText,
+  Send,
+  ShieldCheck,
+  XCircle,
 } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
-import { AdminOrderStatusBadge, AdminPaymentStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { useAdmin } from "@/components/admin/AdminProvider";
+import { AdminOrderStatusBadge, AdminPaymentStatusBadge } from "@/components/admin/AdminStatusBadge";
+import {
+  AdminButton,
+  AdminEmptyState,
+  AdminInfoGrid,
+  AdminPanel,
+  AdminTableCard,
+  AdminTextarea,
+} from "@/components/admin/AdminUi";
 import { formatCurrency } from "@/data/mockAccount";
 
 export default function AdminOrderDetailPage() {
@@ -23,242 +36,318 @@ export default function AdminOrderDetailPage() {
     state,
     notifyVendor,
     confirmVendor,
+    sendPaymentLink,
+    markPaymentDone,
+    confirmBooking,
     cancelOrder,
     addInternalNote,
   } = useAdmin();
   const [newNote, setNewNote] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
 
-  const order = useMemo(
-    () => state.orders.find((entry) => entry.id === orderId) ?? null,
-    [state.orders, orderId]
-  );
+  const order = useMemo(() => state.orders.find((entry) => entry.id === orderId) ?? null, [state.orders, orderId]);
 
   const paymentLink = useMemo(() => {
     if (typeof window === "undefined") return "";
     return `${window.location.origin}/pay/${orderId}`;
   }, [orderId]);
 
-  const whatsappMessage = useMemo(() => {
+  const vendorLink = useMemo(() => {
+    if (typeof window === "undefined" || !order) return "";
+    return `${window.location.origin}/vendor-order/${order.vendorToken}`;
+  }, [order]);
+
+  const paymentMessage = useMemo(() => {
     if (!order) return "";
     const advanceAmount = Math.round(order.bill.finalTotal * 0.3);
     const balanceAmount = Math.max(order.bill.finalTotal - advanceAmount, 0);
-    const summary = [
+    return [
       `Hi ${order.customer.name},`,
-      `Your booking is confirmed with ${order.vendorName}.`,
+      `Your booking with ${order.vendorName} is ready for the payment stage.`,
+      `Order ID: ${order.id}`,
       `Package: ${order.packageName}`,
       `Guests: ${order.guests}`,
-      `Total: ${formatCurrency(order.bill.finalTotal)}`,
-      `Pay now (30%): ${formatCurrency(advanceAmount)}`,
-      `Pay at property (70%): ${formatCurrency(balanceAmount)}`,
-      `Invoice & payment link: ${paymentLink}`,
-      `Please complete the 30% advance payment to secure the slot.`,
+      `30% to pay now: ${formatCurrency(advanceAmount)}`,
+      `70% to pay at property: ${formatCurrency(balanceAmount)}`,
+      `Payment page: ${paymentLink}`,
       `Thank you for choosing MeraHalwai.`,
-    ];
-    return summary.join("\n");
+    ].join("\n");
   }, [order, paymentLink]);
 
   if (!order) {
     return (
       <AdminShell title="Order not found" description="The requested booking record could not be located.">
-        <div className="rounded-[30px] border border-[#E7DED2] bg-white px-6 py-14 text-center shadow-[0_18px_40px_rgba(24,20,16,0.05)]">
-          <p className="text-[18px] font-black text-[#171511]">Order unavailable</p>
-          <Link
-            href="/admin/orders"
-            className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#F6B544_0%,#E58C28_54%,#8A3E1D_100%)] px-5 text-[13px] font-bold text-white"
-          >
-            Back to Orders
-          </Link>
-        </div>
+        <AdminEmptyState title="Order unavailable" body="This order ID does not exist in the current admin state." />
       </AdminShell>
     );
   }
 
+  const canMarkPaid = Boolean(paymentReference.trim() || order.paymentReference);
+
   return (
     <AdminShell
       title={`Order ${order.id}`}
-      description="Everything needed to process this booking request in one clean view."
+      description="Full internal operations view for one booking request, including customer details, event basics, billing, vendor workflow, and notes."
       actions={
         <div className="flex flex-wrap gap-3">
           <Link
             href="/admin/orders"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#D7E3F4] bg-white px-4 text-[12px] font-bold text-[#2F6FED]"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
           >
             <ArrowLeft className="h-4 w-4" />
-            Back to Orders
+            Back
           </Link>
           <Link
-            href={`/vendor-order/${order.vendorToken}`}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#D7E3F4] bg-white px-4 text-[12px] font-bold text-[#2F6FED]"
+            href={`/pay/${order.id}`}
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
           >
-            <ExternalLink className="h-4 w-4" />
-            Vendor Link
+            <ReceiptText className="h-4 w-4" />
+            Payment Page
           </Link>
           <a
-            href={`https://wa.me/${order.customer.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(whatsappMessage)}`}
+            href={`https://wa.me/${order.customer.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(paymentMessage)}`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#2F6FED] px-4 text-[12px] font-bold text-white"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#0F172A] px-4 text-[13px] font-bold text-white"
           >
             <MessageCircle className="h-4 w-4" />
-            Send Payment Link
+            Share Payment
           </a>
         </div>
       }
     >
       <div className="space-y-6">
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_360px]">
-          <div className="rounded-[22px] border border-[#E2E8F0] bg-white p-6 shadow-[0_12px_22px_rgba(15,23,42,0.08)]">
-            <div className="flex flex-col gap-4 border-b border-[#EDF2F7] pb-4 lg:flex-row lg:items-start lg:justify-between">
+        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <AdminPanel
+            eyebrow="Booking Request"
+            title={order.vendorName}
+            description="Primary order snapshot for daily ops handling."
+          >
+            <div className="flex flex-col gap-5 border-b border-[#E8EDF4] pb-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#2F6FED]">Order</p>
-                <h2 className="mt-2 text-[28px] font-black tracking-[-0.04em] text-[#0F172A]">{order.id}</h2>
-                <p className="mt-2 text-[14px] leading-[1.7] text-[#4B5563]">
-                  Created on {new Date(order.createdAt).toLocaleString("en-IN")}
+                <div className="flex flex-wrap items-center gap-3">
+                  <p className="text-[30px] font-black tracking-[-0.05em] text-[#0F172A]">{order.id}</p>
+                  <AdminOrderStatusBadge status={order.status} />
+                  <AdminPaymentStatusBadge status={order.paymentStatus} />
+                </div>
+                <p className="mt-3 text-[14px] leading-[1.75] text-[#5B6574]">
+                  Created on {new Date(order.createdAt).toLocaleString("en-IN")} · Slot hold:{" "}
+                  {order.slotHoldEndsAt ? new Date(order.slotHoldEndsAt).toLocaleString("en-IN") : "Not active"}
                 </p>
               </div>
-              <div className="flex flex-wrap gap-3">
-                <AdminOrderStatusBadge status={order.status} />
-                <AdminPaymentStatusBadge status={order.paymentStatus} />
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <QuickStat label="Package" value={order.packageName} />
+                <QuickStat label="Final Total" value={formatCurrency(order.bill.finalTotal)} />
+                <QuickStat label="Guests" value={`${order.guests}`} />
+                <QuickStat label="Vendor Response" value={order.vendorResponseStatus} />
               </div>
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              <SummaryCell label="Slot Hold">{order.slotHoldEndsAt ? new Date(order.slotHoldEndsAt).toLocaleString("en-IN") : "Not active"}</SummaryCell>
-              <SummaryCell label="Vendor Response">{order.vendorResponseStatus}</SummaryCell>
-              <SummaryCell label="Package">{order.packageName}</SummaryCell>
-              <SummaryCell label="Final Total">{formatCurrency(order.bill.finalTotal)}</SummaryCell>
+            <div className="mt-5 grid gap-4 lg:grid-cols-3">
+              <div className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Customer</p>
+                <p className="mt-2 text-[16px] font-bold text-[#0F172A]">{order.customer.name}</p>
+                <p className="mt-1 text-[13px] text-[#64748B]">{order.customer.phone}</p>
+                <p className="mt-1 text-[13px] text-[#64748B]">{order.customer.email}</p>
+              </div>
+              <div className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Event</p>
+                <p className="mt-2 text-[16px] font-bold text-[#0F172A]">{order.eventType}</p>
+                <p className="mt-1 text-[13px] text-[#64748B]">
+                  {order.eventDate} · {order.eventTime}
+                </p>
+                <p className="mt-1 text-[13px] text-[#64748B]">
+                  {order.foodPreference === "veg" ? "Pure Veg" : "Veg + Non-Veg"}
+                </p>
+              </div>
+              <div className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Venue</p>
+                <p className="mt-2 text-[16px] font-bold text-[#0F172A]">{order.venue.venueName}</p>
+                <p className="mt-1 text-[13px] leading-[1.7] text-[#64748B]">
+                  {order.venue.address}, {order.venue.city}
+                </p>
+              </div>
             </div>
-          </div>
+          </AdminPanel>
 
-          <div className="rounded-[22px] border border-[#E2E8F0] bg-white p-6 shadow-[0_12px_22px_rgba(15,23,42,0.08)]">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#2F6FED]">Vendor & Payment</p>
-            <div className="mt-5 space-y-3">
+          <AdminPanel eyebrow="Actions" title="Process Controls">
+            <div className="space-y-3">
               <button
                 type="button"
                 onClick={() => notifyVendor(order.id)}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-full border border-[#D7E3F4] bg-white px-4 text-[12px] font-bold text-[#2F6FED]"
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
               >
+                <Send className="h-4 w-4" />
                 Notify Vendor
               </button>
               <button
                 type="button"
                 onClick={() => confirmVendor(order.id)}
-                className="flex h-10 w-full items-center justify-center rounded-full bg-[#2F6FED] px-4 text-[12px] font-bold text-white"
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
               >
-                Confirm Vendor
+                <CheckCheck className="h-4 w-4" />
+                Mark Vendor Confirmed
               </button>
-              <Link
-                href={`/pay/${order.id}`}
-                className="flex h-10 w-full items-center justify-center rounded-full border border-[#D7E3F4] bg-white px-4 text-[12px] font-bold text-[#2F6FED]"
+              <button
+                type="button"
+                onClick={() => sendPaymentLink(order.id)}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
               >
-                Open Payment Page
-              </Link>
+                <MessageCircle className="h-4 w-4" />
+                Mark Payment Link Sent
+              </button>
+              <button
+                type="button"
+                onClick={() => confirmBooking(order.id)}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] bg-[#0F172A] px-4 text-[13px] font-bold text-white"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Confirm Booking
+              </button>
               <button
                 type="button"
                 onClick={() => cancelOrder(order.id)}
-                className="flex h-10 w-full items-center justify-center rounded-full border border-[#F0C7C7] bg-[#FFF1F1] px-4 text-[12px] font-bold text-[#B54545]"
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#E5C5CA] bg-[#FFF5F6] px-4 text-[13px] font-bold text-[#B42318]"
               >
+                <XCircle className="h-4 w-4" />
                 Cancel Booking
               </button>
             </div>
-          </div>
+
+            <div className="mt-5 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Vendor Link</p>
+              <p className="mt-2 text-[13px] leading-[1.7] text-[#5B6574]">
+                Share the tokenized vendor confirmation URL only after ops review.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <a
+                  href={vendorLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[12px] font-bold text-[#0F172A]"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open
+                </a>
+                <button
+                  type="button"
+                  onClick={() => navigator.clipboard.writeText(vendorLink)}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[12px] font-bold text-[#0F172A]"
+                >
+                  <Copy className="h-4 w-4" />
+                  Copy
+                </button>
+                <a
+                  href={`tel:${order.vendorPhone.replace(/\s+/g, "")}`}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[12px] font-bold text-[#0F172A]"
+                >
+                  <Phone className="h-4 w-4" />
+                  Call
+                </a>
+              </div>
+            </div>
+          </AdminPanel>
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
-            <InfoSection title="Customer Details" eyebrow="Customer">
-              <div className="grid gap-4 md:grid-cols-2">
-                <DetailCard label="Name" value={order.customer.name} />
-                <DetailCard label="Phone" value={order.customer.phone} actionHref={`tel:${order.customer.phone.replace(/\s+/g, "")}`} actionLabel="Call" />
-                <DetailCard label="Email" value={order.customer.email} />
-                <DetailCard label="WhatsApp" value={order.customer.whatsapp} actionHref={`https://wa.me/${order.customer.whatsapp.replace(/\D/g, "")}`} actionLabel="WhatsApp" />
-                <DetailCard label="Login Method" value={order.customer.authType.toUpperCase()} />
-                <DetailCard label="Profile" value="Open customer profile" actionHref={`/admin/customers/${order.customerId}`} actionLabel="View" />
-              </div>
-            </InfoSection>
+            <AdminPanel eyebrow="Customer & Venue" title="Captured Booking Details">
+              <AdminInfoGrid
+                columns={3}
+                items={[
+                  { label: "Customer Name", value: order.customer.name },
+                  { label: "Phone", value: order.customer.phone },
+                  { label: "WhatsApp", value: order.customer.whatsapp },
+                  { label: "Email", value: order.customer.email },
+                  { label: "Auth Type", value: order.customer.authType.toUpperCase() },
+                  { label: "Customer Profile", value: "Open profile", helper: `/admin/customers/${order.customerId}` },
+                  { label: "Event Type", value: order.eventType },
+                  { label: "Event Date", value: order.eventDate },
+                  { label: "Event Time", value: order.eventTime },
+                  { label: "Guests", value: `${order.guests}` },
+                  { label: "Food Preference", value: order.foodPreference === "veg" ? "Pure Veg" : "Veg + Non-Veg" },
+                  { label: "Package", value: `${order.packageName} · ${formatCurrency(order.pricePerPlate)}/plate` },
+                  { label: "Venue", value: order.venue.venueName },
+                  { label: "Address", value: order.venue.address },
+                  { label: "City / State", value: `${order.venue.city}, ${order.venue.state} · ${order.venue.pincode}` },
+                ]}
+              />
+            </AdminPanel>
 
-            <InfoSection title="Event Basics" eyebrow="Captured in Basics">
-              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                <DetailCard label="Event Type" value={order.eventType} />
-                <DetailCard label="Event Date" value={order.eventDate} />
-                <DetailCard label="Event Time" value={order.eventTime} />
-                <DetailCard label="Guests" value={`${order.guests}`} />
-                <DetailCard label="Food Preference" value={order.foodPreference === "veg" ? "Pure Veg" : "Veg + Non-Veg"} />
-                <DetailCard label="Package" value={`${order.packageName} · ${formatCurrency(order.pricePerPlate)}/plate`} />
-              </div>
-            </InfoSection>
-
-            <InfoSection title="Venue / Address" eyebrow="Venue">
-              <div className="grid gap-4 md:grid-cols-2">
-                <DetailCard label="Venue Name" value={order.venue.venueName} />
-                <DetailCard label="Landmark" value={order.venue.landmark || "—"} />
-                <DetailCard label="Address" value={order.venue.address} />
-                <DetailCard label="City / Pincode" value={`${order.venue.city} · ${order.venue.pincode}`} />
-                <DetailCard label="State" value={order.venue.state} />
-                <DetailCard
-                  label="Open Location"
-                  value="View on map"
-                  actionHref={`https://maps.google.com/?q=${encodeURIComponent(`${order.venue.address}, ${order.venue.city}`)}`}
-                  actionLabel="Map"
-                />
-              </div>
-            </InfoSection>
-
-            <InfoSection title="Menu Summary" eyebrow="Selected Menu">
+            <AdminPanel eyebrow="Menu" title="Selected Menu Summary">
               <div className="space-y-4">
                 {order.menuSummary.groupedCategories.map((group) => (
-                  <div key={group.label} className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
-                    <div className="flex items-center justify-between">
+                  <div key={group.label} className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                    <div className="flex items-center justify-between gap-3">
                       <p className="text-[15px] font-bold text-[#0F172A]">{group.label}</p>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">
+                      <span className="rounded-full border border-[#D7E3F4] bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">
                         {group.items.length} items
-                      </p>
+                      </span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {group.items.map((item) => (
                         <span
                           key={`${group.label}-${item.name}`}
-                          className="inline-flex items-center gap-2 rounded-full border border-[#E2E8F0] bg-white px-3 py-1.5 text-[12px] font-medium text-[#1F2937]"
+                          className="inline-flex items-center gap-2 rounded-full border border-[#D9E1EC] bg-white px-3 py-1.5 text-[12px] font-medium text-[#0F172A]"
                         >
-                          <span className={`h-2.5 w-2.5 rounded-full ${item.isVeg ? "bg-[#1F7A3F]" : "bg-[#B54532]"}`} />
+                          <span className={`h-2.5 w-2.5 rounded-full ${item.isVeg ? "bg-[#15803D]" : "bg-[#B42318]"}`} />
                           {item.name}
                         </span>
                       ))}
                     </div>
                   </div>
                 ))}
-                <div className="grid gap-4 md:grid-cols-3">
-                  <DetailCard label="Auto Add-ons" value={order.menuSummary.autoAddOnItems.join(", ") || "None"} />
-                  <DetailCard label="Optional Add-ons" value={order.menuSummary.optionalAddOns.join(", ") || "None"} />
-                  <DetailCard label="Water" value={order.menuSummary.waterSelection} />
-                </div>
-                <DetailCard label="Caterer Note" value={order.menuSummary.catererNote || "No customer note added."} />
               </div>
-            </InfoSection>
 
-            <InfoSection title="Timeline / Activity" eyebrow="Audit Trail">
-              <div className="space-y-4">
+              <div className="mt-5 grid gap-4 md:grid-cols-3">
+                <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Auto Add-ons</p>
+                  <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">
+                    {order.menuSummary.autoAddOnItems.join(", ") || "None"}
+                  </p>
+                </div>
+                <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Optional Add-ons</p>
+                  <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">
+                    {order.menuSummary.optionalAddOns.join(", ") || "None"}
+                  </p>
+                </div>
+                <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Water</p>
+                  <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">{order.menuSummary.waterSelection}</p>
+                </div>
+              </div>
+
+              <div className="mt-4 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Customer Note</p>
+                <p className="mt-2 text-[14px] leading-[1.75] text-[#334155]">
+                  {order.menuSummary.catererNote || "No note added by customer."}
+                </p>
+              </div>
+            </AdminPanel>
+
+            <AdminTableCard title="Timeline" eyebrow="Activity Log">
+              <div className="divide-y divide-[#E8EDF4]">
                 {order.activity.map((item) => (
-                  <div key={item.id} className="rounded-[18px] border border-[#E2E8F0] bg-white px-5 py-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <p className="text-[15px] font-semibold text-[#0F172A]">{item.label}</p>
-                        <p className="mt-1 text-[13px] leading-[1.7] text-[#475569]">{item.helper}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">{item.actor}</p>
-                        <p className="mt-1 text-[12px] text-[#64748B]">{new Date(item.at).toLocaleString("en-IN")}</p>
-                      </div>
+                  <div key={item.id} className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold text-[#0F172A]">{item.label}</p>
+                      <p className="mt-1 text-[13px] leading-[1.7] text-[#64748B]">{item.helper}</p>
+                    </div>
+                    <div className="shrink-0 text-[12px] text-[#64748B] md:text-right">
+                      <p className="font-semibold uppercase tracking-[0.14em] text-[#475569]">{item.actor}</p>
+                      <p className="mt-1">{new Date(item.at).toLocaleString("en-IN")}</p>
                     </div>
                   </div>
                 ))}
               </div>
-            </InfoSection>
+            </AdminTableCard>
           </div>
 
           <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
-            <InfoSection title="Bill Summary" eyebrow="Billing">
-              <div className="space-y-3 text-[14px] text-[#475569]">
+            <AdminPanel eyebrow="Billing" title="Bill Summary">
+              <div className="space-y-3 text-[14px]">
                 {[
                   ["Base Amount", order.bill.baseAmount],
                   ["Auto Add-ons", order.bill.autoAddOns],
@@ -268,144 +357,95 @@ export default function AdminOrderDetailPage() {
                   ["GST (18%)", order.bill.gst],
                   ["Convenience Fee", order.bill.convenienceFee],
                 ].map(([label, amount]) => (
-                  <div key={String(label)} className="flex items-center justify-between">
-                    <span>{label}</span>
+                  <div key={String(label)} className="flex items-center justify-between gap-3">
+                    <span className="text-[#64748B]">{label}</span>
                     <span className="font-semibold text-[#0F172A]">{formatCurrency(Number(amount))}</span>
                   </div>
                 ))}
               </div>
-              <div className="mt-5 rounded-[18px] bg-[#1F4BB2] px-5 py-4 text-white">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70">Final Total</p>
-                <p className="mt-2 text-[28px] font-black tracking-[-0.03em]">{formatCurrency(order.bill.finalTotal)}</p>
+              <div className="mt-5 rounded-[16px] bg-[#0F172A] px-4 py-4 text-white">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60">Final Total</p>
+                <p className="mt-2 text-[28px] font-black tracking-[-0.04em]">{formatCurrency(order.bill.finalTotal)}</p>
               </div>
-            </InfoSection>
 
-            <InfoSection title="Vendor Assignment" eyebrow="Assignment">
-              <div className="space-y-3">
-                <DetailRow label="Assigned Vendor" value={order.vendorName} />
-                <DetailRow label="Contact" value={order.vendorPhone} />
-                <DetailRow label="Package" value={order.packageName} />
-                <DetailRow label="Vendor Status" value={order.vendorResponseStatus} />
-                <DetailRow label="Last Notified" value={order.vendorLastNotifiedAt ? new Date(order.vendorLastNotifiedAt).toLocaleString("en-IN") : "Not sent"} />
-              </div>
-              <div className="mt-5 grid gap-3">
+              <div className="mt-5 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Payment Reference</p>
+                <input
+                  value={paymentReference || order.paymentReference}
+                  onChange={(event) => setPaymentReference(event.target.value)}
+                  className="mt-3 h-11 w-full rounded-[12px] border border-[#CBD5E1] bg-white px-3.5 text-[14px] font-medium text-[#0F172A] outline-none focus:border-[#64748B] focus:ring-2 focus:ring-[#E2E8F0]"
+                  placeholder="Enter bank or Razorpay reference"
+                />
                 <button
                   type="button"
-                  onClick={() => navigator.clipboard.writeText(`${window.location.origin}/vendor-order/${order.vendorToken}`)}
-                  className="flex h-10 items-center justify-center gap-2 rounded-full border border-[#D7E3F4] bg-white px-4 text-[12px] font-bold text-[#2F6FED]"
+                  onClick={() => {
+                    if (!canMarkPaid) return;
+                    markPaymentDone(order.id, paymentReference || order.paymentReference || "MANUAL-REF");
+                    setPaymentReference("");
+                  }}
+                  disabled={!canMarkPaid}
+                  className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A] disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <Copy className="h-4 w-4" />
-                  Copy Vendor Link
+                  <ShieldCheck className="h-4 w-4" />
+                  Mark Payment Done
                 </button>
-                <a
-                  href={`tel:${order.vendorPhone.replace(/\s+/g, "")}`}
-                  className="flex h-10 items-center justify-center gap-2 rounded-full border border-[#D7E3F4] bg-white px-4 text-[12px] font-bold text-[#2F6FED]"
-                >
-                  <Phone className="h-4 w-4" />
-                  Call Vendor
-                </a>
               </div>
-            </InfoSection>
 
-            <InfoSection title="Internal Notes" eyebrow="Team Notes">
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  href={`/invoice/${order.id}`}
+                  className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
+                >
+                  Open Invoice
+                </Link>
+              </div>
+            </AdminPanel>
+
+            <AdminPanel eyebrow="Notes" title="Internal Notes">
               <div className="space-y-3">
                 {order.internalNotes.map((note) => (
-                  <div key={note.id} className="rounded-[16px] border border-[#E2E8F0] bg-white px-4 py-4">
-                    <p className="text-[14px] font-semibold text-[#0F172A]">{note.note}</p>
-                    <p className="mt-2 text-[12px] text-[#64748B]">{note.author} · {new Date(note.createdAt).toLocaleString("en-IN")}</p>
+                  <div key={note.id} className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
+                    <p className="text-[14px] font-medium leading-[1.7] text-[#0F172A]">{note.note}</p>
+                    <p className="mt-2 text-[12px] text-[#64748B]">
+                      {note.author} · {new Date(note.createdAt).toLocaleString("en-IN")}
+                    </p>
                   </div>
                 ))}
-                <div className="rounded-[16px] border border-dashed border-[#D6E0F0] bg-[#F8FAFF] p-4">
-                  <textarea
-                    value={newNote}
-                    onChange={(event) => setNewNote(event.target.value)}
-                    className="min-h-[96px] w-full resize-none bg-transparent text-[14px] text-[#0F172A] outline-none"
-                    placeholder="Add admin note, vendor remark, or escalation detail"
-                  />
-                  <div className="mt-3 flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!newNote.trim()) return;
-                        addInternalNote(order.id, newNote);
-                        setNewNote("");
-                      }}
-                      className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#2F6FED] px-4 text-[12px] font-bold text-white"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Note
-                    </button>
-                  </div>
+              </div>
+              <div className="mt-4">
+                <AdminTextarea
+                  label="Add Note"
+                  value={newNote}
+                  onChange={(event) => setNewNote(event.target.value)}
+                  placeholder="Add internal remark, escalation note, or vendor coordination detail"
+                  className="min-h-[110px]"
+                />
+                <div className="mt-3 flex justify-end">
+                  <AdminButton
+                    onClick={() => {
+                      if (!newNote.trim()) return;
+                      addInternalNote(order.id, newNote);
+                      setNewNote("");
+                    }}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Note
+                  </AdminButton>
                 </div>
               </div>
-            </InfoSection>
+            </AdminPanel>
           </div>
-        </section>
+        </div>
       </div>
     </AdminShell>
   );
 }
 
-function InfoSection({
-  eyebrow,
-  title,
-  children,
-}: {
-  eyebrow: string;
-  title: string;
-  children: React.ReactNode;
-}) {
+function QuickStat({ label, value }: { label: string; value: string }) {
   return (
-    <article className="rounded-[20px] border border-[#E2E8F0] bg-white p-6 shadow-[0_10px_24px_rgba(15,23,42,0.08)]">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#2F6FED]">{eyebrow}</p>
-      <h3 className="mt-2 text-[22px] font-black tracking-[-0.03em] text-[#0F172A]">{title}</h3>
-      <div className="mt-5">{children}</div>
-    </article>
-  );
-}
-
-function DetailCard({
-  label,
-  value,
-  actionHref,
-  actionLabel,
-}: {
-  label: string;
-  value: string;
-  actionHref?: string;
-  actionLabel?: string;
-}) {
-  return (
-    <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">{label}</p>
-      <p className="mt-2 text-[15px] font-semibold leading-[1.7] text-[#0F172A]">{value}</p>
-      {actionHref && actionLabel ? (
-        <a
-          href={actionHref}
-          target={actionHref.startsWith("http") ? "_blank" : undefined}
-          className="mt-3 inline-flex text-[13px] font-semibold text-[#1F4BB2]"
-        >
-          {actionLabel}
-        </a>
-      ) : null}
-    </div>
-  );
-}
-
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-[14px]">
-      <span className="font-semibold text-[#64748B]">{label}</span>
-      <span className="text-right font-bold text-[#0F172A]">{value}</span>
-    </div>
-  );
-}
-
-function SummaryCell({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">{label}</p>
-      <p className="mt-2 text-[15px] font-semibold leading-[1.6] text-[#0F172A]">{children}</p>
+    <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">{label}</p>
+      <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">{value}</p>
     </div>
   );
 }

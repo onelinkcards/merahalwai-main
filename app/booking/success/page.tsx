@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -35,6 +35,14 @@ type SuccessSnapshot = {
 };
 
 export default function BookingSuccessPage() {
+  return (
+    <Suspense fallback={null}>
+      <BookingSuccessContent />
+    </Suspense>
+  );
+}
+
+function BookingSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const store = useBookingStore();
@@ -72,14 +80,17 @@ export default function BookingSuccessPage() {
   const venueAddress = store.venueAddress || snapshot?.venueAddress || "";
   const venueCity = store.venueCity || snapshot?.venueCity || "";
   const grandTotal = store.grandTotal || snapshot?.grandTotal || 0;
+  const bookingValue = Math.round(((store.baseTotal ? store.baseTotal + store.addOnTotal : 0) || grandTotal / 1.054));
 
   if (!mounted || !effectiveOrderId) return null;
 
   const orderLabel = "MH-ORD-" + effectiveOrderId;
   const eventDateTime = [eventDate, eventTime].filter(Boolean).join(" • ");
   const venueValue = [venueName, venueAddress, venueCity].filter(Boolean).join(", ");
-  const advanceAmount = Math.round(grandTotal * 0.3);
-  const remainingAmount = Math.max(grandTotal - advanceAmount, 0);
+  const upfrontBase = Math.round(bookingValue * 0.3);
+  const upfrontGst = Math.round(upfrontBase * 0.18);
+  const advanceAmount = upfrontBase + upfrontGst;
+  const remainingAmount = Math.max(0, bookingValue - upfrontBase);
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#FCFAF6_0%,#F7F0E6_55%,#F4EBDD_100%)] pb-14">
@@ -90,13 +101,13 @@ export default function BookingSuccessPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-[#EAD9C6] bg-white px-3 py-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#8A3E1D]" />
-                <span className="text-[11px] font-semibold tracking-wide text-[#8A3E1D]">BOOKING REQUEST CREATED</span>
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#682C13]" />
+                <span className="text-[11px] font-semibold tracking-wide text-[#682C13]">BOOKING REQUEST CREATED</span>
               </div>
               <h1 className="mt-3 text-[32px] font-black leading-tight text-[#171513]">Booking Request Sent!</h1>
               <p className="mt-2 max-w-2xl text-[14px] leading-6 text-[#6D6154]">
                 We are checking availability. Confirmation update is usually shared within{" "}
-                <span className="font-semibold text-[#8A3E1D]">up to 2 hours</span>.
+                <span className="font-semibold text-[#682C13]">up to 2 hours</span>.
               </p>
             </div>
             <span className="inline-flex items-center gap-2 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-[12px] font-semibold text-green-700">
@@ -119,7 +130,7 @@ export default function BookingSuccessPage() {
           </div>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[22px] border border-[#ECDFCF] bg-[linear-gradient(160deg,#FFF9F1_0%,#FFFFFF_60%,#FFF5E8_100%)] p-4 sm:p-5">
+            <div className="order-2 rounded-[22px] border border-[#ECDFCF] bg-[linear-gradient(160deg,#FFF9F1_0%,#FFFFFF_60%,#FFF5E8_100%)] p-4 sm:p-5 lg:order-1">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8A7560]">Order Summary</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 <KeyValue label="Order ID" value={orderLabel} mono />
@@ -138,7 +149,14 @@ export default function BookingSuccessPage() {
               </div>
             </div>
 
-            <PaymentSplitCard advanceAmount={advanceAmount} remainingAmount={remainingAmount} />
+            <div className="order-1 h-fit self-start lg:order-2">
+              <PaymentSplitCard
+                advanceAmount={advanceAmount}
+                remainingAmount={remainingAmount}
+                upfrontBase={upfrontBase}
+                upfrontGst={upfrontGst}
+              />
+            </div>
           </div>
 
           <div className="mt-4 grid gap-3 rounded-[22px] border border-[#E7DDCF] bg-white p-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -150,13 +168,13 @@ export default function BookingSuccessPage() {
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-[#EADFCF] bg-[#FFFCF8] px-4 py-3">
             <div className="inline-flex items-center gap-2 text-[12px] text-[#6F6153]">
-              <Clock3 className="h-4 w-4 text-[#8A3E1D]" />
+              <Clock3 className="h-4 w-4 text-[#682C13]" />
               Confirmation expected in up to 2 hours.
             </div>
             <div className="flex gap-2">
               <Link
-                href="/account/profile"
-                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E7D8C6] bg-[#FFF9F2] px-4 text-[12px] font-semibold text-[#8A3E1D]"
+                href="/account"
+                className="inline-flex h-10 items-center justify-center rounded-xl border border-[#E7D8C6] bg-[#FFF9F2] px-4 text-[12px] font-semibold text-[#682C13]"
               >
                 Go to Profile
                 <ArrowUpRight className="ml-1 h-3.5 w-3.5" />
@@ -195,7 +213,7 @@ function ActionButton({
   const className =
     "inline-flex h-11 items-center justify-center gap-2 rounded-xl border px-3 text-[12px] font-semibold transition " +
     (primary
-      ? "border-[#8A3E1D] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] text-white shadow-[0_10px_18px_rgba(138,62,29,0.15)] hover:opacity-95"
+      ? "border-[#682C13] bg-[linear-gradient(135deg,#EB8B23_0%,#C86E17_46%,#682C13_100%)] text-white shadow-[0_10px_18px_rgba(104,44,19,0.18)] hover:opacity-95"
       : "border-[#E1D7CB] bg-white text-[#3A342E] hover:bg-[#FAF6F1]");
 
   if (asButton) {
@@ -243,7 +261,7 @@ function KeyValue({
   return (
     <div className="rounded-xl border border-[#EFE4D6] bg-white px-3 py-2.5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#877664]">{label}</p>
-      <p className={"mt-1 text-[14px] font-bold text-[#25201A] " + (mono ? "font-mono text-[#8A3E1D]" : "")}>{value}</p>
+      <p className={"mt-1 text-[14px] font-bold text-[#25201A] " + (mono ? "font-mono text-[#682C13]" : "")}>{value}</p>
     </div>
   );
 }
@@ -273,26 +291,50 @@ function DetailLine({
 function PaymentSplitCard({
   advanceAmount,
   remainingAmount,
+  upfrontBase,
+  upfrontGst,
 }: {
   advanceAmount: number;
   remainingAmount: number;
+  upfrontBase: number;
+  upfrontGst: number;
 }) {
   return (
-    <div className="rounded-[22px] border border-[#E8D7C1] bg-[linear-gradient(180deg,#FFF8EF_0%,#FFFDF9_100%)] p-4">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.17em] text-[#8A6A4B]">Payment Split (After Confirmation)</p>
-      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EFE4D6]">
-        <div className="h-full w-[30%] rounded-full bg-[linear-gradient(90deg,#EC9925_0%,#8A3E1D_100%)]" />
+    <div className="overflow-hidden rounded-[22px] border border-[#E7D7C6] bg-[linear-gradient(180deg,#FFFBF6_0%,#FFF7ED_100%)] shadow-[0_16px_34px_rgba(35,25,20,0.06)]">
+      <div className="border-b border-[#EEE1D2] px-4 py-4 sm:px-5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7D6853]">Payment Split (After Confirmation)</p>
+        <p className="mt-1 text-[13px] leading-6 text-[#746656]">
+          Booking is confirmed first. Then the payment link is shared for the upfront amount.
+        </p>
       </div>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-[#E1C9AA] bg-[linear-gradient(145deg,#FFF0D8_0%,#FFE3BF_100%)] px-3 py-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#8A3E1D]">30% Online</p>
-          <p className="mt-1 text-[24px] font-black text-[#20150E]">₹{advanceAmount.toLocaleString("en-IN")}</p>
-          <p className="text-[11px] text-[#7C5634]">Pay after booking confirmation link is shared.</p>
+
+      <div className="px-4 pt-4 sm:px-5">
+        <div className="overflow-hidden rounded-full bg-[#EFE5D7] p-1">
+          <div className="grid grid-cols-[30%_70%] gap-1">
+            <div className="flex h-10 items-center justify-center rounded-full bg-[#682C13] text-[12px] font-black uppercase tracking-[0.18em] text-white">
+              30% now
+            </div>
+            <div className="flex h-10 items-center justify-center rounded-full bg-[#FAF4EA] text-[12px] font-black uppercase tracking-[0.18em] text-[#8F8577]">
+              70% later
+            </div>
+          </div>
         </div>
-        <div className="rounded-xl border border-[#ECE5DB] bg-[#FAF7F2] px-3 py-3 opacity-70">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#7E756B]">70% At Property</p>
-          <p className="mt-1 text-[24px] font-black text-[#575047]">₹{remainingAmount.toLocaleString("en-IN")}</p>
-          <p className="text-[11px] text-[#7E756B]">Remaining amount is paid offline at venue.</p>
+      </div>
+
+      <div className="grid gap-3 p-4 sm:grid-cols-2 sm:px-5 sm:pb-5">
+        <div className="rounded-[18px] border border-[#E3CEB2] bg-[linear-gradient(135deg,#FFF4E4_0%,#FFE8C5_100%)] px-4 py-4 shadow-[0_12px_26px_rgba(104,44,19,0.08)]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#682C13]">30% + GST Online</p>
+          <p className="mt-2 text-[28px] font-black tracking-tight text-[#22150D]">₹{advanceAmount.toLocaleString("en-IN")}</p>
+          <p className="mt-2 text-[12px] leading-6 text-[#6D4A2D]">
+            30% booking value ₹{upfrontBase.toLocaleString("en-IN")} + GST ₹{upfrontGst.toLocaleString("en-IN")}.
+          </p>
+        </div>
+        <div className="rounded-[18px] border border-[#EBE3D7] bg-[#FBF8F3] px-4 py-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8D8376]">70% At Property</p>
+          <p className="mt-2 text-[28px] font-black tracking-tight text-[#645D55]">₹{remainingAmount.toLocaleString("en-IN")}</p>
+          <p className="mt-2 text-[12px] leading-6 text-[#8B8174]">
+            Remaining amount is settled offline at the venue. Taxes apply as per vendor settlement.
+          </p>
         </div>
       </div>
     </div>
@@ -316,7 +358,7 @@ function TimelineCard({
         className={
           "mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full " +
           (done
-            ? "bg-[#8A3E1D] text-white"
+          ? "bg-[#682C13] text-white"
             : current
               ? "bg-[#EB8B23] text-white ring-4 ring-[#EB8B23]/20"
               : "bg-[#EEE5D9] text-[#8A7868]")

@@ -147,10 +147,23 @@ export default function BookDetailsPage() {
     setValue("venueState", address.state);
   };
 
+  const onInvalid = () => {
+    if (!store.eventType || !store.eventDate || !store.eventTime || !store.guestCount) {
+      router.push("/book/basics?vendor=" + encodeURIComponent(store.vendorSlug) + "&mode=edit");
+      return;
+    }
+
+    const firstError = document.querySelector("[aria-invalid='true']") as HTMLElement | null;
+    if (firstError) {
+      scrollFieldIntoView(firstError);
+      firstError.focus();
+    }
+  };
+
   const onSubmit = (values: BookFormValues) => {
     setMany({
-      guestCount: store.guestCount,
-      guestSlab: `${store.guestCount} guests`,
+      guestCount: values.guestCount,
+      guestSlab: `${values.guestCount} guests`,
       customerName: values.customerName,
       customerPhone: values.customerPhone,
       customerEmail: values.customerEmail,
@@ -158,9 +171,9 @@ export default function BookDetailsPage() {
         ? values.customerPhone
         : values.customerWhatsapp || values.customerPhone,
       whatsappOptIn: values.whatsappOptIn,
-      eventType: store.eventType,
-      eventDate: store.eventDate,
-      eventTime: store.eventTime,
+      eventType: values.eventType,
+      eventDate: values.eventDate,
+      eventTime: values.eventTime,
       venueName: values.venueName || "",
       venueAddress: values.venueAddress,
       venueCity: values.venueCity,
@@ -202,7 +215,7 @@ export default function BookDetailsPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <button
                 type="button"
-                onClick={() => router.push("/book/basics?vendor=" + encodeURIComponent(store.vendorSlug))}
+                onClick={() => router.push("/book/basics?vendor=" + encodeURIComponent(store.vendorSlug) + "&mode=edit")}
                 className="flex min-w-[168px] items-center gap-3 rounded-[18px] border border-stone-200 bg-[#FFFCF8] px-4 py-3 text-left transition hover:border-[#8A3E1D] hover:bg-[#FFF7ED]"
               >
                 <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#FCF3EE]">
@@ -317,7 +330,7 @@ export default function BookDetailsPage() {
               </div>
               <button
                 type="button"
-                onClick={() => router.push("/book/basics?vendor=" + encodeURIComponent(store.vendorSlug))}
+                onClick={() => router.push("/book/basics?vendor=" + encodeURIComponent(store.vendorSlug) + "&mode=edit")}
                 className="inline-flex items-center gap-2 self-start rounded-full border border-[#E8D5C4] bg-[#FFFCF8] px-4 py-2 text-[13px] font-semibold text-[#8A3E1D] transition hover:bg-[#FFF6EC]"
               >
                 <PencilLine className="h-4 w-4" />
@@ -491,7 +504,7 @@ export default function BookDetailsPage() {
           </div>
           <button
             type="button"
-            onClick={() => void handleSubmit(onSubmit)()}
+            onClick={() => void handleSubmit(onSubmit, onInvalid)()}
             className="flex h-12 items-center justify-center rounded-[18px] bg-[#EB8B23] px-6 text-[14px] font-bold text-white transition hover:bg-[#8A3E1D]"
           >
             Review Order

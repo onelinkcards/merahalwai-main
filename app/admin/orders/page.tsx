@@ -4,6 +4,12 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Download, Search } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
+import {
+  AdminButton,
+  AdminPanel,
+  AdminSelect,
+  AdminTableCard,
+} from "@/components/admin/AdminUi";
 import { AdminOrderStatusBadge, AdminPaymentStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { formatCurrency } from "@/data/mockAccount";
@@ -29,12 +35,7 @@ export default function AdminOrdersPage() {
       if (paymentStatus !== "all" && order.paymentStatus !== paymentStatus) return false;
       if (!normalized) return true;
 
-      return [
-        order.id,
-        order.customer.name,
-        order.customer.phone,
-        order.vendorName,
-      ]
+      return [order.id, order.customer.name, order.customer.phone, order.vendorName]
         .join(" ")
         .toLowerCase()
         .includes(normalized);
@@ -46,27 +47,24 @@ export default function AdminOrdersPage() {
   return (
     <AdminShell
       title="Booking Requests"
-      description="Manage booking requests, vendor confirmations, and payment follow-up in one queue."
+      description="Single queue for booking requests, review work, vendor assignment, and payment progression."
       actions={
-        <button
-          type="button"
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#E3E8F0] bg-white px-4 text-[12px] font-bold text-[#1C2430]"
-        >
-          <Download className="h-4 w-4" />
+        <AdminButton variant="secondary">
+          <Download className="mr-2 h-4 w-4" />
           Export CSV
-        </button>
+        </AdminButton>
       }
     >
-      <section className="rounded-[24px] border border-[#E3E8F0] bg-white p-5 shadow-[0_12px_26px_rgba(0,0,0,0.06)]">
+      <AdminPanel title="Filters" eyebrow="Queue Controls" description="Search and narrow the operational queue.">
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           <label className="block">
-            <span className="mb-2 block text-[12px] font-bold uppercase tracking-[0.14em] text-[#2F6FED]">Search</span>
-            <div className="flex h-11 items-center gap-3 rounded-[14px] border border-[#E3E8F0] bg-white px-4">
-              <Search className="h-4 w-4 text-[#7B8694]" />
+            <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Search</span>
+            <div className="flex h-11 items-center gap-3 rounded-[12px] border border-[#CBD5E1] bg-white px-4">
+              <Search className="h-4 w-4 text-[#64748B]" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                className="w-full bg-transparent text-[14px] font-medium text-[#1C2430] outline-none"
+                className="w-full bg-transparent text-[14px] font-medium text-[#0F172A] outline-none"
                 placeholder="Order ID, customer, phone, vendor"
               />
             </div>
@@ -121,61 +119,85 @@ export default function AdminOrdersPage() {
             <option value="cancelled">Cancelled</option>
           </SelectField>
         </div>
-      </section>
+      </AdminPanel>
 
-      <section className="mt-6 rounded-[24px] border border-[#E3E8F0] bg-white p-5 shadow-[0_12px_26px_rgba(0,0,0,0.06)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#E9EDF4] pb-4">
-          <div>
-            <p className="text-[12px] font-bold uppercase tracking-[0.18em] text-[#2F6FED]">Operational Queue</p>
-            <h2 className="mt-2 text-[22px] font-black tracking-[-0.04em] text-[#1C2430]">{filteredOrders.length} matching orders</h2>
+      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <AdminTableCard title={`${filteredOrders.length} matching orders`} eyebrow="Operational Queue">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left">
+              <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+                <tr>
+                  {["Order", "Customer", "Booking", "Food", "Status", "Payment", "Total", "Action"].map((label) => (
+                    <th key={label} className="px-5 py-4">{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#E8EDF4]">
+                {filteredOrders.map((order) => (
+                  <tr key={order.id} className="text-[14px] text-[#334155]">
+                    <td className="px-5 py-4">
+                      <p className="font-bold text-[#0F172A]">{order.id}</p>
+                      <p className="text-[12px] text-[#64748B]">{new Date(order.createdAt).toLocaleDateString("en-IN")}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-[#0F172A]">{order.customer.name}</p>
+                      <p className="text-[12px] text-[#64748B]">{order.customer.phone}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-[#0F172A]">{order.vendorName}</p>
+                      <p className="text-[12px] text-[#64748B]">{order.eventType} · {order.guests} guests</p>
+                      <p className="text-[12px] text-[#64748B]">{order.packageName}</p>
+                    </td>
+                    <td className="px-5 py-4 text-[13px] font-medium text-[#475569]">
+                      {order.foodPreference === "veg" ? "Pure Veg" : "Veg + Non-Veg"}
+                    </td>
+                    <td className="px-5 py-4"><AdminOrderStatusBadge status={order.status} compact /></td>
+                    <td className="px-5 py-4"><AdminPaymentStatusBadge status={order.paymentStatus} compact /></td>
+                    <td className="px-5 py-4 font-bold text-[#0F172A]">{formatCurrency(order.bill.finalTotal)}</td>
+                    <td className="px-5 py-4">
+                      <Link href={`/admin/orders/${order.id}`}>
+                        <AdminButton variant="ghost" className="h-9 px-3">Open</AdminButton>
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-          <p className="rounded-full border border-[#E3E8F0] bg-[#F6F8FB] px-3 py-1 text-[12px] font-semibold text-[#5A6470]">
-            Desktop + mobile filters use the same state model
-          </p>
-        </div>
-        <div className="mt-5 space-y-3">
-          {filteredOrders.map((order) => (
-            <div
-              key={order.id}
-              className="rounded-[18px] border border-[#E6EAF1] bg-[#F9FBFF] px-4 py-4"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-[220px]">
-                  <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#2F6FED]">{order.id}</p>
-                  <p className="mt-2 text-[16px] font-bold text-[#1C2430]">{order.customer.name}</p>
-                  <p className="text-[12px] text-[#6B7480]">{order.customer.phone}</p>
+        </AdminTableCard>
+
+        <div className="space-y-6">
+          <AdminPanel title="Queue notes" eyebrow="Behaviour">
+            <div className="space-y-3">
+              {[
+                "Customer flow and admin queue stay synced to the same booking state.",
+                "Vendor confirmation and payment follow-up remain separate actions.",
+                "Use order detail for payment links, notes, and vendor contact.",
+              ].map((item) => (
+                <div key={item} className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-[13px] leading-[1.6] text-[#475569]">
+                  {item}
                 </div>
-                <div className="min-w-[220px]">
-                  <p className="text-[13px] font-semibold text-[#1C2430]">{order.vendorName}</p>
-                  <p className="text-[12px] text-[#6B7480]">{order.eventType} · {order.eventDate}</p>
-                  <p className="text-[12px] text-[#6B7480]">{order.guests} guests · {order.packageName}</p>
-                </div>
-                <div className="min-w-[200px]">
-                  <p className="text-[12px] text-[#6B7480]">Food preference</p>
-                  <p className="text-[13px] font-semibold text-[#1C2430]">
-                    {order.foodPreference === "veg" ? "Pure Veg" : "Veg + Non-Veg"}
-                  </p>
-                  <p className="mt-2 text-[12px] text-[#6B7480]">Created {new Date(order.createdAt).toLocaleDateString("en-IN")}</p>
-                </div>
-                <div className="min-w-[200px]">
-                  <p className="text-[12px] text-[#6B7480]">Total</p>
-                  <p className="text-[18px] font-black text-[#1C2430]">{formatCurrency(order.bill.finalTotal)}</p>
-                </div>
-                <div className="flex flex-col items-start gap-2">
-                  <AdminOrderStatusBadge status={order.status} compact />
-                  <AdminPaymentStatusBadge status={order.paymentStatus} compact />
-                  <Link
-                    href={`/admin/orders/${order.id}`}
-                    className="inline-flex h-9 items-center justify-center rounded-full border border-[#D7E3F4] bg-white px-4 text-[12px] font-bold text-[#2F6FED]"
-                  >
-                    View
-                  </Link>
-                </div>
-              </div>
+              ))}
             </div>
-          ))}
+          </AdminPanel>
+
+          <AdminPanel title="Status counts" eyebrow="Snapshot">
+            <div className="space-y-3">
+              {[
+                ["Submitted", state.orders.filter((order) => order.status === "bookingRequestSubmitted").length],
+                ["Slot Held", state.orders.filter((order) => order.status === "slotHeld").length],
+                ["Vendor Follow-up", state.orders.filter((order) => ["vendorNotified", "vendorDeclined"].includes(order.status)).length],
+                ["Payment Pending", state.orders.filter((order) => ["paymentLinkSent", "paymentPending"].includes(order.status)).length],
+              ].map(([label, count]) => (
+                <div key={String(label)} className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-white px-4 py-3">
+                  <span className="text-[14px] font-medium text-[#334155]">{label}</span>
+                  <span className="text-[14px] font-bold text-[#0F172A]">{count}</span>
+                </div>
+              ))}
+            </div>
+          </AdminPanel>
         </div>
-      </section>
+      </div>
     </AdminShell>
   );
 }
@@ -192,15 +214,8 @@ function SelectField({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-[12px] font-bold uppercase tracking-[0.14em] text-[#2F6FED]">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-[14px] border border-[#E3E8F0] bg-white px-4 text-[14px] font-medium text-[#1C2430] outline-none transition focus:border-[#2F6FED]"
-      >
-        {children}
-      </select>
-    </label>
+    <AdminSelect label={label} value={value} onChange={(event) => onChange(event.target.value)}>
+      {children}
+    </AdminSelect>
   );
 }

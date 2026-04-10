@@ -3,6 +3,7 @@
 import AdminShell from "@/components/admin/AdminShell";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { formatCurrency } from "@/data/mockAccount";
+import { AdminButton, AdminMetricCard, AdminPanel } from "@/components/admin/AdminUi";
 
 export default function AdminReportsPage() {
   const { state } = useAdmin();
@@ -21,56 +22,43 @@ export default function AdminReportsPage() {
   return (
     <AdminShell
       title="Reports"
-      description="Monitor order volume, revenue, vendor performance, package mix, pending confirmation aging, and payment follow-up health."
+      description="High-level ops reporting for revenue, cancellations, package mix, and vendor performance."
       actions={
         <div className="flex gap-3">
-          <button type="button" className="inline-flex h-11 items-center justify-center rounded-full border border-[#E6D9CB] bg-white px-5 text-[13px] font-bold text-[#3E352C]">
-            Export CSV
-          </button>
-          <button type="button" className="inline-flex h-11 items-center justify-center rounded-full bg-[linear-gradient(135deg,#F6B544_0%,#E58C28_54%,#8A3E1D_100%)] px-5 text-[13px] font-bold text-white">
-            Export PDF
-          </button>
+          <AdminButton variant="secondary">Export CSV</AdminButton>
+          <AdminButton>Export PDF</AdminButton>
         </div>
       }
     >
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Total Revenue", formatCurrency(totalRevenue)],
-          ["Cancellation Count", String(cancellations)],
-          ["Pending Confirmation Aging", String(pendingAging)],
-          ["Top Customers", String(state.customers.filter((customer) => customer.totalOrders > 1).length)],
-        ].map(([label, value]) => (
-          <article key={label} className="rounded-[30px] border border-[#E7DED2] bg-white p-5 shadow-[0_18px_40px_rgba(24,20,16,0.05)]">
-            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#9E8368]">{label}</p>
-            <p className="mt-3 text-[30px] font-black tracking-[-0.04em] text-[#171511]">{value}</p>
-          </article>
-        ))}
+        <AdminMetricCard label="Total Revenue" value={formatCurrency(totalRevenue)} tone="green" />
+        <AdminMetricCard label="Cancellation Count" value={String(cancellations)} tone="rose" />
+        <AdminMetricCard label="Pending Confirmation" value={String(pendingAging)} tone="amber" />
+        <AdminMetricCard label="Repeat Customers" value={String(state.customers.filter((customer) => customer.totalOrders > 1).length)} tone="blue" />
       </section>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <article className="rounded-[32px] border border-[#E7DED2] bg-white p-6 shadow-[0_20px_44px_rgba(24,20,16,0.05)]">
-          <h2 className="text-[24px] font-black tracking-[-0.04em] text-[#171511]">Vendor-wise Revenue</h2>
-          <div className="mt-5 space-y-3">
+        <AdminPanel title="Vendor-wise revenue" eyebrow="Breakdown">
+          <div className="space-y-3">
             {vendorRevenue.map((vendor) => (
-              <div key={vendor.name} className="flex items-center justify-between rounded-[20px] border border-[#ECE2D6] bg-[#FCFAF7] px-4 py-3">
-                <span className="font-semibold text-[#5D5248]">{vendor.name}</span>
-                <span className="font-black text-[#171511]">{formatCurrency(vendor.revenue)}</span>
+              <div key={vendor.name} className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+                <span className="font-medium text-[#334155]">{vendor.name}</span>
+                <span className="font-bold text-[#0F172A]">{formatCurrency(vendor.revenue)}</span>
               </div>
             ))}
           </div>
-        </article>
+        </AdminPanel>
 
-        <article className="rounded-[32px] border border-[#E7DED2] bg-white p-6 shadow-[0_20px_44px_rgba(24,20,16,0.05)]">
-          <h2 className="text-[24px] font-black tracking-[-0.04em] text-[#171511]">Package Usage</h2>
-          <div className="mt-5 space-y-3">
+        <AdminPanel title="Package usage" eyebrow="Mix">
+          <div className="space-y-3">
             {["bronze", "silver", "gold"].map((tier) => (
-              <div key={tier} className="flex items-center justify-between rounded-[20px] border border-[#ECE2D6] bg-[#FCFAF7] px-4 py-3">
-                <span className="font-semibold capitalize text-[#5D5248]">{tier}</span>
-                <span className="font-black text-[#171511]">{state.orders.filter((order) => order.packageTier === tier).length} orders</span>
+              <div key={tier} className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+                <span className="font-medium capitalize text-[#334155]">{tier}</span>
+                <span className="font-bold text-[#0F172A]">{state.orders.filter((order) => order.packageTier === tier).length} orders</span>
               </div>
             ))}
           </div>
-        </article>
+        </AdminPanel>
       </div>
     </AdminShell>
   );

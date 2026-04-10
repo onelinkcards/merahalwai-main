@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 export type PackageTier = "bronze" | "silver" | "gold";
 export type OrderStatus = "pending" | "confirmed" | "paid" | "completed" | "cancelled";
-export type WaterType = "ro" | "packaged" | "none";
+export type WaterType = "ro" | "packaged" | "both" | "none";
 export type FoodPreference = "" | "veg" | "veg_nonveg";
 export type BookingCategoryKey =
   | "soupsDrinks"
@@ -33,6 +33,7 @@ export interface BookingStore {
 
   selectedItems: string[];
   addOnItems: string[];
+  addOnSelections: Record<string, string[]>;
   autoAddOnItems: string[];
   categorySelectionSummary: CategorySelectionSummary[];
 
@@ -57,6 +58,7 @@ export interface BookingStore {
 
   waterType: WaterType;
   waterLabel: string;
+  waterVariant: string;
   waterPricePerPax: number;
   waterTotal: number;
 
@@ -93,6 +95,7 @@ const initial: BookingStore = {
 
   selectedItems: [],
   addOnItems: [],
+  addOnSelections: {},
   autoAddOnItems: [],
   categorySelectionSummary: [],
 
@@ -117,6 +120,7 @@ const initial: BookingStore = {
 
   waterType: "none",
   waterLabel: "",
+  waterVariant: "",
   waterPricePerPax: 0,
   waterTotal: 0,
 

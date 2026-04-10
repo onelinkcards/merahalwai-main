@@ -5,6 +5,14 @@ import { useParams } from "next/navigation";
 import AdminShell from "@/components/admin/AdminShell";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import type { BookingCategoryKey, PackageTier } from "@/store/bookingStore";
+import {
+  AdminButton,
+  AdminEmptyState,
+  AdminInput,
+  AdminPanel,
+  AdminSelect,
+  AdminTableCard,
+} from "@/components/admin/AdminUi";
 
 const TIERS: PackageTier[] = ["bronze", "silver", "gold"];
 
@@ -17,10 +25,7 @@ export default function VendorMenuManagerPage() {
   const [saving, setSaving] = useState(false);
 
   const current = vendor ? vendor.packages[activeTier] : null;
-  const categoryTabs = useMemo(
-    () => (current ? current.categoryRules.map((rule) => rule.categoryKey) : []),
-    [current]
-  );
+  const categoryTabs = useMemo(() => (current ? current.categoryRules.map((rule) => rule.categoryKey) : []), [current]);
 
   useEffect(() => {
     if (!categoryTabs.length) return;
@@ -30,313 +35,328 @@ export default function VendorMenuManagerPage() {
   if (!vendor || !current) {
     return (
       <AdminShell title="Vendor not found" description="The selected vendor could not be loaded.">
-        <div className="rounded-[24px] border border-[#E6E6E6] bg-white px-6 py-14 text-center shadow-[0_12px_26px_rgba(0,0,0,0.06)]">
-          Vendor record unavailable.
-        </div>
+        <AdminEmptyState title="Vendor record unavailable" body="Menu configuration cannot load until a valid vendor record exists." />
       </AdminShell>
     );
   }
 
-  const updateRule = (key: BookingCategoryKey, field: "minRequired" | "includedCount" | "maxSelectableCount", value: number) => {
-    const nextPackages = {
-      ...vendor.packages,
-      [activeTier]: {
-        ...current,
-        categoryRules: current.categoryRules.map((rule) =>
-          rule.categoryKey === key ? { ...rule, [field]: value } : rule
+  const updatePackage = (partial: Partial<typeof current>) => {
+    updateVendor(vendor.id, {
+      packages: {
+        ...vendor.packages,
+        [activeTier]: { ...current, ...partial },
+      },
+    });
+  };
+
+  const updateRule = (
+    key: BookingCategoryKey,
+    field: "minRequired" | "includedCount" | "maxSelectableCount",
+    value: number
+  ) => {
+    updatePackage({
+      categoryRules: current.categoryRules.map((rule) =>
+        rule.categoryKey === key ? { ...rule, [field]: value } : rule
+      ),
+    });
+  };
+
+  const toggleMenuItem = (
+    key: BookingCategoryKey,
+    itemId: string,
+    field: "available" | "defaultSelected" | "autoAddonCapable"
+  ) => {
+    updatePackage({
+      menuItems: {
+        ...current.menuItems,
+        [key]: current.menuItems[key].map((item) =>
+          item.id === itemId ? { ...item, [field]: !item[field] } : item
         ),
       },
-    };
-    updateVendor(vendor.id, { packages: nextPackages });
+    });
   };
 
-  const toggleMenuItem = (key: BookingCategoryKey, itemId: string, field: "available" | "defaultSelected" | "autoAddonCapable") => {
-    const nextPackages = {
-      ...vendor.packages,
-      [activeTier]: {
-        ...current,
-        menuItems: {
-          ...current.menuItems,
-          [key]: current.menuItems[key].map((item) => (item.id === itemId ? { ...item, [field]: !item[field] } : item)),
-        },
+  const updateMenuItem = (
+    key: BookingCategoryKey,
+    itemId: string,
+    partial: Partial<(typeof current.menuItems)[BookingCategoryKey][number]>
+  ) => {
+    updatePackage({
+      menuItems: {
+        ...current.menuItems,
+        [key]: current.menuItems[key].map((item) => (item.id === itemId ? { ...item, ...partial } : item)),
       },
-    };
-    updateVendor(vendor.id, { packages: nextPackages });
-  };
-
-  const updateMenuItem = (key: BookingCategoryKey, itemId: string, partial: Partial<typeof current.menuItems[BookingCategoryKey][number]>) => {
-    const nextPackages = {
-      ...vendor.packages,
-      [activeTier]: {
-        ...current,
-        menuItems: {
-          ...current.menuItems,
-          [key]: current.menuItems[key].map((item) => (item.id === itemId ? { ...item, ...partial } : item)),
-        },
-      },
-    };
-    updateVendor(vendor.id, { packages: nextPackages });
+    });
   };
 
   const save = async () => {
+    if (saving) return;
     setSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 180));
+    await new Promise((resolve) => setTimeout(resolve, 220));
     setSaving(false);
   };
+
+  const allItems = Object.values(current.menuItems).flat();
 
   return (
     <AdminShell
       title={`Menu Manager · ${vendor.name}`}
-      description="Configure package pricing, category locking rules, item availability, default menu state, and auto add-on pricing exactly as the customer menu builder needs it."
+      description="Control package pricing, category selection rules, available dishes, and default customer menu state from one internal editor."
       actions={
-        <button
-          type="button"
-          onClick={() => void save()}
-          className="inline-flex h-11 items-center justify-center rounded-full bg-[#111111] px-5 text-[13px] font-bold text-white"
-        >
-          {saving ? "Saving..." : "Save Menu Config"}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={() => void save()}
+            className="inline-flex h-10 items-center justify-center rounded-[12px] bg-[#0F172A] px-4 text-[13px] font-bold text-white"
+          >
+            {saving ? "Saving..." : "Save Menu Config"}
+          </button>
+        </div>
       }
     >
-      <section className="rounded-[24px] border border-[#E6E6E6] bg-white p-6 shadow-[0_16px_30px_rgba(0,0,0,0.06)]">
-        <div className="flex flex-wrap gap-3">
-          {TIERS.map((tier) => {
-            const item = vendor.packages[tier];
-            const active = tier === activeTier;
-            return (
-              <button
-                key={tier}
-                type="button"
-                onClick={() => setActiveTier(tier)}
-                className={`rounded-full px-5 py-3 text-[13px] font-bold transition ${
-                  active ? "bg-[#111111] text-white" : "border border-[#E6E6E6] bg-white text-[#111111]"
-                }`}
-              >
-                {item.name} · ₹{item.pricePerPlate}/plate
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-6">
-          <Panel title="Package Settings">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Field
-                label="Package Name"
-                value={current.name}
-                onChange={(value) =>
-                  updateVendor(vendor.id, {
-                    packages: {
-                      ...vendor.packages,
-                      [activeTier]: { ...current, name: value },
-                    },
-                  })
-                }
-              />
-              <Field
-                label="Price Per Plate"
-                value={String(current.pricePerPlate)}
-                onChange={(value) =>
-                  updateVendor(vendor.id, {
-                    packages: {
-                      ...vendor.packages,
-                      [activeTier]: { ...current, pricePerPlate: Number(value) || 0 },
-                    },
-                  })
-                }
-              />
-              <Field
-                label="Short Note"
-                value={current.shortNote}
-                onChange={(value) =>
-                  updateVendor(vendor.id, {
-                    packages: {
-                      ...vendor.packages,
-                      [activeTier]: { ...current, shortNote: value },
-                    },
-                  })
-                }
-              />
-              <Field
-                label="Customer Label"
-                value={current.customerLabel}
-                onChange={(value) =>
-                  updateVendor(vendor.id, {
-                    packages: {
-                      ...vendor.packages,
-                      [activeTier]: { ...current, customerLabel: value },
-                    },
-                  })
-                }
-              />
-            </div>
-          </Panel>
-
-          <Panel title="Category Locking Rules">
-            <div className="space-y-4">
-              {current.categoryRules.map((rule) => (
-                <div key={rule.categoryKey} className="rounded-[24px] border border-[#ECE2D6] bg-[#FCFAF7] p-4">
-                  <p className="text-[16px] font-black text-[#171511]">{rule.label}</p>
-                  <div className="mt-3 grid gap-4 md:grid-cols-3">
-                    <Field label="Min Required" value={String(rule.minRequired)} onChange={(value) => updateRule(rule.categoryKey, "minRequired", Number(value) || 0)} />
-                    <Field label="Included Count" value={String(rule.includedCount)} onChange={(value) => updateRule(rule.categoryKey, "includedCount", Number(value) || 0)} />
-                    <Field label="Max Selectable" value={String(rule.maxSelectableCount)} onChange={(value) => updateRule(rule.categoryKey, "maxSelectableCount", Number(value) || 0)} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Panel>
-
-          <Panel title="Menu Items">
-            <div className="flex flex-wrap gap-2">
-              {categoryTabs.map((key) => (
+      <div className="space-y-6">
+        <AdminPanel eyebrow="Package Tiers" title="Select Package">
+          <div className="flex flex-wrap gap-3">
+            {TIERS.map((tier) => {
+              const pkg = vendor.packages[tier];
+              const active = tier === activeTier;
+              return (
                 <button
-                  key={key}
+                  key={tier}
                   type="button"
-                  onClick={() => setActiveCategory(key)}
-                  className={`rounded-full px-4 py-2 text-[12px] font-bold ${
-                    activeCategory === key ? "bg-[#111111] text-white" : "border border-[#E6E6E6] bg-white text-[#111111]"
+                  onClick={() => setActiveTier(tier)}
+                  className={`rounded-[14px] border px-4 py-3 text-left transition ${
+                    active
+                      ? "border-[#0F172A] bg-[#0F172A] text-white"
+                      : "border-[#D9E1EC] bg-white text-[#0F172A]"
                   }`}
                 >
-                  {current.categoryRules.find((rule) => rule.categoryKey === key)?.label ?? key}
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] opacity-70">{pkg.name}</p>
+                  <p className="mt-2 text-[18px] font-black tracking-[-0.03em]">₹{pkg.pricePerPlate}/plate</p>
                 </button>
-              ))}
-            </div>
+              );
+            })}
+          </div>
+        </AdminPanel>
 
-            <div className="mt-5 space-y-3">
-              {current.menuItems[activeCategory].map((item) => (
-                <div key={item.id} className="grid gap-3 rounded-[18px] border border-[#E6E6E6] bg-[#F9F9F9] px-4 py-4 md:grid-cols-[minmax(0,1fr)_repeat(3,120px)] md:items-center">
-                  <div className="space-y-2">
-                    <input
-                      value={item.name}
-                      onChange={(event) => updateMenuItem(activeCategory, item.id, { name: event.target.value })}
-                      className="h-10 w-full rounded-[12px] border border-[#E1E1E1] bg-white px-3 text-[14px] font-semibold text-[#111111]"
-                    />
-                    <input
-                      value={item.subtitle}
-                      onChange={(event) => updateMenuItem(activeCategory, item.id, { subtitle: event.target.value })}
-                      className="h-9 w-full rounded-[12px] border border-[#E1E1E1] bg-white px-3 text-[12px] text-[#555555]"
-                      placeholder="Subtitle"
-                    />
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="space-y-6">
+            <AdminPanel eyebrow="Package Settings" title={`${current.name} Settings`}>
+              <div className="grid gap-4 md:grid-cols-2">
+                <AdminInput label="Package Name" value={current.name} onChange={(event) => updatePackage({ name: event.target.value })} />
+                <AdminInput
+                  label="Price Per Plate"
+                  value={String(current.pricePerPlate)}
+                  onChange={(event) => updatePackage({ pricePerPlate: Number(event.target.value) || 0 })}
+                />
+                <AdminInput label="Short Note" value={current.shortNote} onChange={(event) => updatePackage({ shortNote: event.target.value })} />
+                <AdminInput
+                  label="Customer Label"
+                  value={current.customerLabel}
+                  onChange={(event) => updatePackage({ customerLabel: event.target.value })}
+                />
+                <AdminSelect
+                  label="Enabled"
+                  value={current.enabled ? "yes" : "no"}
+                  onChange={(event) => updatePackage({ enabled: event.target.value === "yes" })}
+                >
+                  <option value="yes">Enabled</option>
+                  <option value="no">Disabled</option>
+                </AdminSelect>
+              </div>
+            </AdminPanel>
+
+            <AdminPanel
+              eyebrow="Category Rules"
+              title="Selection Limits"
+              description="These values directly control how many items a customer can select in each category."
+            >
+              <div className="space-y-4">
+                {current.categoryRules.map((rule) => (
+                  <div key={rule.categoryKey} className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[15px] font-bold text-[#0F172A]">{rule.label}</p>
+                        <p className="mt-1 text-[13px] text-[#64748B]">{rule.categoryKey}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                      <AdminInput
+                        label="Min Required"
+                        value={String(rule.minRequired)}
+                        onChange={(event) => updateRule(rule.categoryKey, "minRequired", Number(event.target.value) || 0)}
+                      />
+                      <AdminInput
+                        label="Included Count"
+                        value={String(rule.includedCount)}
+                        onChange={(event) => updateRule(rule.categoryKey, "includedCount", Number(event.target.value) || 0)}
+                      />
+                      <AdminInput
+                        label="Max Selectable"
+                        value={String(rule.maxSelectableCount)}
+                        onChange={(event) =>
+                          updateRule(rule.categoryKey, "maxSelectableCount", Number(event.target.value) || 0)
+                        }
+                      />
+                    </div>
                   </div>
+                ))}
+              </div>
+            </AdminPanel>
 
-                  <select
-                    value={item.isVeg ? "veg" : "nonveg"}
-                    onChange={(event) => updateMenuItem(activeCategory, item.id, { isVeg: event.target.value === "veg" })}
-                    className="h-10 rounded-[12px] border border-[#E1E1E1] bg-white px-3 text-[12px] font-semibold text-[#111111]"
-                  >
-                    <option value="veg">Veg</option>
-                    <option value="nonveg">Non-Veg</option>
-                  </select>
-
-                  {[
-                    ["available", "Available"],
-                    ["defaultSelected", "Default"],
-                    ["autoAddonCapable", "Add-on"],
-                  ].map(([field, label]) => (
+            <AdminTableCard title="Menu Items" eyebrow="Per-category Availability">
+              <div className="border-b border-[#E8EDF4] px-5 py-4">
+                <div className="flex flex-wrap gap-2">
+                  {categoryTabs.map((key) => (
                     <button
-                      key={field}
+                      key={key}
                       type="button"
-                      onClick={() => toggleMenuItem(activeCategory, item.id, field as "available" | "defaultSelected" | "autoAddonCapable")}
-                      className={`inline-flex h-10 items-center justify-center rounded-full text-[12px] font-bold ${
-                        item[field as "available" | "defaultSelected" | "autoAddonCapable"]
-                          ? "bg-[#111111] text-white"
-                          : "border border-[#E1E1E1] bg-white text-[#111111]"
+                      onClick={() => setActiveCategory(key)}
+                      className={`rounded-[10px] px-3 py-2 text-[12px] font-bold transition ${
+                        activeCategory === key
+                          ? "bg-[#0F172A] text-white"
+                          : "border border-[#CBD5E1] bg-white text-[#475569]"
                       }`}
                     >
-                      {label}
+                      {current.categoryRules.find((rule) => rule.categoryKey === key)?.label ?? key}
                     </button>
                   ))}
                 </div>
-              ))}
-            </div>
-          </Panel>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left">
+                  <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+                    <tr>
+                      <th className="px-5 py-4">Item</th>
+                      <th className="px-5 py-4">Subtitle</th>
+                      <th className="px-5 py-4">Type</th>
+                      <th className="px-5 py-4">Available</th>
+                      <th className="px-5 py-4">Default</th>
+                      <th className="px-5 py-4">Add-on</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E8EDF4] text-[14px] text-[#0F172A]">
+                    {current.menuItems[activeCategory].map((item) => (
+                      <tr key={item.id}>
+                        <td className="px-5 py-4">
+                          <input
+                            value={item.name}
+                            onChange={(event) => updateMenuItem(activeCategory, item.id, { name: event.target.value })}
+                            className="h-10 w-full min-w-[180px] rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[14px] font-semibold text-[#0F172A] outline-none focus:border-[#64748B]"
+                          />
+                        </td>
+                        <td className="px-5 py-4">
+                          <input
+                            value={item.subtitle}
+                            onChange={(event) => updateMenuItem(activeCategory, item.id, { subtitle: event.target.value })}
+                            className="h-10 w-full min-w-[180px] rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[13px] text-[#475569] outline-none focus:border-[#64748B]"
+                            placeholder="Subtitle"
+                          />
+                        </td>
+                        <td className="px-5 py-4">
+                          <select
+                            value={item.isVeg ? "veg" : "nonveg"}
+                            onChange={(event) => updateMenuItem(activeCategory, item.id, { isVeg: event.target.value === "veg" })}
+                            className="h-10 rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[13px] font-semibold text-[#0F172A] outline-none"
+                          >
+                            <option value="veg">Veg</option>
+                            <option value="nonveg">Non-Veg</option>
+                          </select>
+                        </td>
+                        <td className="px-5 py-4">
+                          <TogglePill active={item.available} onClick={() => toggleMenuItem(activeCategory, item.id, "available")} label="Available" />
+                        </td>
+                        <td className="px-5 py-4">
+                          <TogglePill active={item.defaultSelected} onClick={() => toggleMenuItem(activeCategory, item.id, "defaultSelected")} label="Default" />
+                        </td>
+                        <td className="px-5 py-4">
+                          <TogglePill active={item.autoAddonCapable} onClick={() => toggleMenuItem(activeCategory, item.id, "autoAddonCapable")} label="Add-on" />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </AdminTableCard>
+          </div>
+
+          <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+            <AdminPanel eyebrow="Preview" title="Current Package Snapshot">
+              <div className="space-y-3">
+                <SummaryRow label="Available Items" value={String(allItems.filter((item) => item.available).length)} />
+                <SummaryRow label="Default Items" value={String(allItems.filter((item) => item.defaultSelected).length)} />
+                <SummaryRow label="Add-on Capable" value={String(allItems.filter((item) => item.autoAddonCapable).length)} />
+                <SummaryRow
+                  label="Active Category"
+                  value={current.categoryRules.find((rule) => rule.categoryKey === activeCategory)?.label ?? activeCategory}
+                />
+              </div>
+            </AdminPanel>
+
+            <AdminPanel eyebrow="Pricing" title="Auto Add-on Pricing">
+              <div className="space-y-4">
+                <AdminInput
+                  label="Veg per item / pax"
+                  value={String(current.autoAddonPricing.vegPerItemPerPax)}
+                  onChange={(event) =>
+                    updatePackage({
+                      autoAddonPricing: {
+                        ...current.autoAddonPricing,
+                        vegPerItemPerPax: Number(event.target.value) || 0,
+                      },
+                    })
+                  }
+                />
+                <AdminInput
+                  label="Non-Veg per item / pax"
+                  value={String(current.autoAddonPricing.nonVegPerItemPerPax)}
+                  onChange={(event) =>
+                    updatePackage({
+                      autoAddonPricing: {
+                        ...current.autoAddonPricing,
+                        nonVegPerItemPerPax: Number(event.target.value) || 0,
+                      },
+                    })
+                  }
+                />
+              </div>
+            </AdminPanel>
+
+            <AdminPanel eyebrow="Actions" title="Save Config">
+              <p className="text-[14px] leading-[1.7] text-[#5B6574]">
+                Menu availability and category rules should stay aligned with the customer customize step.
+              </p>
+              <div className="mt-4">
+                <AdminButton onClick={() => void save()}>{saving ? "Saving..." : "Save Menu Config"}</AdminButton>
+              </div>
+            </AdminPanel>
+          </div>
         </div>
-
-        <aside className="space-y-6 xl:sticky xl:top-24 xl:self-start">
-          <Panel title="Auto Add-on Pricing">
-            <div className="space-y-4">
-              <Field
-                label="Veg per item / pax"
-                value={String(current.autoAddonPricing.vegPerItemPerPax)}
-                onChange={(value) =>
-                  updateVendor(vendor.id, {
-                    packages: {
-                      ...vendor.packages,
-                      [activeTier]: {
-                        ...current,
-                        autoAddonPricing: {
-                          ...current.autoAddonPricing,
-                          vegPerItemPerPax: Number(value) || 0,
-                        },
-                      },
-                    },
-                  })
-                }
-              />
-              <Field
-                label="Non-Veg per item / pax"
-                value={String(current.autoAddonPricing.nonVegPerItemPerPax)}
-                onChange={(value) =>
-                  updateVendor(vendor.id, {
-                    packages: {
-                      ...vendor.packages,
-                      [activeTier]: {
-                        ...current,
-                        autoAddonPricing: {
-                          ...current.autoAddonPricing,
-                          nonVegPerItemPerPax: Number(value) || 0,
-                        },
-                      },
-                    },
-                  })
-                }
-              />
-            </div>
-          </Panel>
-
-          <Panel title="Preview Summary">
-            <div className="space-y-3 text-[14px] text-[#555555]">
-              <PreviewRow label="Items available" value={String(Object.values(current.menuItems).flat().filter((item) => item.available).length)} />
-              <PreviewRow label="Default selected" value={String(Object.values(current.menuItems).flat().filter((item) => item.defaultSelected).length)} />
-              <PreviewRow label="Add-on capable" value={String(Object.values(current.menuItems).flat().filter((item) => item.autoAddonCapable).length)} />
-            </div>
-          </Panel>
-        </aside>
       </div>
     </AdminShell>
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function TogglePill({ active, label, onClick }: { active: boolean; label: string; onClick: () => void }) {
   return (
-    <article className="rounded-[24px] border border-[#E6E6E6] bg-white p-6 shadow-[0_12px_26px_rgba(0,0,0,0.06)]">
-      <h2 className="text-[22px] font-black tracking-[-0.04em] text-[#111111]">{title}</h2>
-      <div className="mt-5 space-y-4">{children}</div>
-    </article>
+    <button
+      type="button"
+      onClick={onClick}
+      className={`inline-flex h-9 items-center justify-center rounded-[10px] px-3 text-[12px] font-bold transition ${
+        active ? "bg-[#0F172A] text-white" : "border border-[#CBD5E1] bg-white text-[#475569]"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
-function Field({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-[12px] font-bold uppercase tracking-[0.16em] text-[#111111]">{label}</span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-12 w-full rounded-[14px] border border-[#E6E6E6] bg-white px-4 text-[14px] font-medium text-[#111111] outline-none focus:border-[#111111]"
-      />
-    </label>
-  );
-}
-
-function PreviewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between rounded-[16px] border border-[#E6E6E6] bg-[#F9F9F9] px-4 py-3">
-      <span className="font-semibold text-[#5A5A5A]">{label}</span>
-      <span className="font-black text-[#111111]">{value}</span>
+    <div className="flex items-center justify-between rounded-[14px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-[14px]">
+      <span className="font-medium text-[#64748B]">{label}</span>
+      <span className="font-semibold text-[#0F172A]">{value}</span>
     </div>
   );
 }

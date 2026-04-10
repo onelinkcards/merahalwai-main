@@ -2,8 +2,9 @@
 
 import Image, { type StaticImageData } from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   CalendarDays,
   Check,
@@ -34,8 +35,7 @@ const EVENT_TYPES = [
 
 const GUEST_PRESETS = (() => {
   const values = new Set<number>([10, 25, 50, 75, 100]);
-  for (let v = 150; v <= 500; v += 50) values.add(v);
-  for (let v = 600; v <= 2000; v += 100) values.add(v);
+  for (let v = 150; v <= 2000; v += 50) values.add(v);
   return Array.from(values).sort((a, b) => a - b);
 })();
 
@@ -97,10 +97,10 @@ function buildDateOptions(days = 45): SelectOption[] {
   const base = new Date();
   const results: SelectOption[] = [];
 
-  for (let i = 1; i <= days; i += 1) {
+  for (let i = 0; i <= days; i += 1) {
     const value = new Date(base);
     value.setDate(base.getDate() + i);
-    const iso = value.toISOString().slice(0, 10);
+    const iso = formatDateKey(value);
     const label = value.toLocaleDateString("en-IN", {
       weekday: "short",
       day: "numeric",
@@ -110,11 +110,19 @@ function buildDateOptions(days = 45): SelectOption[] {
     results.push({
       value: iso,
       label,
-      helper: i === 1 ? "Tomorrow" : i <= 7 ? "This week" : undefined,
+      helper:
+        i === 0 ? "Today" : i === 1 ? "Tomorrow" : i <= 7 ? "This week" : undefined,
     });
   }
 
   return results;
+}
+
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getMonthLabel(date: Date) {
@@ -165,44 +173,26 @@ export default function BookBasicsClient() {
   const vendor = useMemo(() => (slug ? getVendorDetailBySlug(slug) : null), [slug]);
   const dateOptions = useMemo(() => buildDateOptions(), []);
   const [openField, setOpenField] = useState<"event" | "guest" | "date" | "time" | null>(null);
+  const sameVendorStore = searchParams.get("mode") === "edit" && store.vendorSlug === slug;
   const [selectedPackage, setSelectedPackage] = useState<PackageTier>(
-    store.vendorSlug === slug && store.selectedPackage ? store.selectedPackage : "silver"
+    sameVendorStore && store.selectedPackage ? store.selectedPackage : "silver"
   );
-  const [guestCount, setGuestCount] = useState(
-    store.vendorSlug === slug && store.guestCount > 0 ? store.guestCount : 100
+  const [guestCount, setGuestCount] = useState<number | null>(
+    sameVendorStore && store.guestCount > 0 ? store.guestCount : null
   );
-  const [eventType, setEventType] = useState(store.eventType || "");
-  const [eventDate, setEventDate] = useState(store.eventDate || "");
-  const [eventTime, setEventTime] = useState(store.eventTime || "7:00 PM");
+  const [eventType, setEventType] = useState(sameVendorStore ? store.eventType || "" : "");
+  const [eventDate, setEventDate] = useState(sameVendorStore ? store.eventDate || "" : "");
+  const [eventTime, setEventTime] = useState(sameVendorStore ? store.eventTime || "" : "");
   const [foodPreference, setFoodPreference] = useState<FoodPreference>(
-    store.vendorSlug === slug ? store.foodPreference : ""
+    sameVendorStore ? store.foodPreference : ""
   );
-  const eventRef = useRef<HTMLDivElement | null>(null);
-  const guestRef = useRef<HTMLDivElement | null>(null);
-  const dateRef = useRef<HTMLDivElement | null>(null);
-  const timeRef = useRef<HTMLDivElement | null>(null);
-  const foodRef = useRef<HTMLDivElement | null>(null);
-  const packageRef = useRef<HTMLDivElement | null>(null);
-
-  const scrollToRef = (ref: { current: HTMLDivElement | null }) => {
-    if (!ref.current) return;
-    ref.current.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   useEffect(() => {
     if (!slug || !vendor) {
       router.replace("/caterers");
       return;
     }
-
-    setGuestCount((current) => Math.min(vendor.maxPax, Math.max(vendor.minPax, current)));
-    if (!eventType) setEventType(vendor.eventTypes[0] ?? EVENT_TYPES[0]);
-    if (!eventDate) setEventDate(dateOptions[0]?.value ?? "");
-    if (!eventTime) setEventTime("7:00 PM");
-    if (vendor.isVeg && !foodPreference) {
-      setFoodPreference("veg");
-    }
-  }, [dateOptions, eventDate, eventTime, eventType, foodPreference, router, slug, vendor]);
+  }, [router, slug, vendor]);
 
   if (!vendor) return null;
 
@@ -212,8 +202,9 @@ export default function BookBasicsClient() {
       eventDate &&
       eventTime.trim() &&
       foodPreference &&
-      guestCount >= vendor.minPax &&
-      guestCount <= vendor.maxPax
+      guestCount !== null &&
+      guestCount >= 10 &&
+      guestCount <= 2000
   );
 
   const persistBasics = () => {
@@ -229,8 +220,8 @@ export default function BookBasicsClient() {
       vendorImage: vendor.images[0] ?? "",
       selectedPackage,
       pricePerPlate: activePackage.pricePerPlate,
-      guestCount,
-      guestSlab: `${guestCount} guests`,
+      guestCount: guestCount ?? 0,
+      guestSlab: `${guestCount ?? 0} guests`,
       eventType,
       eventDate,
       eventTime: eventTime.trim(),
@@ -239,10 +230,12 @@ export default function BookBasicsClient() {
         ? {
             selectedItems: [],
             addOnItems: [],
+            addOnSelections: {},
             autoAddOnItems: [],
             categorySelectionSummary: [],
             waterType: "none",
             waterLabel: "",
+            waterVariant: "",
             waterPricePerPax: 0,
             waterTotal: 0,
             couponCode: "",
@@ -259,14 +252,11 @@ export default function BookBasicsClient() {
   const onContinue = () => {
     if (!canContinue) return;
     persistBasics();
-    if (typeof window !== "undefined") {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
     router.push("/book/customize?vendor=" + encodeURIComponent(slug));
   };
 
   const changeGuests = (value: number) => {
-    setGuestCount(Math.min(vendor.maxPax, Math.max(vendor.minPax, value)));
+    setGuestCount(Math.min(2000, Math.max(10, value)));
   };
 
   const dateLabel = dateOptions.find((item) => item.value === eventDate)?.label ?? "Choose date";
@@ -276,6 +266,17 @@ export default function BookBasicsClient() {
       <BookingStepper current={1} />
 
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
+        <div className="mb-4">
+          <button
+            type="button"
+            onClick={() => router.push(`/caterer/${slug}`)}
+            className="inline-flex h-11 items-center gap-2 rounded-full border border-stone-300 bg-white px-4 text-[13px] font-semibold text-stone-700 shadow-[0_10px_24px_rgba(35,25,20,0.04)] transition-all hover:border-[#8A3E1D] hover:text-[#8A3E1D]"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Caterer
+          </button>
+        </div>
+
         <section className="mb-6 rounded-[30px] border border-stone-200 bg-white px-5 py-5 shadow-[0_20px_50px_rgba(35,25,20,0.05)]">
           <div className="flex items-center gap-4">
             <div className="relative h-16 w-16 overflow-hidden rounded-2xl bg-stone-100">
@@ -303,61 +304,58 @@ export default function BookBasicsClient() {
               <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-stone-500">Step 1</p>
               <h1 className="mt-2 text-[30px] font-black tracking-[-0.04em] text-stone-950">Start your booking</h1>
               <p className="mt-2 max-w-2xl text-[14px] leading-[1.75] text-stone-500">
-                Choose your event basics, food preference, and package before you continue to the menu builder.
+                Choose event type, guests, date, time, food preference, and package to continue.
               </p>
 
               <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div ref={eventRef}>
+                <div>
                   <SelectField
                     label="Event Type"
                     value={eventType}
-                    display={eventType || "Choose event type"}
+                    display={eventType || "Select event type"}
                     open={openField === "event"}
                     onToggle={() => setOpenField((current) => (current === "event" ? null : "event"))}
                     options={EVENT_TYPES.map((item) => ({ value: item, label: item }))}
                     onSelect={(value) => {
                       setEventType(value);
                       setOpenField(null);
-                      scrollToRef(guestRef);
                     }}
                     icon={CalendarDays}
                   />
                 </div>
 
-                <div ref={guestRef}>
+                <div>
                   <SelectField
                     label="Guest Count / Pax"
-                    value={String(guestCount)}
-                    display={`${guestCount} guests`}
+                    value={guestCount ? String(guestCount) : ""}
+                    display={guestCount ? `${guestCount} guests` : "Select guest count"}
                     open={openField === "guest"}
                     onToggle={() => setOpenField((current) => (current === "guest" ? null : "guest"))}
                     options={GUEST_PRESETS.map((value) => ({ value: String(value), label: `${value} guests` }))}
                     onSelect={(value) => {
                       changeGuests(Number(value));
                       setOpenField(null);
-                      scrollToRef(dateRef);
                     }}
                     icon={Users}
                   />
-                  <p className="mt-2 text-[12px] font-medium text-stone-500">Select between 10 and 2000 guests</p>
+                  <p className="mt-2 text-[12px] font-medium text-stone-500">Choose from 10 to 2000 guests</p>
                 </div>
 
-                <div ref={dateRef}>
+                <div>
                   <DatePickerField
                     label="Event Date"
                     value={eventDate}
-                    display={dateLabel}
+                    display={eventDate ? dateLabel : "Select event date"}
                     open={openField === "date"}
                     onToggle={() => setOpenField((current) => (current === "date" ? null : "date"))}
                     onSelect={(value) => {
                       setEventDate(value);
                       setOpenField(null);
-                      scrollToRef(timeRef);
                     }}
                   />
                 </div>
 
-                <div ref={timeRef}>
+                <div>
                   <TimePickerField
                     label="Event Time"
                     value={eventTime}
@@ -366,25 +364,23 @@ export default function BookBasicsClient() {
                     onSelect={(value) => {
                       setEventTime(value);
                       setOpenField(null);
-                      scrollToRef(foodRef);
                     }}
                   />
                 </div>
               </div>
 
-              <div className="mt-6" ref={foodRef}>
+              <div className="mt-6">
                 <Field label="Food Preference" helper="Select what type of food you want for this event">
                   <div className="grid gap-3 sm:grid-cols-2">
                     <button
                       type="button"
                       onClick={() => {
                         setFoodPreference("veg");
-                        scrollToRef(packageRef);
                       }}
                       className={
-                        "flex items-center justify-between rounded-[20px] border px-4 py-3 text-left transition " +
+                        "flex items-center justify-between rounded-[22px] border px-4 py-4 text-left transition " +
                         (foodPreference === "veg"
-                          ? "border-[#1D8C4E] bg-[#EEF8F2] text-[#1D8C4E]"
+                          ? "border-[#1D8C4E] bg-[linear-gradient(180deg,#F4FCF7_0%,#EEF8F2_100%)] text-[#1D8C4E] shadow-[0_12px_24px_rgba(29,140,78,0.08)]"
                           : "border-stone-200 bg-white text-stone-700 hover:border-[#1D8C4E]")
                       }
                     >
@@ -394,7 +390,7 @@ export default function BookBasicsClient() {
                         </span>
                         <div>
                           <p className="text-[14px] font-semibold">Pure Veg</p>
-                          <p className="text-[12px] text-stone-500">Only veg dishes in menu</p>
+                          <p className="text-[12px] text-stone-500">Only veg dishes</p>
                         </div>
                       </div>
                       {foodPreference === "veg" ? <Check className="h-4 w-4" /> : null}
@@ -405,15 +401,14 @@ export default function BookBasicsClient() {
                       onClick={() => {
                         if (vendor.isVeg) return;
                         setFoodPreference("veg_nonveg");
-                        scrollToRef(packageRef);
                       }}
                       disabled={vendor.isVeg}
                       className={
-                        "flex items-center justify-between rounded-[20px] border px-4 py-3 text-left transition " +
+                        "flex items-center justify-between rounded-[22px] border px-4 py-4 text-left transition " +
                         (vendor.isVeg
                           ? "cursor-not-allowed border-stone-200 bg-stone-50 text-stone-400"
                           : foodPreference === "veg_nonveg"
-                            ? "border-[#B64532] bg-[#FFF2EF] text-[#B64532]"
+                            ? "border-[#B64532] bg-[linear-gradient(180deg,#FFF6F3_0%,#FFF2EF_100%)] text-[#B64532] shadow-[0_12px_24px_rgba(182,69,50,0.08)]"
                             : "border-stone-200 bg-white text-stone-700 hover:border-[#B64532]")
                       }
                     >
@@ -429,7 +424,7 @@ export default function BookBasicsClient() {
                         <div>
                           <p className="text-[14px] font-semibold">Veg + Non-Veg</p>
                           <p className="text-[12px] text-stone-500">
-                            {vendor.isVeg ? "This caterer is veg-only" : "Both veg & non-veg dishes"}
+                            {vendor.isVeg ? "Veg-only caterer" : "Veg and non-veg dishes"}
                           </p>
                         </div>
                       </div>
@@ -440,10 +435,7 @@ export default function BookBasicsClient() {
               </div>
             </section>
 
-            <section
-              ref={packageRef}
-              className="rounded-[30px] border border-stone-200 bg-white p-5 shadow-[0_20px_50px_rgba(35,25,20,0.04)]"
-            >
+            <section className="rounded-[30px] border border-stone-200 bg-white p-5 shadow-[0_20px_50px_rgba(35,25,20,0.04)]">
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-stone-500">Package</p>
@@ -500,8 +492,8 @@ export default function BookBasicsClient() {
               <div className="mt-4 space-y-4 rounded-[24px] border border-stone-200 bg-[#FBF9F6] p-4">
                 <SummaryRow label="Package" value={`${activePackage.name} · ₹${activePackage.pricePerPlate}/plate`} />
                 <SummaryRow label="Food" value={formatFoodPreference(foodPreference) || "Choose option"} />
-                <SummaryRow label="Guests" value={`${guestCount} guests`} />
-                <SummaryRow label="Date" value={dateLabel} />
+                <SummaryRow label="Guests" value={guestCount ? `${guestCount} guests` : "Select guests"} />
+                <SummaryRow label="Date" value={eventDate ? dateLabel : "Select date"} />
                 <SummaryRow label="Time" value={eventTime || "Select time"} />
               </div>
 
@@ -526,10 +518,10 @@ export default function BookBasicsClient() {
         <div className="mx-auto flex max-w-2xl items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-[13px] font-semibold text-stone-900">
-              {activePackage.name} · ₹{activePackage.pricePerPlate}/plate · {guestCount} guests
+              {activePackage.name} · ₹{activePackage.pricePerPlate}/plate · {guestCount ? `${guestCount} guests` : "Select guests"}
             </p>
             <p className="text-[12px] text-stone-500">
-              {formatFoodPreference(foodPreference) || "Choose food"} · {dateLabel} · {eventTime}
+              {formatFoodPreference(foodPreference) || "Choose food"} · {eventDate ? dateLabel : "Select date"} · {eventTime || "Select time"}
             </p>
           </div>
           <button
@@ -584,7 +576,7 @@ function SelectField({
           <ChevronDown className={"h-4 w-4 text-stone-400 transition " + (open ? "rotate-180" : "")} />
         </button>
         {open ? (
-          <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-[22px] border border-stone-200 bg-white p-2 shadow-[0_20px_50px_rgba(35,25,20,0.12)]">
+          <div className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-[22px] border border-[#DDCDBA] bg-[#FFFDF9] p-2 shadow-[0_20px_50px_rgba(35,25,20,0.12)]">
             {options.map((option) => (
               <button
                 key={option.value}
@@ -632,6 +624,7 @@ function DatePickerField({
   const [viewMonth, setViewMonth] = useState(() => new Date());
   const days = useMemo(() => buildCalendarGrid(viewMonth), [viewMonth]);
   const today = new Date();
+  const todayKey = formatDateKey(new Date(today.getFullYear(), today.getMonth(), today.getDate()));
 
   return (
     <Field label={label}>
@@ -672,9 +665,10 @@ function DatePickerField({
             </div>
             <div className="mt-2 grid grid-cols-7 gap-1">
               {days.map((day) => {
-                const iso = day.toISOString().slice(0, 10);
+                const iso = formatDateKey(day);
                 const isCurrentMonth = day.getMonth() === viewMonth.getMonth();
                 const isSelected = value === iso;
+                const isSelectable = iso >= todayKey;
                 const isToday =
                   day.getDate() === today.getDate() &&
                   day.getMonth() === today.getMonth() &&
@@ -683,11 +677,14 @@ function DatePickerField({
                   <button
                     key={iso}
                     type="button"
-                    onClick={() => onSelect(iso)}
+                    disabled={!isSelectable}
+                    onClick={() => isSelectable && onSelect(iso)}
                     className={
                       "h-9 rounded-xl text-[13px] font-semibold transition " +
                       (isSelected
                         ? "bg-[#8A3E1D] text-white"
+                        : !isSelectable
+                          ? "cursor-not-allowed text-stone-300"
                         : isToday
                           ? "border border-[#8A3E1D] text-[#8A3E1D]"
                           : isCurrentMonth
@@ -733,7 +730,7 @@ function TimePickerField({
           <ChevronDown className={"h-4 w-4 text-stone-400 transition " + (open ? "rotate-180" : "")} />
         </button>
         {open ? (
-          <div className="absolute z-20 mt-2 w-full max-h-56 overflow-y-auto rounded-[22px] border border-stone-200 bg-white p-2 shadow-[0_20px_50px_rgba(35,25,20,0.12)]">
+          <div className="absolute z-20 mt-2 w-full max-h-56 overflow-y-auto rounded-[22px] border border-[#DDCDBA] bg-[#FFFDF9] p-2 shadow-[0_20px_50px_rgba(35,25,20,0.12)]">
             {TIME_OPTIONS.map((item) => (
               <button
                 key={item}
@@ -774,7 +771,7 @@ function Field({
         <label
           className={
             "text-[12px] uppercase tracking-[0.16em] " +
-            (emphasize ? "font-bold text-stone-800" : "font-semibold text-stone-500")
+            (emphasize ? "font-bold text-stone-800" : "font-semibold text-stone-600")
           }
         >
           {label}

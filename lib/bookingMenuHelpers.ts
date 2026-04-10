@@ -10,9 +10,7 @@ import type {
 } from "@/store/bookingStore";
 
 type CategoryRule = {
-  minRequired: number;
-  includedCount: number;
-  maxSelectableCount: number;
+  requiredCount: number;
 };
 
 type RawMenuItem = {
@@ -48,6 +46,7 @@ export type WaterOption = {
   label: string;
   pricePerPax: number;
   helperText: string;
+  variants?: string[];
 };
 
 const CATEGORY_ORDER: BookingCategoryKey[] = [
@@ -68,25 +67,25 @@ const CATEGORY_LABELS: Record<BookingCategoryKey, string> = {
 
 const PACKAGE_RULES: Record<PackageTier, Record<BookingCategoryKey, CategoryRule>> = {
   bronze: {
-    soupsDrinks: { minRequired: 0, includedCount: 1, maxSelectableCount: 1 },
-    starters: { minRequired: 1, includedCount: 2, maxSelectableCount: 3 },
-    mainCourse: { minRequired: 2, includedCount: 3, maxSelectableCount: 4 },
-    riceBreads: { minRequired: 1, includedCount: 2, maxSelectableCount: 2 },
-    desserts: { minRequired: 1, includedCount: 1, maxSelectableCount: 2 },
+    soupsDrinks: { requiredCount: 1 },
+    starters: { requiredCount: 2 },
+    mainCourse: { requiredCount: 3 },
+    riceBreads: { requiredCount: 2 },
+    desserts: { requiredCount: 1 },
   },
   silver: {
-    soupsDrinks: { minRequired: 0, includedCount: 1, maxSelectableCount: 2 },
-    starters: { minRequired: 2, includedCount: 4, maxSelectableCount: 5 },
-    mainCourse: { minRequired: 3, includedCount: 4, maxSelectableCount: 6 },
-    riceBreads: { minRequired: 1, includedCount: 2, maxSelectableCount: 3 },
-    desserts: { minRequired: 1, includedCount: 1, maxSelectableCount: 2 },
+    soupsDrinks: { requiredCount: 1 },
+    starters: { requiredCount: 3 },
+    mainCourse: { requiredCount: 4 },
+    riceBreads: { requiredCount: 2 },
+    desserts: { requiredCount: 2 },
   },
   gold: {
-    soupsDrinks: { minRequired: 0, includedCount: 2, maxSelectableCount: 2 },
-    starters: { minRequired: 2, includedCount: 5, maxSelectableCount: 6 },
-    mainCourse: { minRequired: 3, includedCount: 5, maxSelectableCount: 8 },
-    riceBreads: { minRequired: 1, includedCount: 2, maxSelectableCount: 4 },
-    desserts: { minRequired: 1, includedCount: 1, maxSelectableCount: 5 },
+    soupsDrinks: { requiredCount: 2 },
+    starters: { requiredCount: 4 },
+    mainCourse: { requiredCount: 5 },
+    riceBreads: { requiredCount: 3 },
+    desserts: { requiredCount: 2 },
   },
 };
 
@@ -184,17 +183,6 @@ function buildSourceMenu(slug: string, packageId: PackageTier, foodPreference?: 
     }
   }
 
-  const pkg = vendor.packages.find((entry) => entry.id === packageId);
-  if (pkg) {
-    for (const category of pkg.categories) {
-      const categoryKey = sourceToGroup(category.name);
-      for (const item of category.items) {
-        if (!shouldIncludeItem(vendor.isVeg, foodPreference, item.isVeg)) continue;
-        pushUnique(grouped.get(categoryKey) ?? [], { name: item.name, isVeg: item.isVeg });
-      }
-    }
-  }
-
   return CATEGORY_ORDER.map((categoryKey) => {
     const rule = PACKAGE_RULES[packageId][categoryKey];
     const defaults = defaultMap.get(categoryKey) ?? new Set<string>();
@@ -225,6 +213,24 @@ function buildSourceMenu(slug: string, packageId: PackageTier, foodPreference?: 
   });
 }
 
+export function buildMenuPreviewGroups(
+  slug: string,
+  packageId: PackageTier,
+  foodPreference?: FoodPreference,
+  previewLimit = 4
+) {
+  return buildSourceMenu(slug, packageId, foodPreference)
+    .map((group) => ({
+      title: group.label,
+      items: group.items.slice(0, previewLimit).map((item) => ({
+        name: item.name,
+        isVeg: item.isVeg,
+      })),
+      more: Math.max(group.items.length - previewLimit, 0),
+    }))
+    .filter((group) => group.items.length > 0);
+}
+
 export function getPackageCategoryRules(packageId: PackageTier) {
   return PACKAGE_RULES[packageId];
 }
@@ -236,7 +242,7 @@ export function getDefaultMenuKeys(slug: string, packageId: PackageTier, foodPre
   for (const group of groups) {
     const preferred = group.items.filter((item) => item.isDefault);
     const remaining = group.items.filter((item) => !item.isDefault);
-    const seedItems = [...preferred, ...remaining].slice(0, group.rule.includedCount);
+    const seedItems = [...preferred, ...remaining].slice(0, group.rule.requiredCount);
     selected.push(...seedItems.map((item) => item.key));
   }
 
@@ -257,23 +263,10 @@ export function normalizeSelectedItems(
     const inGroup = selectedKeys.filter(
       (key, index) => selectedKeys.indexOf(key) === index && allowedKeys.has(key)
     );
-    normalized.push(...inGroup.slice(0, group.rule.maxSelectableCount));
+    normalized.push(...inGroup.slice(0, group.rule.requiredCount));
   }
 
   return normalized;
-}
-
-function selectedExtrasMap(selectedKeys: string[], groups: ReturnType<typeof buildSourceMenu>) {
-  const extraSet = new Set<string>();
-
-  for (const group of groups) {
-    const selectedInGroup = selectedKeys.filter((key) => key.startsWith(`${group.categoryKey}::`));
-    for (const key of selectedInGroup.slice(group.rule.includedCount)) {
-      extraSet.add(key);
-    }
-  }
-
-  return extraSet;
 }
 
 export function getCategorySelectionSummary(
@@ -290,23 +283,20 @@ export function getCategorySelectionSummary(
     return {
       categoryKey: group.categoryKey,
       label: group.label,
-      minRequired: group.rule.minRequired,
-      includedCount: group.rule.includedCount,
-      maxSelectableCount: group.rule.maxSelectableCount,
+      minRequired: group.rule.requiredCount,
+      includedCount: group.rule.requiredCount,
+      maxSelectableCount: group.rule.requiredCount,
       selectedCount,
-      extraSelectedCount: Math.max(0, selectedCount - group.rule.includedCount),
+      extraSelectedCount: 0,
     };
   });
 }
 
 function helperCopy(summary: CategorySelectionSummary) {
   if (summary.selectedCount < summary.minRequired) {
-    return `Select at least ${summary.minRequired}`;
+    return `Select ${summary.minRequired} item${summary.minRequired > 1 ? "s" : ""}`;
   }
-  if (summary.selectedCount >= summary.maxSelectableCount) {
-    return "Max reached";
-  }
-  return `${summary.includedCount} included · Max ${summary.maxSelectableCount}`;
+  return "Required selection complete";
 }
 
 export function buildBookingMenuGroups(
@@ -317,7 +307,6 @@ export function buildBookingMenuGroups(
 ): BookingMenuGroup[] {
   const normalized = normalizeSelectedItems(slug, packageId, selectedKeys, foodPreference);
   const groups = buildSourceMenu(slug, packageId, foodPreference);
-  const extraSet = selectedExtrasMap(normalized, groups);
 
   return getCategorySelectionSummary(slug, packageId, normalized, foodPreference).map((summary) => {
     const source = groups.find((group) => group.categoryKey === summary.categoryKey);
@@ -328,7 +317,7 @@ export function buildBookingMenuGroups(
         source?.items.map((item) => ({
           ...item,
           selected: normalized.includes(item.key),
-          isAddOn: extraSet.has(item.key),
+          isAddOn: false,
         })) ?? [],
     };
   });
@@ -340,21 +329,11 @@ export function getAutoAddonItems(
   selectedKeys: string[],
   foodPreference?: FoodPreference
 ) {
-  const normalized = normalizeSelectedItems(slug, packageId, selectedKeys, foodPreference);
-  const groups = buildSourceMenu(slug, packageId, foodPreference);
-  const extras = selectedExtrasMap(normalized, groups);
-
-  return groups.flatMap((group) =>
-    group.items
-      .filter((item) => extras.has(item.key))
-      .map((item) => ({
-        key: item.key,
-        name: item.name,
-        isVeg: item.isVeg,
-        categoryKey: group.categoryKey,
-        label: group.label,
-      }))
-  );
+  void slug;
+  void packageId;
+  void selectedKeys;
+  void foodPreference;
+  return [];
 }
 
 export function groupMenuItemsForReview(
@@ -419,6 +398,7 @@ export function getWaterOptions(slug: string): WaterOption[] {
       label: "Packaged Bottles",
       pricePerPax: packagedRate,
       helperText: `₹${packagedRate}/guest`,
+      variants: ["200ml", "330ml", "500ml", "1 ltr"],
     },
   ];
 }
@@ -470,7 +450,9 @@ export function buildBookingDraftPayload(state: BookingStore) {
     })),
     auto_addon_items: autoAddonItems,
     selected_addons: state.addOnItems,
+    selected_addon_selections: state.addOnSelections,
     water_selected: state.waterType,
+    water_variant: state.waterVariant,
     caterer_note: state.specialNote,
     coupon_code: state.couponCode,
   };

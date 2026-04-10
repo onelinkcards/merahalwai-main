@@ -71,7 +71,7 @@ export default function AuthEntryScreen({ mode }: { mode: Mode }) {
   const subheading =
     mode === "login"
       ? "Continue with Google to access your bookings and account."
-      : "Use Google to start your account. We will collect mobile and WhatsApp details next.";
+      : "Continue with Google to create your MeraHalwai account.";
 
   useEffect(() => {
     if (ready && isAuthenticated && session && !redirectStartedRef.current) {
@@ -135,29 +135,14 @@ export default function AuthEntryScreen({ mode }: { mode: Mode }) {
                 <div className="relative border-b border-[#F1DDC8] px-6 py-5">
                   <Image src={LogoOrange} alt="Mera Halwai" className="h-8 w-auto object-contain" priority />
                 </div>
-                <div className="px-6 pb-6 pt-5">
-                  <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#A86D35]">Google account</p>
+                <div className="px-6 pb-7 pt-8">
+                  <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#A86D35]">Google Sign-in</p>
                   <h1 className="mt-3 text-[40px] font-black leading-[0.98] tracking-[-0.04em] text-[#8A3E1D]">
                     One sign-in, cleaner bookings.
                   </h1>
                   <p className="mt-4 max-w-[420px] text-[15px] leading-[1.75] text-[#6E594C]">
-                    Sign in with Google, fetch your email automatically, then add your mobile number and WhatsApp-ready contact once.
+                    Sign in with Google for faster access to bookings, invoices, and account details.
                   </p>
-
-                  <div className="mt-6 space-y-3">
-                    {[
-                      "Google email is fetched automatically",
-                      "Mobile number is collected once during setup",
-                      "Bookings, invoices, and updates stay in one place",
-                    ].map((item) => (
-                      <div
-                        key={item}
-                        className="rounded-[18px] border border-[#EDD8C0] bg-white/75 px-4 py-3 text-[14px] font-medium text-[#5A4437] backdrop-blur-sm"
-                      >
-                        {item}
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
             </div>
@@ -189,15 +174,6 @@ export default function AuthEntryScreen({ mode }: { mode: Mode }) {
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <GoogleIcon />}
                 {loading ? "Continuing..." : "Continue with Google"}
               </button>
-
-              <div className="mt-5 rounded-[20px] border border-[#EDE1D5] bg-[#FFF9F2] px-4 py-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A6D4B]">What happens next</p>
-                <ul className="mt-3 space-y-2 text-[13px] leading-[1.6] text-[#6F6054]">
-                  <li>Google fetches your email automatically.</li>
-                  <li>You add your mobile number once and confirm it.</li>
-                  <li>The same number is used for WhatsApp booking updates.</li>
-                </ul>
-              </div>
 
               <p className="mt-4 text-[12px] leading-[1.7] text-[#877567]">
                 By continuing, you agree to MeraHalwai’s Terms and Privacy Policy.

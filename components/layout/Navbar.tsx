@@ -569,7 +569,7 @@ export default function Navbar() {
                         </div>
                         <div className="p-2">
                           {[
-                            { label: "My Profile", href: "/account/profile" },
+                            { label: "My Profile", href: "/account" },
                             { label: "My Orders", href: "/my-bookings" },
                           ].map((item) => (
                             <Link
@@ -793,7 +793,7 @@ export default function Navbar() {
                         </div>
                       </div>
                       <Link
-                        href="/account/profile"
+                        href="/account"
                         onClick={() => setMobileOpen(false)}
                         className="flex h-[48px] w-full items-center justify-center gap-2 rounded-xl border-[1.5px] border-[#E8D5B7] bg-white text-[15px] font-bold tracking-wide text-[#1E1E1E] shadow-sm transition-transform active:scale-[0.98]"
                       >

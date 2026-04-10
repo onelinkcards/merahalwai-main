@@ -3,6 +3,7 @@
 import Link from "next/link";
 import AdminShell from "@/components/admin/AdminShell";
 import { AdminPaymentStatusBadge } from "@/components/admin/AdminStatusBadge";
+import { AdminButton, AdminTableCard } from "@/components/admin/AdminUi";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { formatCurrency } from "@/data/mockAccount";
 
@@ -12,38 +13,41 @@ export default function AdminInvoicesPage() {
   return (
     <AdminShell
       title="Invoices"
-      description="Review invoices, open customer invoice view, download PDFs, and resend invoice communication to customers."
+      description="Invoice ledger for customer-facing bills, payment state, and operational access."
     >
-      <section className="space-y-3">
-        {state.invoices.map((invoice) => (
-          <div key={invoice.id} className="rounded-[18px] border border-[#E3E8F0] bg-white px-4 py-4 shadow-[0_8px_18px_rgba(0,0,0,0.04)]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-[200px]">
-                <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-[#2F6FED]">{invoice.invoiceNumber}</p>
-                <p className="mt-1 text-[13px] text-[#6B7480]">Order {invoice.orderId}</p>
-              </div>
-              <div className="min-w-[200px] text-[13px] text-[#6B7480]">
-                {invoice.customerName}
-              </div>
-              <div className="min-w-[200px] text-[13px] text-[#6B7480]">
-                {invoice.vendorName}
-              </div>
-              <div className="min-w-[140px] text-[14px] font-bold text-[#1C2430]">
-                {formatCurrency(invoice.amount)}
-              </div>
-              <div className="min-w-[160px]">
-                <AdminPaymentStatusBadge status={invoice.paymentStatus} compact />
-              </div>
-              <Link
-                href={`/invoice/${invoice.orderId}`}
-                className="rounded-full border border-[#D7E3F4] px-3 py-2 text-[12px] font-bold text-[#2F6FED]"
-              >
-                View invoice
-              </Link>
-            </div>
-          </div>
-        ))}
-      </section>
+      <AdminTableCard title="Invoice records" eyebrow="Billing Ledger">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left">
+            <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+              <tr>
+                {["Invoice", "Order", "Customer", "Vendor", "Amount", "Payment", "Action"].map((label) => (
+                  <th key={label} className="px-5 py-4">{label}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E8EDF4]">
+              {state.invoices.map((invoice) => (
+                <tr key={invoice.id} className="text-[14px] text-[#334155]">
+                  <td className="px-5 py-4">
+                    <p className="font-bold text-[#0F172A]">{invoice.invoiceNumber}</p>
+                    <p className="text-[12px] text-[#64748B]">{invoice.createdDate}</p>
+                  </td>
+                  <td className="px-5 py-4">{invoice.orderId}</td>
+                  <td className="px-5 py-4">{invoice.customerName}</td>
+                  <td className="px-5 py-4">{invoice.vendorName}</td>
+                  <td className="px-5 py-4 font-bold text-[#0F172A]">{formatCurrency(invoice.amount)}</td>
+                  <td className="px-5 py-4"><AdminPaymentStatusBadge status={invoice.paymentStatus} compact /></td>
+                  <td className="px-5 py-4">
+                    <Link href={`/invoice/${invoice.orderId}`}>
+                      <AdminButton variant="ghost">View invoice</AdminButton>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }
