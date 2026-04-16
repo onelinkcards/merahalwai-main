@@ -3,7 +3,8 @@ import { getVendorDetailBySlug } from "@/data/vendors";
 import { getWaterOptions } from "@/lib/bookingMenuHelpers";
 
 const CONVENIENCE_FEE_RATE = 0.02;
-const GST_RATE = 0.18;
+export const GST_RATE = 0.18;
+const ADVANCE_PAYMENT_RATE = 0.3;
 
 export type BillBreakdown = {
   baseAmount: number;
@@ -17,6 +18,27 @@ export type BillBreakdown = {
   gstAmount: number;
   convenienceFee: number;
   grandTotal: number;
+};
+
+type CustomerFacingBillSource = {
+  baseAmount?: number;
+  optionalAddOns?: number;
+  optionalAddOnAmount?: number;
+  water?: number;
+  waterAmount?: number;
+  subtotal?: number;
+};
+
+export type CustomerFacingBillSummary = {
+  baseAmount: number;
+  optionalAddOnAmount: number;
+  waterAmount: number;
+  bookingValue: number;
+  upfrontBase: number;
+  upfrontGst: number;
+  upfrontTotal: number;
+  remainingAmount: number;
+  customerGrandTotal: number;
 };
 
 function optionalAddOnTotal(slug: string, addOnNames: string[], guestCount: number) {
@@ -74,5 +96,44 @@ export function calculateBill(state: Partial<BookingStore>): BillBreakdown {
     gstAmount,
     convenienceFee,
     grandTotal,
+  };
+}
+
+export function getCustomerFacingBillSummary(
+  source: BillBreakdown | CustomerFacingBillSource
+): CustomerFacingBillSummary {
+  const baseAmount = Math.max(0, Math.round(source.baseAmount ?? 0));
+  const optionalAddOnAmount = Math.max(
+    0,
+    Math.round(
+      "optionalAddOnAmount" in source
+        ? (source.optionalAddOnAmount ?? 0)
+        : (source.optionalAddOns ?? 0)
+    )
+  );
+  const waterAmount = Math.max(
+    0,
+    Math.round("waterAmount" in source ? (source.waterAmount ?? 0) : (source.water ?? 0))
+  );
+  const bookingValue = Math.max(
+    0,
+    Math.round(source.subtotal ?? baseAmount + optionalAddOnAmount + waterAmount)
+  );
+  const upfrontBase = Math.round(bookingValue * ADVANCE_PAYMENT_RATE);
+  const upfrontGst = Math.round(upfrontBase * GST_RATE);
+  const upfrontTotal = upfrontBase + upfrontGst;
+  const remainingAmount = Math.max(0, bookingValue - upfrontBase);
+  const customerGrandTotal = bookingValue + upfrontGst;
+
+  return {
+    baseAmount,
+    optionalAddOnAmount,
+    waterAmount,
+    bookingValue,
+    upfrontBase,
+    upfrontGst,
+    upfrontTotal,
+    remainingAmount,
+    customerGrandTotal,
   };
 }

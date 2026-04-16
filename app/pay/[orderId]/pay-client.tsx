@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { formatCurrency } from "@/data/mockAccount";
 import { getAdminOrderById, type AdminOrderRecord } from "@/data/mockAdmin";
+import CustomerPaymentSplit from "@/components/booking/CustomerPaymentSplit";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import {
   ArrowRight,
   CalendarDays,
@@ -32,6 +34,23 @@ export default function PayClient({ orderId }: PayClientProps) {
   const order: AdminOrderRecord | null = getAdminOrderById(orderId);
   const razorpayKey =
     process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_live_SZTkZ0kcr1wMAN";
+  const {
+    bookingValue,
+    upfrontBase,
+    upfrontGst,
+    upfrontTotal: advanceAmount,
+    remainingAmount: balanceAtProperty,
+    customerGrandTotal,
+  } = order
+    ? getCustomerFacingBillSummary(order.bill)
+    : {
+        bookingValue: 0,
+        upfrontBase: 0,
+        upfrontGst: 0,
+        upfrontTotal: 0,
+        remainingAmount: 0,
+        customerGrandTotal: 0,
+      };
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -45,17 +64,14 @@ export default function PayClient({ orderId }: PayClientProps) {
   const invoiceLines = order
     ? [
         { label: "Base Amount", value: order.bill.baseAmount },
-        { label: "Auto Add-ons", value: order.bill.autoAddOns },
         { label: "Optional Add-ons", value: order.bill.optionalAddOns },
         { label: "Water", value: order.bill.water },
-        { label: "Subtotal", value: order.bill.subtotal },
-        { label: "GST (18%)", value: order.bill.gst },
-        { label: "Convenience Fee", value: order.bill.convenienceFee },
+        { label: "Booking Value", value: bookingValue },
+        { label: "30% Pay Now", value: upfrontBase },
+        { label: "GST on Upfront", value: upfrontGst },
+        { label: "70% At Property", value: balanceAtProperty },
       ]
     : [];
-
-  const advanceAmount = order ? Math.round(order.bill.finalTotal * 0.3) : 0;
-  const balanceAtProperty = order ? Math.max(order.bill.finalTotal - advanceAmount, 0) : 0;
   const minDate = new Date().toISOString().split("T")[0];
   const tastingSlots = [
     "11:00 AM",
@@ -99,7 +115,7 @@ export default function PayClient({ orderId }: PayClientProps) {
       amount: Math.round(advanceAmount * 100),
       currency: "INR",
       name: "MeraHalwai",
-      description: `30% advance payment for ${order.vendorName}`,
+      description: `30% advance + GST for ${order.vendorName}`,
       prefill: {
         name: order.customer.name,
         email: order.customer.email,
@@ -171,26 +187,12 @@ export default function PayClient({ orderId }: PayClientProps) {
           </div>
         </header>
 
-        <section className="rounded-[24px] border border-[#E8D7C1] bg-[linear-gradient(180deg,#FFF8EF_0%,#FFFDF9_100%)] p-5">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.17em] text-[#8A6A4B]">
-            Payment Split (Post Confirmation)
-          </p>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EFE4D6]">
-            <div className="h-full w-[30%] rounded-full bg-[linear-gradient(90deg,#EC9925_0%,#8A3E1D_100%)]" />
-          </div>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-xl border border-[#E1C9AA] bg-[linear-gradient(145deg,#FFF0D8_0%,#FFE3BF_100%)] px-3 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#8A3E1D]">30% Pay Now</p>
-              <p className="mt-1 text-[24px] font-black text-[#20150E]">{formatCurrency(advanceAmount)}</p>
-              <p className="text-[11px] text-[#7C5634]">Pay now via secure Razorpay link.</p>
-            </div>
-            <div className="rounded-xl border border-[#ECE5DB] bg-[#FAF7F2] px-3 py-3 opacity-70">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.13em] text-[#7E756B]">70% At Property</p>
-              <p className="mt-1 text-[24px] font-black text-[#575047]">{formatCurrency(balanceAtProperty)}</p>
-              <p className="text-[11px] text-[#7E756B]">Pay offline at event venue.</p>
-            </div>
-          </div>
-        </section>
+        <CustomerPaymentSplit
+          advanceAmount={advanceAmount}
+          remainingAmount={balanceAtProperty}
+          title="Payment Terms"
+          subtitle="Pay only the upfront amount online. The rest is settled directly at the event."
+        />
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="rounded-[20px] border border-[#E7DCCB] bg-white p-6 shadow-[0_12px_26px_rgba(15,23,42,0.06)]">
@@ -212,7 +214,9 @@ export default function PayClient({ orderId }: PayClientProps) {
               <p className="mt-2 text-[30px] font-black text-[#1C1814]">
                 {formatCurrency(advanceAmount)}
               </p>
-              <p className="mt-2 text-[12px] text-[#6B5A49]">Remaining at property: {formatCurrency(balanceAtProperty)}</p>
+              <p className="mt-2 text-[12px] text-[#6B5A49]">
+                30% now (incl. 18% tax). 70% at event: {formatCurrency(balanceAtProperty)}
+              </p>
             </div>
             <button
               type="button"
@@ -223,7 +227,7 @@ export default function PayClient({ orderId }: PayClientProps) {
               {paid ? "Advance Paid" : isLoading ? "Opening Razorpay..." : "Pay 30% Now"}
             </button>
             <p className="mt-3 text-[12px] text-[#6B5A49]">
-              Secure checkout via Razorpay. Remaining 70% is paid at property in offline mode.
+              30% now (incl. 18% tax). 70% at event. Taxes (if applicable) as per vendor invoice.
             </p>
           </aside>
         </div>
@@ -254,12 +258,6 @@ export default function PayClient({ orderId }: PayClientProps) {
                 </p>
               </div>
 
-              <div className="mt-3 rounded-2xl border border-[#E8DCCF] bg-[#FAF7F2] px-4 py-3">
-                <p className="text-[12px] font-semibold uppercase tracking-[0.15em] text-[#7D6A57]">Recommended Placement</p>
-                <p className="mt-1 text-[13px] text-[#655646]">
-                  This scheduler appears on payment confirmation page, so user sees it at the exact post-payment moment.
-                </p>
-              </div>
             </div>
 
             <div className={"rounded-2xl border p-4 " + (paid ? "border-[#E4D3BF] bg-[#FFF9F2]" : "border-[#ECE4DA] bg-[#FAF8F5] opacity-80")}>
@@ -336,27 +334,63 @@ export default function PayClient({ orderId }: PayClientProps) {
         <section className="rounded-[20px] border border-[#E7DCCB] bg-white p-6 shadow-[0_12px_26px_rgba(15,23,42,0.06)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-[#8A6A4B]">Invoice Preview</p>
-              <h2 className="mt-2 text-[20px] font-bold text-[#1C1814]">Booking Invoice</h2>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[#8A6A4B]">Invoice Preview</p>
+              <h2 className="mt-2 text-[20px] font-black tracking-[-0.01em] text-[#1C1814]">Customer Billing Summary</h2>
+              <p className="mt-1 text-[12px] text-[#7A6857]">
+                Clear split between the online advance and the amount due at the event.
+              </p>
             </div>
-            <div className="rounded-full bg-[#F5ECE0] px-3 py-1 text-[12px] font-semibold text-[#8A3E1D]">
-              Status: {paid ? "Paid" : "Pending"}
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#EAD8C3] bg-[#FFF8EE] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8A3E1D]">
+              <span className={"h-2.5 w-2.5 rounded-full " + (paid ? "bg-[#179B52]" : "bg-[#EB8B23]")} />
+              {paid ? "Paid" : "Pending"}
             </div>
           </div>
-          <div className="mt-5 space-y-2 text-[14px] text-[#5C5247]">
-            {invoiceLines.map((line) => (
-              <div key={line.label} className="flex items-center justify-between">
-                <span>{line.label}</span>
-                <span className="font-semibold text-[#1C1814]">{formatCurrency(line.value)}</span>
+          <div className="mt-5 rounded-[22px] border border-[#EEE2D2] bg-[linear-gradient(180deg,#FFFDF9_0%,#FFFAF4_100%)] p-4 sm:p-5">
+            <CustomerPaymentSplit
+              advanceAmount={advanceAmount}
+              remainingAmount={balanceAtProperty}
+              compact
+              title="Customer Payment Split"
+              className="shadow-none border-[#E7D8C8]"
+            />
+
+            <div className="mt-4 overflow-hidden rounded-[18px] border border-[#ECE0D2] bg-white">
+              <div className="border-b border-[#F1E7DA] bg-[#FFFCF8] px-4 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8A6A4B]">
+                  Billing Breakdown
+                </p>
               </div>
-            ))}
-          </div>
-          <div className="mt-5 rounded-[16px] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] px-4 py-4 text-white">
-            <p className="text-[12px] font-semibold uppercase tracking-[0.2em] text-white/80">Total</p>
-            <p className="mt-2 text-[24px] font-black">{formatCurrency(order.bill.finalTotal)}</p>
-            <p className="mt-2 text-[12px] text-white/85">
-              Advance now: {formatCurrency(advanceAmount)} · Pay at property: {formatCurrency(balanceAtProperty)}
-            </p>
+              <div className="divide-y divide-[#F3EBE0]">
+                {invoiceLines.map((line) => (
+                  <div
+                    key={line.label}
+                    className="flex items-center justify-between gap-4 px-4 py-3 text-[13px] text-[#5C5247]"
+                  >
+                    <span className="font-medium">{line.label}</span>
+                    <span className="whitespace-nowrap text-[15px] font-bold text-[#1C1814]">
+                      {formatCurrency(line.value)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-[16px] bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] px-4 py-4 text-white">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/78">
+                    Customer Total
+                  </p>
+                  <p className="mt-2 text-[28px] font-black tracking-tight">{formatCurrency(customerGrandTotal)}</p>
+                </div>
+                <div className="rounded-full border border-white/25 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/90">
+                  {paid ? "Paid" : "Pending"}
+                </div>
+              </div>
+              <p className="mt-2 text-[12px] leading-5 text-white/85">
+                Booking value {formatCurrency(bookingValue)} · 30% now {formatCurrency(advanceAmount)} · 70% at event {formatCurrency(balanceAtProperty)}
+              </p>
+            </div>
           </div>
         </section>
       </div>

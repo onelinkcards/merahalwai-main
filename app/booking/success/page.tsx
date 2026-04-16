@@ -17,6 +17,8 @@ import {
   UserRound,
 } from "lucide-react";
 import BookingStepper from "@/components/book/BookingStepper";
+import CustomerPaymentSplit from "@/components/booking/CustomerPaymentSplit";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import { useBookingStore } from "@/store/bookingStore";
 
 type SuccessSnapshot = {
@@ -80,17 +82,18 @@ function BookingSuccessContent() {
   const venueAddress = store.venueAddress || snapshot?.venueAddress || "";
   const venueCity = store.venueCity || snapshot?.venueCity || "";
   const grandTotal = store.grandTotal || snapshot?.grandTotal || 0;
-  const bookingValue = Math.round(((store.baseTotal ? store.baseTotal + store.addOnTotal : 0) || grandTotal / 1.054));
 
   if (!mounted || !effectiveOrderId) return null;
 
   const orderLabel = "MH-ORD-" + effectiveOrderId;
   const eventDateTime = [eventDate, eventTime].filter(Boolean).join(" • ");
   const venueValue = [venueName, venueAddress, venueCity].filter(Boolean).join(", ");
-  const upfrontBase = Math.round(bookingValue * 0.3);
-  const upfrontGst = Math.round(upfrontBase * 0.18);
-  const advanceAmount = upfrontBase + upfrontGst;
-  const remainingAmount = Math.max(0, bookingValue - upfrontBase);
+  const { upfrontTotal: advanceAmount, remainingAmount } =
+    getCustomerFacingBillSummary({
+      subtotal:
+        (store.baseTotal ? store.baseTotal + store.addOnTotal : 0) ||
+        Math.round(grandTotal / 1.054),
+    });
 
   return (
     <main className="min-h-screen bg-[linear-gradient(180deg,#FCFAF6_0%,#F7F0E6_55%,#F4EBDD_100%)] pb-14">
@@ -150,11 +153,11 @@ function BookingSuccessContent() {
             </div>
 
             <div className="order-1 h-fit self-start lg:order-2">
-              <PaymentSplitCard
+              <CustomerPaymentSplit
                 advanceAmount={advanceAmount}
                 remainingAmount={remainingAmount}
-                upfrontBase={upfrontBase}
-                upfrontGst={upfrontGst}
+                title="Payment Split (After Confirmation)"
+                subtitle="Booking is confirmed first. Then the payment link is shared for the upfront amount."
               />
             </div>
           </div>
@@ -284,59 +287,6 @@ function DetailLine({
         {label}
       </p>
       <p className="mt-1 text-[13px] font-medium text-[#2D2924]">{value}</p>
-    </div>
-  );
-}
-
-function PaymentSplitCard({
-  advanceAmount,
-  remainingAmount,
-  upfrontBase,
-  upfrontGst,
-}: {
-  advanceAmount: number;
-  remainingAmount: number;
-  upfrontBase: number;
-  upfrontGst: number;
-}) {
-  return (
-    <div className="overflow-hidden rounded-[22px] border border-[#E7D7C6] bg-[linear-gradient(180deg,#FFFBF6_0%,#FFF7ED_100%)] shadow-[0_16px_34px_rgba(35,25,20,0.06)]">
-      <div className="border-b border-[#EEE1D2] px-4 py-4 sm:px-5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#7D6853]">Payment Split (After Confirmation)</p>
-        <p className="mt-1 text-[13px] leading-6 text-[#746656]">
-          Booking is confirmed first. Then the payment link is shared for the upfront amount.
-        </p>
-      </div>
-
-      <div className="px-4 pt-4 sm:px-5">
-        <div className="overflow-hidden rounded-full bg-[#EFE5D7] p-1">
-          <div className="grid grid-cols-[30%_70%] gap-1">
-            <div className="flex h-10 items-center justify-center rounded-full bg-[#682C13] text-[12px] font-black uppercase tracking-[0.18em] text-white">
-              30% now
-            </div>
-            <div className="flex h-10 items-center justify-center rounded-full bg-[#FAF4EA] text-[12px] font-black uppercase tracking-[0.18em] text-[#8F8577]">
-              70% later
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid gap-3 p-4 sm:grid-cols-2 sm:px-5 sm:pb-5">
-        <div className="rounded-[18px] border border-[#E3CEB2] bg-[linear-gradient(135deg,#FFF4E4_0%,#FFE8C5_100%)] px-4 py-4 shadow-[0_12px_26px_rgba(104,44,19,0.08)]">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#682C13]">30% + GST Online</p>
-          <p className="mt-2 text-[28px] font-black tracking-tight text-[#22150D]">₹{advanceAmount.toLocaleString("en-IN")}</p>
-          <p className="mt-2 text-[12px] leading-6 text-[#6D4A2D]">
-            30% booking value ₹{upfrontBase.toLocaleString("en-IN")} + GST ₹{upfrontGst.toLocaleString("en-IN")}.
-          </p>
-        </div>
-        <div className="rounded-[18px] border border-[#EBE3D7] bg-[#FBF8F3] px-4 py-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#8D8376]">70% At Property</p>
-          <p className="mt-2 text-[28px] font-black tracking-tight text-[#645D55]">₹{remainingAmount.toLocaleString("en-IN")}</p>
-          <p className="mt-2 text-[12px] leading-6 text-[#8B8174]">
-            Remaining amount is settled offline at the venue. Taxes apply as per vendor settlement.
-          </p>
-        </div>
-      </div>
     </div>
   );
 }

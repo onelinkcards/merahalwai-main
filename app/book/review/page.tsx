@@ -12,9 +12,10 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import BookingStepper from "@/components/book/BookingStepper";
+import CustomerPaymentSplit from "@/components/booking/CustomerPaymentSplit";
 import { VegDotInline } from "@/components/booking/VegDotInline";
 import { getVendorDetailBySlug } from "@/data/vendors";
-import { calculateBill } from "@/lib/calculateBill";
+import { calculateBill, getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import { groupMenuItemsForReview } from "@/lib/bookingMenuHelpers";
 import { useBookingStore } from "@/store/bookingStore";
 import { useToastStore } from "@/store/toastStore";
@@ -108,12 +109,9 @@ export default function BookReviewPage() {
 
   if (!mounted || !vendor || !store.customerName) return <ReviewSkeleton />;
 
-  const bookingValue = bill.subtotal;
-  const upfrontBase = Math.round(bookingValue * 0.3);
-  const upfrontGst = Math.round(upfrontBase * 0.18);
-  const upfrontTotal = upfrontBase + upfrontGst;
-  const remainingAmount = Math.max(0, bookingValue - upfrontBase);
-  const orderGrandTotal = bookingValue + upfrontGst;
+  const { bookingValue, upfrontGst, upfrontTotal, remainingAmount, customerGrandTotal } =
+    getCustomerFacingBillSummary(bill);
+  const orderGrandTotal = customerGrandTotal;
 
   const toggleCat = (name: string) => setOpenCats((prev) => ({ ...prev, [name]: !prev[name] }));
 
@@ -232,26 +230,16 @@ export default function BookReviewPage() {
                     <MobileBillRow label="Optional Add-ons" value={bill.optionalAddOnAmount} />
                     <MobileBillRow label="Water" value={bill.waterAmount} />
                     <MobileBillRow label="Booking value" value={bookingValue} />
-                    <MobileBillRow label="30% pay now" value={upfrontBase} />
-                    <MobileBillRow label="GST on upfront" value={upfrontGst} />
-                    <MobileBillRow label="70% at property" value={remainingAmount} />
                   </div>
                 </div>
-                <div className="mt-4 overflow-hidden rounded-[18px] border border-[#EADBC6] bg-white">
-                  <div className="grid grid-cols-2">
-                    <div className="flex items-center justify-center gap-2 bg-[#682C13] px-3 py-3 text-white">
-                      <span className="text-[22px] font-black leading-none">30%</span>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/82">+ GST now</span>
-                    </div>
-                    <div className="flex items-center justify-center gap-2 bg-[#FAF5EB] px-3 py-3 text-[#7D776F]">
-                      <span className="text-[22px] font-black leading-none text-[#78736B]">70%</span>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8D867B]">At property</span>
-                    </div>
-                  </div>
+                <div className="mt-4">
+                  <CustomerPaymentSplit
+                    advanceAmount={upfrontTotal}
+                    remainingAmount={remainingAmount}
+                    compact
+                    title="Payment Terms"
+                  />
                 </div>
-                <p className="mt-3 text-[11px] leading-5 text-stone-500">
-                  Taxes on the remaining 70% are handled offline with the vendor at the property.
-                </p>
               </ReviewSection>
             </div>
 
@@ -385,24 +373,12 @@ export default function BookReviewPage() {
                 <div className="border-t border-stone-200 pt-3">
                   <BillRow label="Booking value" value={bookingValue} />
                 </div>
-                <div className="rounded-[20px] border border-[#EADBC6] bg-[#FFFCF8] p-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-[18px] bg-[#682C13] px-4 py-4 text-white shadow-[0_12px_28px_rgba(104,44,19,0.14)]">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/74">Pay now</p>
-                      <p className="mt-2 text-[24px] font-black tracking-tight">₹{upfrontTotal.toLocaleString("en-IN")}</p>
-                      <p className="mt-1 text-[11px] leading-5 text-white/78">
-                        30% of booking value + GST
-                      </p>
-                    </div>
-                    <div className="rounded-[18px] border border-[#EFE1D1] bg-white px-4 py-4 text-[#5C544A]">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#8B806F]">Pay later</p>
-                      <p className="mt-2 text-[24px] font-black tracking-tight text-[#4D4740]">₹{remainingAmount.toLocaleString("en-IN")}</p>
-                      <p className="mt-1 text-[11px] leading-5 text-[#8B806F]">
-                        70% at property. Taxes settle offline with vendor.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                <CustomerPaymentSplit
+                  advanceAmount={upfrontTotal}
+                  remainingAmount={remainingAmount}
+                  compact
+                  title="Payment Terms"
+                />
               </div>
 
               <button
@@ -422,11 +398,15 @@ export default function BookReviewPage() {
                 </p>
                 <p className="inline-flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5 text-[#8A3E1D]" />
-                  After confirmation, pay 30% + GST online
+                  30% now (incl. 18% tax)
                 </p>
                 <p className="inline-flex items-center gap-2">
                   <ShieldCheck className="h-3.5 w-3.5 text-[#8A3E1D]" />
-                  Remaining 70% is paid at property (offline)
+                  70% at event
+                </p>
+                <p className="inline-flex items-center gap-2">
+                  <ShieldCheck className="h-3.5 w-3.5 text-[#8A3E1D]" />
+                  Taxes (if applicable) as per vendor invoice
                 </p>
               </div>
             </div>
@@ -442,7 +422,7 @@ export default function BookReviewPage() {
               ₹{upfrontTotal.toLocaleString("en-IN")}
             </p>
             <p className="mt-1 text-[12px] font-medium text-stone-500">
-              30% + GST now · 70% at property later
+              30% now (incl. 18% tax) · 70% at event
             </p>
           </div>
           <button

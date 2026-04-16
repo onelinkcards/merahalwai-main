@@ -28,6 +28,7 @@ import {
   AdminTextarea,
 } from "@/components/admin/AdminUi";
 import { formatCurrency } from "@/data/mockAccount";
+import { buildCommissionInvoice, getCommissionInvoiceRows } from "@/lib/commissionInvoice";
 
 export default function AdminOrderDetailPage() {
   const params = useParams<{ orderId: string }>();
@@ -46,6 +47,18 @@ export default function AdminOrderDetailPage() {
   const [paymentReference, setPaymentReference] = useState("");
 
   const order = useMemo(() => state.orders.find((entry) => entry.id === orderId) ?? null, [state.orders, orderId]);
+  const vendor = useMemo(
+    () => state.vendors.find((entry) => entry.id === order?.vendorId || entry.slug === order?.vendorSlug) ?? null,
+    [state.vendors, order]
+  );
+  const commissionInvoice = useMemo(
+    () => (order && vendor ? buildCommissionInvoice(order, vendor) : null),
+    [order, vendor]
+  );
+  const commissionRows = useMemo(
+    () => (order && vendor ? getCommissionInvoiceRows(order, vendor) : []),
+    [order, vendor]
+  );
 
   const paymentLink = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -103,6 +116,15 @@ export default function AdminOrderDetailPage() {
           >
             <ReceiptText className="h-4 w-4" />
             Payment Page
+          </Link>
+          <Link
+            href={`/admin/orders/${order.id}/commission-invoice`}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
+          >
+            <ReceiptText className="h-4 w-4" />
+            Download Commission Invoice
           </Link>
           <a
             href={`https://wa.me/${order.customer.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(paymentMessage)}`}
@@ -368,6 +390,23 @@ export default function AdminOrderDetailPage() {
                 <p className="mt-2 text-[28px] font-black tracking-[-0.04em]">{formatCurrency(order.bill.finalTotal)}</p>
               </div>
 
+              {commissionInvoice ? (
+                <div className="mt-5 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Commission Invoice</p>
+                  <div className="mt-3 space-y-2.5 text-[13px]">
+                    {commissionRows.map((row) => (
+                      <div key={row.label} className="flex items-center justify-between gap-3">
+                        <span className="text-[#64748B]">{row.label}</span>
+                        <span className="font-semibold text-[#0F172A]">{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[12px] text-[#64748B]">
+                    Invoice No. {commissionInvoice.invoiceNumber}
+                  </p>
+                </div>
+              ) : null}
+
               <div className="mt-5 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Payment Reference</p>
                 <input
@@ -397,6 +436,14 @@ export default function AdminOrderDetailPage() {
                   className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
                 >
                   Open Invoice
+                </Link>
+                <Link
+                  href={`/admin/orders/${order.id}/commission-invoice`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
+                >
+                  Preview Commission Invoice
                 </Link>
               </div>
             </AdminPanel>

@@ -6,6 +6,7 @@ import { ChevronRight, Search } from "lucide-react";
 import AccountShell from "@/components/account/AccountShell";
 import StatusBadge from "@/components/account/StatusBadge";
 import { formatCurrency, formatDateTime, getMergedOrders, type DemoOrder } from "@/data/mockAccount";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import { useBookingStore } from "@/store/bookingStore";
 
 type FilterKey = "all" | "active" | "pending" | "confirmed" | "completed" | "cancelled";
@@ -125,7 +126,9 @@ export default function MyOrdersPage() {
                 <div className="flex flex-col items-start gap-3 lg:items-end">
                   <StatusBadge status={order.status} compact />
                   <div className="flex items-center gap-3">
-                    <p className="text-[16px] font-black text-[#111111]">{formatCurrency(order.total)}</p>
+                    <p className="text-[16px] font-black text-[#111111]">
+                      {formatCurrency(getCustomerFacingBillSummary(order.bill).customerGrandTotal)}
+                    </p>
                     <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[#8A3E1D]">
                       View details
                       <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

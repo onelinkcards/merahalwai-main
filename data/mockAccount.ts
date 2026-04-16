@@ -1,5 +1,5 @@
 import { getVendorDetailBySlug } from "@/data/vendors";
-import { calculateBill } from "@/lib/calculateBill";
+import { calculateBill, getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import type { PackageTier, BookingStore } from "@/store/bookingStore";
 
 export type DemoOrderStatus =
@@ -694,6 +694,7 @@ export function buildLiveOrderFromStore(store: Partial<BookingStore>): DemoOrder
 
   const vendor = getVendorDetailBySlug(store.vendorSlug);
   const bill = calculateBill(store);
+  const customerBill = getCustomerFacingBillSummary(bill);
   const labelMap: Record<string, string> = {
     soupsDrinks: "Soups / Drinks",
     starters: "Starters",
@@ -744,7 +745,7 @@ export function buildLiveOrderFromStore(store: Partial<BookingStore>): DemoOrder
     eventDate: store.eventDate || new Date().toISOString().slice(0, 10),
     eventTime: store.eventTime || "7:00 PM",
     guests: store.guestCount ?? 0,
-    total: store.grandTotal || bill.grandTotal,
+    total: store.grandTotal || customerBill.customerGrandTotal,
     venueName: store.venueName || "Venue to be shared",
     venueAddress: store.venueAddress || "Address will be finalized in the next step",
     city: store.venueCity || "Jaipur",
@@ -756,14 +757,14 @@ export function buildLiveOrderFromStore(store: Partial<BookingStore>): DemoOrder
     payNowEnabled: store.orderStatus === "pending",
     paymentStatus: store.orderStatus === "paid" ? "Paid" : "Pending",
     bill: {
-      baseAmount: bill.baseAmount,
-      autoAddOns: bill.autoAddOnAmount,
-      optionalAddOns: bill.optionalAddOnAmount,
-      water: bill.waterAmount,
-      subtotal: bill.subtotal,
-      gst: bill.gstAmount,
-      convenienceFee: bill.convenienceFee,
-      finalTotal: bill.grandTotal,
+      baseAmount: customerBill.baseAmount,
+      autoAddOns: 0,
+      optionalAddOns: customerBill.optionalAddOnAmount,
+      water: customerBill.waterAmount,
+      subtotal: customerBill.bookingValue,
+      gst: customerBill.upfrontGst,
+      convenienceFee: 0,
+      finalTotal: customerBill.customerGrandTotal,
     },
     menuGroups: grouped,
     optionalAddOns: formattedAddOns,

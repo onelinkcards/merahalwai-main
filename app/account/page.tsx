@@ -6,6 +6,7 @@ import AccountShell from "@/components/account/AccountShell";
 import StatusBadge from "@/components/account/StatusBadge";
 import { useDemoAuth } from "@/components/auth/DemoAuthProvider";
 import { formatCurrency, formatDateTime, getMergedOrders } from "@/data/mockAccount";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import { useBookingStore } from "@/store/bookingStore";
 
 export default function AccountPage() {
@@ -99,7 +100,7 @@ export default function AccountPage() {
                       {order.eventType} · {formatDateTime(order.eventDate, order.eventTime)}
                     </p>
                     <p className="mt-1 text-[12px] text-[#6A6159]">
-                      {order.guests} guests · {formatCurrency(order.total)}
+                      {order.guests} guests · {formatCurrency(getCustomerFacingBillSummary(order.bill).customerGrandTotal)}
                     </p>
                   </div>
                   <StatusBadge status={order.status} compact />

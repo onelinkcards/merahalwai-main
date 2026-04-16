@@ -13,6 +13,8 @@ import {
   getMergedOrders,
   type DemoOrder,
 } from "@/data/mockAccount";
+import CustomerPaymentSplit from "@/components/booking/CustomerPaymentSplit";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import { useBookingStore } from "@/store/bookingStore";
 
 export default function InvoiceClient() {
@@ -24,6 +26,23 @@ export default function InvoiceClient() {
   const order = useMemo<DemoOrder | null>(() => {
     return getMergedOrders(store).find((entry) => entry.id === orderId) ?? getDemoOrderById(orderId);
   }, [orderId, store]);
+  const billSummary = useMemo(
+    () =>
+      order
+        ? getCustomerFacingBillSummary(order.bill)
+        : {
+            baseAmount: 0,
+            optionalAddOnAmount: 0,
+            waterAmount: 0,
+            bookingValue: 0,
+            upfrontBase: 0,
+            upfrontGst: 0,
+            upfrontTotal: 0,
+            remainingAmount: 0,
+            customerGrandTotal: 0,
+          },
+    [order]
+  );
 
   const handleDownload = useCallback(async () => {
     const target = document.getElementById("invoice-print-area");
@@ -70,7 +89,7 @@ export default function InvoiceClient() {
             <button
               type="button"
               onClick={() => void handleDownload()}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#111111] px-5 text-[13px] font-bold text-white"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#EB8B23_0%,#C86E17_48%,#682C13_100%)] px-5 text-[13px] font-bold text-white"
             >
               <Download className="h-4 w-4" />
               Download PDF
@@ -121,18 +140,26 @@ export default function InvoiceClient() {
               </div>
 
               <div className="mt-8 overflow-hidden rounded-[26px] border border-[#EEE5DA]">
+                <div className="border-b border-[#EEE5DA] bg-white px-4 py-4">
+                  <CustomerPaymentSplit
+                    advanceAmount={billSummary.upfrontTotal}
+                    remainingAmount={billSummary.remainingAmount}
+                    compact
+                    title="Customer Payment Split"
+                  />
+                </div>
                 <div className="grid grid-cols-[minmax(0,1fr)_160px] bg-[#FCFAF7] px-4 py-3 text-[12px] font-bold uppercase tracking-[0.14em] text-[#7A6E63]">
                   <span>Description</span>
                   <span className="text-right">Amount</span>
                 </div>
                 {[
-                  ["Base Amount", order.bill.baseAmount],
-                  ["Auto Add-ons", order.bill.autoAddOns],
-                  ["Optional Add-ons", order.bill.optionalAddOns],
-                  ["Water", order.bill.water],
-                  ["Subtotal", order.bill.subtotal],
-                  ["GST (18%)", order.bill.gst],
-                  ["Convenience Fee", order.bill.convenienceFee],
+                  ["Base Amount", billSummary.baseAmount],
+                  ["Optional Add-ons", billSummary.optionalAddOnAmount],
+                  ["Water", billSummary.waterAmount],
+                  ["Booking Value", billSummary.bookingValue],
+                  ["30% Pay Now", billSummary.upfrontBase],
+                  ["GST on Upfront", billSummary.upfrontGst],
+                  ["70% At Property", billSummary.remainingAmount],
                 ].map(([label, value]) => (
                   <div
                     key={String(label)}
@@ -144,7 +171,7 @@ export default function InvoiceClient() {
                 ))}
                 <div className="grid grid-cols-[minmax(0,1fr)_160px] border-t border-[#EEE5DA] bg-[#1F1E1B] px-4 py-4 text-white">
                   <span className="text-[13px] font-bold uppercase tracking-[0.14em]">Final Total</span>
-                  <span className="text-right text-[20px] font-black">{formatCurrency(order.bill.finalTotal)}</span>
+                  <span className="text-right text-[20px] font-black">{formatCurrency(billSummary.customerGrandTotal)}</span>
                 </div>
               </div>
 
@@ -190,7 +217,7 @@ export default function InvoiceClient() {
                   <button
                     type="button"
                     onClick={() => void handleDownload()}
-                    className="flex h-11 w-full items-center justify-center rounded-full bg-[#111111] px-4 text-[13px] font-bold text-white"
+                    className="flex h-11 w-full items-center justify-center rounded-full bg-[linear-gradient(135deg,#EB8B23_0%,#C86E17_48%,#682C13_100%)] px-4 text-[13px] font-bold text-white"
                   >
                     Download PDF
                   </button>
@@ -200,7 +227,7 @@ export default function InvoiceClient() {
               <div className="mt-6 rounded-[28px] border border-[#E8DED1] bg-white px-5 py-5 shadow-[0_18px_42px_rgba(24,20,16,0.04)]">
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#8A3E1D]">Billing Notes</p>
                 <p className="mt-3 text-[14px] leading-[1.8] text-[#5E564E]">
-                  Pricing remains per plate. Menu items inside the package do not carry separate base pricing. GST is included as a separate line item at 18%.
+                  30% now (incl. 18% tax). 70% at event. Taxes (if applicable) as per vendor invoice.
                 </p>
               </div>
             </aside>
