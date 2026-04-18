@@ -7,7 +7,6 @@ import {
   ClipboardList,
   Clock3,
   Handshake,
-  ReceiptText,
   WalletCards,
 } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
@@ -79,12 +78,7 @@ export default function AdminDashboardPage() {
     <AdminShell
       title="Dashboard"
       description="Daily operating view for incoming bookings, vendor follow-ups, payments, and live workload."
-      actions={
-        <>
-          <AdminLinkButton href="/admin/vendors/new" variant="secondary" className="h-9 px-3.5">Add Vendor</AdminLinkButton>
-          <AdminLinkButton href="/admin/orders" variant="secondary" className="h-9 px-3.5">Booking Requests</AdminLinkButton>
-        </>
-      }
+      actions={<AdminLinkButton href="/admin/vendors/new" variant="secondary" className="h-9 px-3.5">Add Vendor</AdminLinkButton>}
     >
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <AdminMetricCard icon={ClipboardList} label="Not Confirmed" value={String(notConfirmed)} helper="Requires ops action" tone="amber" />
@@ -107,7 +101,7 @@ export default function AdminDashboardPage() {
                 <div key={day.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
                   <div className="flex h-[148px] w-full items-end rounded-[16px] bg-[#F8FAFC] p-2">
                     <div
-                      className="w-full rounded-[10px] bg-gradient-to-t from-[#2563EB] to-[#6366F1]"
+                      className="w-full rounded-[10px] bg-[#2563EB]"
                       style={{ height: `${Math.max((day.count / maxDayCount) * 100, day.count ? 18 : 8)}%` }}
                     />
                   </div>
@@ -129,7 +123,7 @@ export default function AdminDashboardPage() {
                   </div>
                   <div className="h-2.5 rounded-full bg-[#E2E8F0]">
                     <div
-                      className="h-2.5 rounded-full bg-gradient-to-r from-[#2563EB] to-[#6366F1]"
+                      className="h-2.5 rounded-full bg-[#2563EB]"
                       style={{ width: `${Math.max((item.value / maxStatusValue) * 100, item.value ? 16 : 8)}%` }}
                     />
                   </div>
@@ -190,7 +184,7 @@ export default function AdminDashboardPage() {
         </AdminPanel>
 
         <div className="grid min-w-0 gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
-          <div className="min-w-0 space-y-6">
+          <div className="min-w-0">
             <AdminPanel title="Needs action" eyebrow="Priority" description="Orders that need handling next." className="min-w-0">
               <div className="space-y-3">
                 {actionQueue.map((order) => (
@@ -217,18 +211,9 @@ export default function AdminDashboardPage() {
                 ))}
               </div>
             </AdminPanel>
-
-            <AdminPanel title="Quick actions" eyebrow="Shortcuts" className="min-w-0">
-              <div className="grid gap-3">
-                <AdminLinkButton href="/admin/orders" variant="secondary" className="h-9 w-full">Booking Requests</AdminLinkButton>
-                <AdminLinkButton href="/admin/vendors/new" variant="secondary" className="h-9 w-full">Add Vendor</AdminLinkButton>
-                <AdminLinkButton href="/admin/invoices" variant="secondary" className="h-9 w-full">Commission Invoices</AdminLinkButton>
-                <AdminLinkButton href="/admin/notifications" variant="secondary" className="h-9 w-full">Notifications</AdminLinkButton>
-              </div>
-            </AdminPanel>
           </div>
 
-          <div className="min-w-0 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="min-w-0">
             <AdminPanel title="Notifications" eyebrow="Feed" className="min-w-0">
               <div className="space-y-3">
                 {state.activityFeed.slice(0, 4).map((item) => (
@@ -242,29 +227,6 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </AdminPanel>
-
-            <AdminPanel title="Commission invoices" eyebrow="Vendor billing" className="min-w-0">
-              <div className="space-y-3">
-                {state.orders
-                  .filter((order) => order.invoiceAvailable)
-                  .slice(0, 3)
-                  .map((order) => (
-                    <Link
-                      key={order.id}
-                      href={`/admin/orders/${order.id}/commission-invoice`}
-                      className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 transition hover:bg-white"
-                    >
-                      <div className="min-w-0">
-                        <p className="text-[13px] font-bold text-[#0F172A]">{order.id}</p>
-                        <p className="truncate text-[12px] text-[#64748B]">{order.vendorName}</p>
-                      </div>
-                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#EEF2FF] text-[#6366F1]">
-                        <ReceiptText className="h-4 w-4" />
-                      </span>
-                    </Link>
-                  ))}
               </div>
             </AdminPanel>
           </div>

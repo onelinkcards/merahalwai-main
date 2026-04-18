@@ -27,6 +27,7 @@ export default function PayClient({ orderId }: PayClientProps) {
   const order: AdminOrderRecord | null = getAdminOrderById(orderId);
   const razorpayKey =
     process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_live_SZTkZ0kcr1wMAN";
+  const razorpayCheckoutAmountPaise = 100;
   const {
     bookingValue,
     upfrontBase,
@@ -92,7 +93,7 @@ export default function PayClient({ orderId }: PayClientProps) {
 
     const options = {
       key: razorpayKey,
-      amount: Math.round(advanceAmount * 100),
+      amount: razorpayCheckoutAmountPaise,
       currency: "INR",
       name: "MeraHalwai",
       description: `30% advance + GST for ${order.vendorName}`,

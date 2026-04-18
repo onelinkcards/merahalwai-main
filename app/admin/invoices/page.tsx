@@ -1,8 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import AdminShell from "@/components/admin/AdminShell";
-import { AdminButton, AdminTableCard } from "@/components/admin/AdminUi";
+import { AdminLinkButton, AdminTableCard } from "@/components/admin/AdminUi";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { buildCommissionInvoice } from "@/lib/commissionInvoice";
 import { formatCurrency } from "@/data/mockAccount";
@@ -60,9 +59,9 @@ export default function AdminInvoicesPage() {
                       {formatCurrency(record.invoice.totalPayable)}
                     </td>
                     <td className="px-5 py-4">
-                      <Link href={`/admin/orders/${record.order.id}/commission-invoice`} target="_blank" rel="noreferrer">
-                        <AdminButton variant="ghost">View Invoice</AdminButton>
-                      </Link>
+                      <AdminLinkButton href={`/admin/orders/${record.order.id}/commission-invoice`} variant="ghost">
+                        View Invoice
+                      </AdminLinkButton>
                     </td>
                   </tr>
                 );
