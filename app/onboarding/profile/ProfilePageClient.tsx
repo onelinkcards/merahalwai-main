@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Camera, Loader2, Mail, Phone, UserRound } from "lucide-react";
 import { useDemoAuth } from "@/components/auth/DemoAuthProvider";
@@ -118,8 +119,7 @@ export default function ProfilePageClient() {
             <div className="mb-5 flex items-center gap-4 rounded-[22px] border border-[#EEE2D4] bg-[#FFFAF4] p-4">
               <label className="relative flex h-18 w-18 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-[#E8D7C6] bg-white text-[#8A3E1D] sm:h-20 sm:w-20">
                 {photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoUrl} alt="Profile preview" className="h-full w-full object-cover" />
+                  <Image src={photoUrl} alt="Profile preview" fill unoptimized className="object-cover" />
                 ) : (
                   <Camera className="h-5 w-5 sm:h-6 sm:w-6" />
                 )}

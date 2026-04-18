@@ -6,6 +6,7 @@ import { CheckCircle2, Phone, XCircle } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import { getVendorOrderByToken, respondToVendorToken } from "@/data/mockAdmin";
 import { formatCurrency } from "@/data/mockAccount";
+import { getSupportTelHref } from "@/lib/supportContact";
 
 export default function VendorOrderTokenPage() {
   const params = useParams<{ token: string }>();
@@ -106,7 +107,7 @@ export default function VendorOrderTokenPage() {
                   If you need clarification before confirming, contact the MeraHalwai ops team directly.
                 </p>
                 <a
-                  href="tel:+919000011111"
+                  href={getSupportTelHref()}
                   className="mt-4 inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#E6D9CB] bg-white px-5 text-[13px] font-bold text-[#3E352C]"
                 >
                   <Phone className="h-4 w-4" />

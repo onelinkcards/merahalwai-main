@@ -17,13 +17,7 @@ type AddressSuggestion = {
   placeId?: string;
 };
 
-const JAIPUR_SUGGESTIONS = [
-  { area: "C-Scheme", city: "Jaipur", state: "Rajasthan", pincode: "302001", landmark: "Near MI Road" },
-  { area: "Vaishali Nagar", city: "Jaipur", state: "Rajasthan", pincode: "302021", landmark: "Near Nursery Circle" },
-  { area: "Mansarovar", city: "Jaipur", state: "Rajasthan", pincode: "302020", landmark: "Near VT Road" },
-  { area: "Civil Lines", city: "Jaipur", state: "Rajasthan", pincode: "302006", landmark: "Near Collectorate Circle" },
-  { area: "Malviya Nagar", city: "Jaipur", state: "Rajasthan", pincode: "302017", landmark: "Near WTP" },
-];
+const JAIPUR_SUGGESTIONS: AddressSuggestion[] = [];
 
 function inputClass() {
   return "h-12 w-full rounded-2xl border border-stone-200 bg-white px-4 text-[14px] font-medium text-stone-900 outline-none transition focus:border-[#8A3E1D]";
@@ -379,7 +373,7 @@ export default function AddressPageClient() {
                 <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-stone-500">Address rules</p>
                 <ul className="mt-3 space-y-2 text-[13px] leading-[1.7] text-stone-600">
                   <li>Save one default address now to speed up your next booking.</li>
-                  <li>Use current location for a quick live-location style demo flow.</li>
+                  <li>Use current location to autofill your present address faster.</li>
                   <li>Booking flow requires saving an address before continuing.</li>
                 </ul>
               </div>

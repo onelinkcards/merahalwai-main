@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import {
   formatCurrency,
@@ -44,20 +44,6 @@ export default function InvoiceClient() {
     [order]
   );
 
-  const handleDownload = useCallback(async () => {
-    const target = document.getElementById("invoice-print-area");
-    if (!target) return;
-    const html2canvas = (await import("html2canvas")).default;
-    const { jsPDF } = await import("jspdf");
-    const canvas = await html2canvas(target, { scale: 2, useCORS: true });
-    const dataUrl = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const width = pdf.internal.pageSize.getWidth() - 20;
-    const height = (canvas.height * width) / canvas.width;
-    pdf.addImage(dataUrl, "PNG", 10, 10, width, height);
-    pdf.save(`MeraHalwai-Invoice-${orderId}.pdf`);
-  }, [orderId]);
-
   if (!order) {
     return (
       <main className="min-h-screen bg-[#F6F4EF]">
@@ -65,7 +51,7 @@ export default function InvoiceClient() {
         <div className="mx-auto max-w-[720px] px-4 py-16">
           <div className="rounded-[30px] border border-[#E7DED3] bg-white px-6 py-14 text-center shadow-[0_18px_42px_rgba(24,20,16,0.05)]">
             <p className="text-[18px] font-bold text-[#1E1E1E]">Invoice unavailable</p>
-            <p className="mt-2 text-[#6D6258]">This demo invoice could not be found.</p>
+            <p className="mt-2 text-[#6D6258]">This invoice could not be found.</p>
           </div>
         </div>
       </main>
@@ -85,16 +71,6 @@ export default function InvoiceClient() {
             <ArrowLeft className="h-4 w-4" />
             Back
           </button>
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => void handleDownload()}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[linear-gradient(135deg,#EB8B23_0%,#C86E17_48%,#682C13_100%)] px-5 text-[13px] font-bold text-white"
-            >
-              <Download className="h-4 w-4" />
-              Download PDF
-            </button>
-          </div>
         </div>
 
         <div
@@ -214,13 +190,6 @@ export default function InvoiceClient() {
                   >
                     View Order Detail
                   </Link>
-                  <button
-                    type="button"
-                    onClick={() => void handleDownload()}
-                    className="flex h-11 w-full items-center justify-center rounded-full bg-[linear-gradient(135deg,#EB8B23_0%,#C86E17_48%,#682C13_100%)] px-4 text-[13px] font-bold text-white"
-                  >
-                    Download PDF
-                  </button>
                 </div>
               </div>
 

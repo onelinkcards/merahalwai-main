@@ -3,21 +3,24 @@
 import Link from "next/link";
 import {
   ArrowRight,
+  BellRing,
   ClipboardList,
   Clock3,
   Handshake,
+  ReceiptText,
   WalletCards,
 } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
 import {
-  AdminButton,
+  AdminLinkButton,
   AdminMetricCard,
   AdminPanel,
-  AdminTableCard,
 } from "@/components/admin/AdminUi";
 import { AdminOrderStatusBadge, AdminPaymentStatusBadge } from "@/components/admin/AdminStatusBadge";
 import { formatCurrency } from "@/data/mockAccount";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import { useAdmin } from "@/components/admin/AdminProvider";
+import { getAdminDisplayStatus } from "@/data/mockAdmin";
 
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("en-IN", {
@@ -29,21 +32,15 @@ function formatDate(date: string) {
 export default function AdminDashboardPage() {
   const { state } = useAdmin();
 
-  const newRequests = state.orders.filter((order) =>
-    ["bookingRequestSubmitted", "pendingAdminReview"].includes(order.status)
-  ).length;
-  const slotHeld = state.orders.filter((order) => order.status === "slotHeld").length;
-  const pendingVendor = state.orders.filter((order) =>
-    ["vendorNotified", "vendorDeclined"].includes(order.status)
-  ).length;
+  const notConfirmed = state.orders.filter((order) => getAdminDisplayStatus(order.status) === "notConfirmed").length;
+  const paymentPending = state.orders.filter((order) => getAdminDisplayStatus(order.status) === "paymentPending").length;
+  const confirmedCount = state.orders.filter((order) => getAdminDisplayStatus(order.status) === "confirmed").length;
   const confirmedRevenue = state.orders
-    .filter((order) => ["paymentDone", "bookingConfirmed"].includes(order.status))
-    .reduce((sum, order) => sum + order.bill.finalTotal, 0);
+    .filter((order) => getAdminDisplayStatus(order.status) === "confirmed")
+    .reduce((sum, order) => sum + getCustomerFacingBillSummary(order.bill).customerGrandTotal, 0);
 
   const actionQueue = state.orders
-    .filter((order) =>
-      ["bookingRequestSubmitted", "slotHeld", "vendorDeclined", "paymentPending", "paymentLinkSent"].includes(order.status)
-    )
+    .filter((order) => ["notConfirmed", "paymentPending"].includes(getAdminDisplayStatus(order.status)))
     .slice(0, 5);
 
   const recentOrders = [...state.orders]
@@ -52,20 +49,16 @@ export default function AdminDashboardPage() {
 
   const statusBreakdown = [
     {
-      label: "New requests",
-      value: state.orders.filter((order) => order.status === "bookingRequestSubmitted").length,
+      label: "Not confirmed",
+      value: notConfirmed,
     },
     {
-      label: "Vendor follow-up",
-      value: state.orders.filter((order) => ["vendorNotified", "vendorDeclined"].includes(order.status)).length,
-    },
-    {
-      label: "Payment follow-up",
-      value: state.orders.filter((order) => ["paymentLinkSent", "paymentPending"].includes(order.status)).length,
+      label: "Payment pending",
+      value: paymentPending,
     },
     {
       label: "Confirmed",
-      value: state.orders.filter((order) => ["paymentDone", "bookingConfirmed"].includes(order.status)).length,
+      value: confirmedCount,
     },
   ];
 
@@ -88,171 +81,193 @@ export default function AdminDashboardPage() {
       description="Daily operating view for incoming bookings, vendor follow-ups, payments, and live workload."
       actions={
         <>
-          <Link href="/admin/vendors/new">
-            <AdminButton variant="secondary">Add Vendor</AdminButton>
-          </Link>
-          <Link href="/admin/orders">
-            <AdminButton>Open Queue</AdminButton>
-          </Link>
+          <AdminLinkButton href="/admin/vendors/new" variant="secondary" className="h-9 px-3.5">Add Vendor</AdminLinkButton>
+          <AdminLinkButton href="/admin/orders" variant="secondary" className="h-9 px-3.5">Booking Requests</AdminLinkButton>
         </>
       }
     >
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AdminMetricCard icon={ClipboardList} label="New Requests" value={String(newRequests)} helper="Needs review" tone="blue" />
-        <AdminMetricCard icon={Clock3} label="Slot Held" value={String(slotHeld)} helper="Watch expiries" tone="amber" />
-        <AdminMetricCard icon={Handshake} label="Vendor Follow-up" value={String(pendingVendor)} helper="Awaiting response" tone="slate" />
-        <AdminMetricCard icon={WalletCards} label="Revenue Closed" value={formatCurrency(confirmedRevenue)} helper="Paid + confirmed" tone="green" />
+        <AdminMetricCard icon={ClipboardList} label="Not Confirmed" value={String(notConfirmed)} helper="Requires ops action" tone="amber" />
+        <AdminMetricCard icon={Clock3} label="Payment Pending" value={String(paymentPending)} helper="Customer payment is pending" tone="blue" />
+        <AdminMetricCard icon={Handshake} label="Confirmed Orders" value={String(confirmedCount)} helper="Payment and confirmation completed" tone="green" />
+        <AdminMetricCard icon={WalletCards} label="Closed Revenue" value={formatCurrency(confirmedRevenue)} helper="Paid customer totals" tone="slate" />
       </section>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_380px]">
-        <div className="space-y-6">
-          <AdminPanel
-            title="Booking activity"
-            eyebrow="Trend"
-            description="Request volume and queue mix for the last 7 days."
-            className="grid gap-6 lg:grid-cols-2"
-          >
-            <div>
-              <p className="text-[13px] font-semibold text-[#475569]">Incoming requests</p>
-              <div className="mt-5 flex items-end gap-3">
-                {recentDays.map((day) => (
-                  <div key={day.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
-                    <div className="flex h-[148px] w-full items-end rounded-[16px] bg-[#F8FAFC] p-2">
-                      <div
-                        className="w-full rounded-[10px] bg-[#0F172A]"
-                        style={{ height: `${Math.max((day.count / maxDayCount) * 100, day.count ? 18 : 8)}%` }}
-                      />
-                    </div>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#64748B]">{day.label}</span>
-                    <span className="text-[13px] font-bold text-[#0F172A]">{day.count}</span>
+      <section className="mt-6 min-w-0 space-y-6">
+        <AdminPanel
+          title="Booking activity"
+          eyebrow="Trend"
+          description="Request volume and queue mix for the last 7 days."
+          className="grid gap-6 lg:grid-cols-2"
+        >
+          <div>
+            <p className="text-[13px] font-semibold text-[#475569]">Incoming requests</p>
+            <div className="mt-5 flex items-end gap-3">
+              {recentDays.map((day) => (
+                <div key={day.label} className="flex min-w-0 flex-1 flex-col items-center gap-2">
+                  <div className="flex h-[148px] w-full items-end rounded-[16px] bg-[#F8FAFC] p-2">
+                    <div
+                      className="w-full rounded-[10px] bg-gradient-to-t from-[#2563EB] to-[#6366F1]"
+                      style={{ height: `${Math.max((day.count / maxDayCount) * 100, day.count ? 18 : 8)}%` }}
+                    />
                   </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[13px] font-semibold text-[#475569]">Queue composition</p>
-              <div className="mt-5 space-y-4">
-                {statusBreakdown.map((item) => (
-                  <div key={item.label}>
-                    <div className="mb-2 flex items-center justify-between gap-4">
-                      <span className="text-[14px] font-medium text-[#334155]">{item.label}</span>
-                      <span className="text-[14px] font-bold text-[#0F172A]">{item.value}</span>
-                    </div>
-                    <div className="h-2.5 rounded-full bg-[#E9EEF5]">
-                      <div
-                        className="h-2.5 rounded-full bg-[#334155]"
-                        style={{ width: `${Math.max((item.value / maxStatusValue) * 100, item.value ? 16 : 8)}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </AdminPanel>
-
-          <AdminTableCard
-            title="Recent booking requests"
-            eyebrow="Latest"
-            action={
-              <Link href="/admin/orders">
-                <AdminButton variant="ghost">View all</AdminButton>
-              </Link>
-            }
-          >
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left">
-                <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
-                  <tr>
-                    {["Order ID", "Customer", "Vendor", "Event", "Status", "Payment", "Total"].map((label) => (
-                      <th key={label} className="px-5 py-4">{label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E8EDF4]">
-                  {recentOrders.map((order) => (
-                    <tr key={order.id} className="text-[14px] text-[#334155]">
-                      <td className="px-5 py-4 font-bold text-[#0F172A]">
-                        <Link href={`/admin/orders/${order.id}`} className="hover:text-[#1D4ED8]">
-                          {order.id}
-                        </Link>
-                      </td>
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-[#0F172A]">{order.customer.name}</p>
-                        <p className="text-[12px] text-[#64748B]">{order.customer.phone}</p>
-                      </td>
-                      <td className="px-5 py-4">{order.vendorName}</td>
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-[#0F172A]">{order.eventType}</p>
-                        <p className="text-[12px] text-[#64748B]">{formatDate(order.eventDate)}</p>
-                      </td>
-                      <td className="px-5 py-4"><AdminOrderStatusBadge status={order.status} compact /></td>
-                      <td className="px-5 py-4"><AdminPaymentStatusBadge status={order.paymentStatus} compact /></td>
-                      <td className="px-5 py-4 font-bold text-[#0F172A]">{formatCurrency(order.bill.finalTotal)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </AdminTableCard>
-        </div>
-
-        <div className="space-y-6">
-          <AdminPanel title="Action queue" eyebrow="Priority" description="Orders that need manual handling next.">
-            <div className="space-y-3">
-              {actionQueue.map((order) => (
-                <Link
-                  key={order.id}
-                  href={`/admin/orders/${order.id}`}
-                  className="block rounded-[18px] border border-[#D9E1EC] bg-[#F8FAFC] px-4 py-4 transition hover:border-[#BFC9D9] hover:bg-white"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">{order.id}</p>
-                      <p className="mt-1 text-[16px] font-bold text-[#0F172A]">{order.vendorName}</p>
-                      <p className="mt-1 text-[13px] text-[#64748B]">
-                        {order.eventType} · {order.guests} guests
-                      </p>
-                    </div>
-                    <AdminOrderStatusBadge status={order.status} compact />
-                  </div>
-                  <p className="mt-3 inline-flex items-center gap-2 text-[13px] font-bold text-[#0F172A]">
-                    Open order
-                    <ArrowRight className="h-4 w-4" />
-                  </p>
-                </Link>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#64748B]">{day.label}</span>
+                  <span className="text-[13px] font-bold text-[#0F172A]">{day.count}</span>
+                </div>
               ))}
             </div>
-          </AdminPanel>
+          </div>
 
-          <AdminPanel title="Quick actions" eyebrow="Shortcuts">
-            <div className="grid gap-3">
-              <Link href="/admin/orders"><AdminButton variant="secondary" className="w-full">Open booking requests</AdminButton></Link>
-              <Link href="/admin/vendors/new"><AdminButton variant="secondary" className="w-full">Add new vendor</AdminButton></Link>
-              <Link href="/admin/invoices"><AdminButton variant="secondary" className="w-full">Review invoices</AdminButton></Link>
-              <Link href="/admin/reports"><AdminButton variant="secondary" className="w-full">Open reports</AdminButton></Link>
+          <div>
+            <p className="text-[13px] font-semibold text-[#475569]">Status mix</p>
+            <div className="mt-5 space-y-4">
+              {statusBreakdown.map((item) => (
+                <div key={item.label}>
+                  <div className="mb-2 flex items-center justify-between gap-4">
+                    <span className="text-[14px] font-medium text-[#334155]">{item.label}</span>
+                    <span className="text-[14px] font-bold text-[#0F172A]">{item.value}</span>
+                  </div>
+                  <div className="h-2.5 rounded-full bg-[#E2E8F0]">
+                    <div
+                      className="h-2.5 rounded-full bg-gradient-to-r from-[#2563EB] to-[#6366F1]"
+                      style={{ width: `${Math.max((item.value / maxStatusValue) * 100, item.value ? 16 : 8)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-          </AdminPanel>
+          </div>
+        </AdminPanel>
 
-          <AdminPanel title="Payments" eyebrow="Follow-up">
-            <div className="space-y-3">
-              {state.orders
-                .filter((order) => ["paymentLinkSent", "paymentPending"].includes(order.status))
-                .slice(0, 4)
-                .map((order) => (
-                  <div key={order.id} className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
-                    <div>
-                      <p className="text-[13px] font-bold text-[#0F172A]">{order.id}</p>
-                      <p className="text-[12px] text-[#64748B]">{order.customer.name}</p>
+        <AdminPanel
+          title="Recent booking requests"
+          eyebrow="Latest"
+          action={<AdminLinkButton href="/admin/orders" variant="ghost" className="h-9 px-3.5">View all</AdminLinkButton>}
+        >
+          <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+            {recentOrders.map((order) => (
+              <Link
+                key={order.id}
+                href={`/admin/orders/${order.id}`}
+                className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4 transition hover:border-[#BFDBFE] hover:bg-white"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">{order.id}</p>
+                    <p className="mt-2 text-[18px] font-black tracking-[-0.03em] text-[#0F172A]">{order.customer.name}</p>
+                    <p className="mt-1 text-[12px] text-[#64748B]">{order.customer.phone}</p>
+                  </div>
+                  <AdminOrderStatusBadge status={order.status} compact />
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">Vendor</p>
+                    <p className="mt-1 text-[14px] font-semibold text-[#0F172A]">{order.vendorName}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">Event</p>
+                    <p className="mt-1 text-[14px] font-semibold text-[#0F172A]">{order.eventType}</p>
+                    <p className="text-[12px] text-[#64748B]">{formatDate(order.eventDate)}</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">Payment</p>
+                    <div className="mt-1"><AdminPaymentStatusBadge status={order.paymentStatus} compact /></div>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">Total</p>
+                    <p className="mt-1 text-[16px] font-bold text-[#0F172A]">
+                      {formatCurrency(getCustomerFacingBillSummary(order.bill).customerGrandTotal)}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-4 inline-flex items-center gap-2 text-[13px] font-bold text-[#2563EB]">
+                  View details
+                  <ArrowRight className="h-4 w-4" />
+                </p>
+              </Link>
+            ))}
+          </div>
+        </AdminPanel>
+
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+          <div className="min-w-0 space-y-6">
+            <AdminPanel title="Needs action" eyebrow="Priority" description="Orders that need handling next." className="min-w-0">
+              <div className="space-y-3">
+                {actionQueue.map((order) => (
+                  <Link
+                    key={order.id}
+                    href={`/admin/orders/${order.id}`}
+                    className="block rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4 transition hover:border-[#BFDBFE] hover:bg-white"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">{order.id}</p>
+                        <p className="mt-1 text-[16px] font-bold text-[#0F172A]">{order.vendorName}</p>
+                        <p className="mt-1 text-[13px] text-[#64748B]">
+                          {order.eventType} · {order.guests} guests
+                        </p>
+                      </div>
+                      <AdminOrderStatusBadge status={order.status} compact />
                     </div>
-                    <div className="text-right">
-                      <p className="text-[13px] font-bold text-[#0F172A]">{formatCurrency(order.bill.finalTotal)}</p>
-                      <AdminPaymentStatusBadge status={order.paymentStatus} compact />
+                    <p className="mt-3 inline-flex items-center gap-2 text-[13px] font-bold text-[#2563EB]">
+                      View details
+                      <ArrowRight className="h-4 w-4" />
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </AdminPanel>
+
+            <AdminPanel title="Quick actions" eyebrow="Shortcuts" className="min-w-0">
+              <div className="grid gap-3">
+                <AdminLinkButton href="/admin/orders" variant="secondary" className="h-9 w-full">Booking Requests</AdminLinkButton>
+                <AdminLinkButton href="/admin/vendors/new" variant="secondary" className="h-9 w-full">Add Vendor</AdminLinkButton>
+                <AdminLinkButton href="/admin/invoices" variant="secondary" className="h-9 w-full">Commission Invoices</AdminLinkButton>
+                <AdminLinkButton href="/admin/notifications" variant="secondary" className="h-9 w-full">Notifications</AdminLinkButton>
+              </div>
+            </AdminPanel>
+          </div>
+
+          <div className="min-w-0 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_320px]">
+            <AdminPanel title="Notifications" eyebrow="Feed" className="min-w-0">
+              <div className="space-y-3">
+                {state.activityFeed.slice(0, 4).map((item) => (
+                  <div key={item.id} className="flex items-start gap-3 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+                    <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#EFF6FF] text-[#2563EB]">
+                      <BellRing className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[13px] font-semibold text-[#0F172A]">{item.label}</p>
+                      <p className="mt-1 text-[12px] leading-[1.6] text-[#64748B]">{item.helper}</p>
                     </div>
                   </div>
                 ))}
-            </div>
-          </AdminPanel>
+              </div>
+            </AdminPanel>
+
+            <AdminPanel title="Commission invoices" eyebrow="Vendor billing" className="min-w-0">
+              <div className="space-y-3">
+                {state.orders
+                  .filter((order) => order.invoiceAvailable)
+                  .slice(0, 3)
+                  .map((order) => (
+                    <Link
+                      key={order.id}
+                      href={`/admin/orders/${order.id}/commission-invoice`}
+                      className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 transition hover:bg-white"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-bold text-[#0F172A]">{order.id}</p>
+                        <p className="truncate text-[12px] text-[#64748B]">{order.vendorName}</p>
+                      </div>
+                      <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-[#EEF2FF] text-[#6366F1]">
+                        <ReceiptText className="h-4 w-4" />
+                      </span>
+                    </Link>
+                  ))}
+              </div>
+            </AdminPanel>
+          </div>
         </div>
       </section>
     </AdminShell>

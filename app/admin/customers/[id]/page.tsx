@@ -8,14 +8,16 @@ import AdminShell from "@/components/admin/AdminShell";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { AdminOrderStatusBadge } from "@/components/admin/AdminStatusBadge";
 import {
-  AdminButton,
   AdminEmptyState,
   AdminInfoGrid,
+  AdminLinkButton,
   AdminMetricCard,
   AdminPanel,
   AdminTableCard,
 } from "@/components/admin/AdminUi";
 import { formatCurrency } from "@/data/mockAccount";
+import { getAdminDisplayStatus } from "@/data/mockAdmin";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 
 export default function AdminCustomerDetailPage() {
   const params = useParams<{ id: string }>();
@@ -23,7 +25,7 @@ export default function AdminCustomerDetailPage() {
   const customer = useMemo(() => state.customers.find((entry) => entry.id === params?.id) ?? null, [params?.id, state.customers]);
   const orders = useMemo(() => state.orders.filter((order) => order.customerId === params?.id), [params?.id, state.orders]);
   const openOrders = orders.filter((order) =>
-    ["bookingRequestSubmitted", "slotHeld", "pendingAdminReview", "vendorNotified", "paymentPending"].includes(order.status)
+    ["notConfirmed", "paymentPending"].includes(getAdminDisplayStatus(order.status))
   ).length;
 
   if (!customer) {
@@ -62,7 +64,7 @@ export default function AdminCustomerDetailPage() {
       <div className="space-y-6">
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <AdminMetricCard label="Total Orders" value={String(customer.totalOrders)} helper="Customer booking count" />
-          <AdminMetricCard label="Open Requests" value={String(openOrders)} helper="Needs follow-up or payment" tone="amber" />
+          <AdminMetricCard label="Need Follow-up" value={String(openOrders)} helper="Not confirmed or payment pending" tone="amber" />
           <AdminMetricCard label="Lifetime Spend" value={formatCurrency(customer.lifetimeSpend)} helper="Across all bookings" tone="green" />
           <AdminMetricCard label="Account Status" value={customer.status === "active" ? "Active" : "Blocked"} helper={customer.authType.toUpperCase()} tone={customer.status === "active" ? "blue" : "rose"} />
         </section>
@@ -137,7 +139,9 @@ export default function AdminCustomerDetailPage() {
                         </td>
                         <td className="px-5 py-4">{order.eventType}</td>
                         <td className="px-5 py-4">{order.eventDate}</td>
-                        <td className="px-5 py-4 font-semibold">{formatCurrency(order.bill.finalTotal)}</td>
+                        <td className="px-5 py-4 font-semibold">
+                          {formatCurrency(getCustomerFacingBillSummary(order.bill).customerGrandTotal)}
+                        </td>
                         <td className="px-5 py-4">
                           <AdminOrderStatusBadge status={order.status} compact />
                         </td>
@@ -169,12 +173,8 @@ export default function AdminCustomerDetailPage() {
             <AdminPanel eyebrow="Support Notes" title="Internal Notes">
               <p className="text-[14px] leading-[1.8] text-[#5B6574]">{customer.notes}</p>
               <div className="mt-5 flex flex-wrap gap-3">
-                <Link href="/admin/orders" className="inline-flex">
-                  <AdminButton variant="secondary">Open Booking Queue</AdminButton>
-                </Link>
-                <Link href="/admin/invoices" className="inline-flex">
-                  <AdminButton variant="ghost">Invoice Ledger</AdminButton>
-                </Link>
+                <AdminLinkButton href="/admin/orders" variant="secondary">Booking Requests</AdminLinkButton>
+                <AdminLinkButton href="/admin/invoices" variant="ghost">Commission Invoices</AdminLinkButton>
               </div>
             </AdminPanel>
           </div>

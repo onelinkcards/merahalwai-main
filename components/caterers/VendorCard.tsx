@@ -83,9 +83,11 @@ export default function VendorCard({ vendor }: VendorCardProps) {
       className="mh-vendor-card-surface group cursor-pointer overflow-hidden rounded-[28px] border bg-transparent transition-all duration-300 hover:border-[#E4D1BC] hover:shadow-[0_20px_46px_rgba(95,61,28,0.12)] active:scale-[0.99] md:flex md:min-h-[340px] md:items-stretch"
     >
       <div className="relative h-[284px] w-full overflow-hidden bg-[#1E1E1E] md:h-auto md:min-h-0 md:w-[42%] md:flex-shrink-0 md:self-stretch">
-        <img
+        <Image
           src={vendor.images[0]}
           alt={vendor.name}
+          fill
+          unoptimized
           className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.04]"
         />
 
@@ -113,12 +115,12 @@ export default function VendorCard({ vendor }: VendorCardProps) {
         <div className="absolute bottom-3 left-3 hidden gap-2 md:flex">
           {thumbs.map((thumb) => (
             <div key={thumb} className="h-[48px] w-[48px] overflow-hidden rounded-xl border border-white/45 shadow-sm transition-transform hover:scale-105">
-              <img src={thumb} alt="" className="h-full w-full object-cover" />
+              <Image src={thumb} alt="" width={48} height={48} unoptimized className="h-full w-full object-cover" />
             </div>
           ))}
           {vendor.images.length > 3 ? (
             <div className="relative h-[48px] w-[48px] overflow-hidden rounded-xl border border-white/45">
-              <img src={thirdThumb} alt="" className="h-full w-full object-cover" />
+              <Image src={thirdThumb} alt="" width={48} height={48} unoptimized className="h-full w-full object-cover" />
               <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-[11px] font-bold text-white">
                 +{extraCount}
               </div>

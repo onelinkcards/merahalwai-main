@@ -11,7 +11,7 @@ import { useDemoAuth } from "@/components/auth/DemoAuthProvider";
 import { getDefaultAddress } from "@/lib/demoAuth";
 import { getVendorDetailBySlug } from "@/data/vendors";
 import { bookFormSchema, type BookFormValues } from "@/lib/bookFormSchema";
-import { calculateBill } from "@/lib/calculateBill";
+import { calculateBill, getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import { useBookingStore } from "@/store/bookingStore";
 
 function tomorrowDate() {
@@ -113,11 +113,9 @@ export default function BookDetailsPage() {
         addOnItems: store.addOnItems,
         waterType: store.waterType,
         foodPreference: store.foodPreference,
-        couponDiscount: store.couponDiscount,
       }),
     [
       store.addOnItems,
-      store.couponDiscount,
       store.foodPreference,
       store.guestCount,
       store.pricePerPlate,
@@ -161,6 +159,7 @@ export default function BookDetailsPage() {
   };
 
   const onSubmit = (values: BookFormValues) => {
+    const billSummary = getCustomerFacingBillSummary(liveBill);
     setMany({
       guestCount: values.guestCount,
       guestSlab: `${values.guestCount} guests`,
@@ -182,9 +181,9 @@ export default function BookDetailsPage() {
       specialNote: values.specialNote || "",
       baseTotal: liveBill.baseAmount,
       addOnTotal: liveBill.addOnTotal + liveBill.waterAmount,
-      gstAmount: liveBill.gstAmount,
-      convenienceFee: liveBill.convenienceFee,
-      grandTotal: liveBill.grandTotal,
+      gstAmount: billSummary.upfrontGst,
+      convenienceFee: 0,
+      grandTotal: billSummary.customerGrandTotal,
     });
     router.push("/book/review");
   };

@@ -3,60 +3,73 @@
 import AdminShell from "@/components/admin/AdminShell";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { formatCurrency } from "@/data/mockAccount";
-import { AdminButton, AdminMetricCard, AdminPanel } from "@/components/admin/AdminUi";
+import { getAdminDisplayStatus } from "@/data/mockAdmin";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
+import { AdminMetricCard, AdminPanel } from "@/components/admin/AdminUi";
 
 export default function AdminReportsPage() {
   const { state } = useAdmin();
 
-  const totalRevenue = state.orders
-    .filter((order) => ["paymentDone", "bookingConfirmed"].includes(order.status))
-    .reduce((sum, order) => sum + order.bill.finalTotal, 0);
-  const cancellations = state.orders.filter((order) => ["cancelled", "vendorDeclined", "expired"].includes(order.status)).length;
-  const pendingAging = state.orders.filter((order) => ["bookingRequestSubmitted", "slotHeld", "pendingAdminReview"].includes(order.status)).length;
-
-  const vendorRevenue = state.vendors.map((vendor) => ({
-    name: vendor.name,
-    revenue: state.orders.filter((order) => order.vendorId === vendor.id).reduce((sum, order) => sum + order.bill.finalTotal, 0),
-  }));
+  const closedOrders = state.orders.filter((order) => getAdminDisplayStatus(order.status) === "confirmed");
+  const totalRevenue = closedOrders.reduce(
+    (sum, order) => sum + getCustomerFacingBillSummary(order.bill).customerGrandTotal,
+    0
+  );
+  const pendingRequests = state.orders.filter((order) => getAdminDisplayStatus(order.status) === "notConfirmed").length;
+  const paymentPending = state.orders.filter((order) => getAdminDisplayStatus(order.status) === "paymentPending").length;
+  const confirmedBookings = state.orders.filter((order) => getAdminDisplayStatus(order.status) === "confirmed").length;
 
   return (
     <AdminShell
       title="Reports"
-      description="High-level ops reporting for revenue, cancellations, package mix, and vendor performance."
-      actions={
-        <div className="flex gap-3">
-          <AdminButton variant="secondary">Export CSV</AdminButton>
-          <AdminButton>Export PDF</AdminButton>
-        </div>
-      }
+      description="Simple operational summary for bookings, closures, and revenue."
     >
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AdminMetricCard label="Total Revenue" value={formatCurrency(totalRevenue)} tone="green" />
-        <AdminMetricCard label="Cancellation Count" value={String(cancellations)} tone="rose" />
-        <AdminMetricCard label="Pending Confirmation" value={String(pendingAging)} tone="amber" />
-        <AdminMetricCard label="Repeat Customers" value={String(state.customers.filter((customer) => customer.totalOrders > 1).length)} tone="blue" />
+        <AdminMetricCard label="Closed Revenue" value={formatCurrency(totalRevenue)} tone="green" />
+        <AdminMetricCard label="Not Confirmed" value={String(pendingRequests)} tone="amber" />
+        <AdminMetricCard label="Payment Pending" value={String(paymentPending)} tone="blue" />
+        <AdminMetricCard label="Confirmed Bookings" value={String(confirmedBookings)} tone="blue" />
       </section>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-2">
-        <AdminPanel title="Vendor-wise revenue" eyebrow="Breakdown">
+        <AdminPanel title="Vendor Performance" eyebrow="Summary">
           <div className="space-y-3">
-            {vendorRevenue.map((vendor) => (
-              <div key={vendor.name} className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
-                <span className="font-medium text-[#334155]">{vendor.name}</span>
-                <span className="font-bold text-[#0F172A]">{formatCurrency(vendor.revenue)}</span>
-              </div>
-            ))}
+            {state.vendors.map((vendor) => {
+              const vendorOrders = state.orders.filter((order) => order.vendorId === vendor.id);
+              const vendorRevenue = vendorOrders.reduce(
+                (sum, order) => sum + getCustomerFacingBillSummary(order.bill).customerGrandTotal,
+                0
+              );
+              return (
+                <div
+                  key={vendor.id}
+                  className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3"
+                >
+                  <div>
+                    <p className="text-[14px] font-semibold text-[#0F172A]">{vendor.name}</p>
+                    <p className="text-[12px] text-[#64748B]">{vendorOrders.length} orders</p>
+                  </div>
+                  <p className="text-[14px] font-bold text-[#0F172A]">{formatCurrency(vendorRevenue)}</p>
+                </div>
+              );
+            })}
           </div>
         </AdminPanel>
 
-        <AdminPanel title="Package usage" eyebrow="Mix">
+        <AdminPanel title="Package Mix" eyebrow="Usage">
           <div className="space-y-3">
-            {["bronze", "silver", "gold"].map((tier) => (
-              <div key={tier} className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
-                <span className="font-medium capitalize text-[#334155]">{tier}</span>
-                <span className="font-bold text-[#0F172A]">{state.orders.filter((order) => order.packageTier === tier).length} orders</span>
-              </div>
-            ))}
+            {["bronze", "silver", "gold"].map((tier) => {
+              const count = state.orders.filter((order) => order.packageTier === tier).length;
+              return (
+                <div
+                  key={tier}
+                  className="flex items-center justify-between rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3"
+                >
+                  <span className="text-[14px] font-medium capitalize text-[#334155]">{tier}</span>
+                  <span className="text-[14px] font-bold text-[#0F172A]">{count} bookings</span>
+                </div>
+              );
+            })}
           </div>
         </AdminPanel>
       </div>

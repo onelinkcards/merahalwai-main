@@ -6,14 +6,11 @@ import { formatCurrency } from "@/data/mockAccount";
 import { getAdminOrderById, type AdminOrderRecord } from "@/data/mockAdmin";
 import CustomerPaymentSplit from "@/components/booking/CustomerPaymentSplit";
 import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
+import { getSupportTelHref, getSupportWhatsappHref } from "@/lib/supportContact";
 import {
   ArrowRight,
-  CalendarDays,
-  Clock3,
-  MapPin,
   MessageCircle,
   Phone,
-  UtensilsCrossed,
 } from "lucide-react";
 
 declare global {
@@ -27,10 +24,6 @@ type PayClientProps = { orderId: string };
 export default function PayClient({ orderId }: PayClientProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [paid, setPaid] = useState(false);
-  const [tastingDate, setTastingDate] = useState("");
-  const [tastingTime, setTastingTime] = useState("");
-  const [tastingBooked, setTastingBooked] = useState(false);
-  const [tastingError, setTastingError] = useState("");
   const order: AdminOrderRecord | null = getAdminOrderById(orderId);
   const razorpayKey =
     process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_live_SZTkZ0kcr1wMAN";
@@ -72,19 +65,6 @@ export default function PayClient({ orderId }: PayClientProps) {
         { label: "70% At Property", value: balanceAtProperty },
       ]
     : [];
-  const minDate = new Date().toISOString().split("T")[0];
-  const tastingSlots = [
-    "11:00 AM",
-    "12:00 PM",
-    "01:00 PM",
-    "02:00 PM",
-    "03:00 PM",
-    "04:00 PM",
-    "05:00 PM",
-    "06:00 PM",
-    "07:00 PM",
-  ];
-
   if (!order) {
     return (
       <div className="min-h-screen bg-[#F5F7FB] px-4 py-10 text-[#111827]">
@@ -139,16 +119,6 @@ export default function PayClient({ orderId }: PayClientProps) {
     instance.open();
   };
 
-  const handleScheduleTasting = () => {
-    if (!paid) return;
-    if (!tastingDate || !tastingTime) {
-      setTastingError("Please select date and time.");
-      return;
-    }
-    setTastingError("");
-    setTastingBooked(true);
-  };
-
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#FCFAF6_0%,#F7F0E6_55%,#F4EBDD_100%)] px-4 py-8 text-[#111827]">
       <div className="mx-auto w-full max-w-5xl space-y-8">
@@ -164,14 +134,14 @@ export default function PayClient({ orderId }: PayClientProps) {
           </div>
           <div className="flex flex-wrap gap-2">
             <a
-              href="https://wa.me/919876543210"
+              href={getSupportWhatsappHref()}
               className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#CEE5D9] bg-white px-3 text-[12px] font-semibold text-[#1B9C52]"
             >
               <MessageCircle className="h-4 w-4 fill-[#25D366] text-[#25D366]" />
               WhatsApp
             </a>
             <a
-              href="tel:+919876543210"
+              href={getSupportTelHref()}
               className="inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-[#E5DACD] bg-white px-3 text-[12px] font-semibold text-[#4D4338]"
             >
               <Phone className="h-4 w-4" />
@@ -231,105 +201,6 @@ export default function PayClient({ orderId }: PayClientProps) {
             </p>
           </aside>
         </div>
-
-        <section className="rounded-[20px] border border-[#E7DCCB] bg-white p-6 shadow-[0_12px_26px_rgba(15,23,42,0.06)]">
-          <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#E9D7C1] bg-[#FFF7EC] px-3 py-1.5">
-                <UtensilsCrossed className="h-4 w-4 text-[#8A3E1D]" />
-                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-[#8A3E1D]">
-                  Food Tasting & Venue Visit
-                </span>
-              </div>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <h3 className="text-[24px] font-black text-[#1B1713]">Schedule Your Visit</h3>
-                <span className="inline-flex items-center rounded-full border border-[#A9E6C2] bg-[#E9FBF1] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-[#0F9F59]">
-                  FREE
-                </span>
-              </div>
-              <p className="mt-2 text-[14px] leading-6 text-[#6B5A49]">
-                After 30% payment, you can schedule a tasting + venue visit slot with the caterer.
-              </p>
-
-              <div className="mt-4 rounded-2xl border border-[#ECDFCF] bg-[#FFFCF8] px-4 py-3">
-                <p className="text-[12px] font-semibold text-[#5B4A38]">Important Note</p>
-                <p className="mt-1 text-[13px] text-[#6D5B4A]">
-                  Complimentary tasting includes <span className="font-semibold text-[#8A3E1D]">1 sample plate only</span>. Additional samples may be chargeable.
-                </p>
-              </div>
-
-            </div>
-
-            <div className={"rounded-2xl border p-4 " + (paid ? "border-[#E4D3BF] bg-[#FFF9F2]" : "border-[#ECE4DA] bg-[#FAF8F5] opacity-80")}>
-              <p className="text-[12px] font-semibold uppercase tracking-[0.16em] text-[#7F6A54]">Select Visit Slot</p>
-
-              <div className="mt-3 space-y-3">
-                <label className="block">
-                  <span className="mb-1 inline-flex items-center gap-2 text-[12px] font-semibold text-[#5D4D3D]">
-                    <CalendarDays className="h-4 w-4 text-[#8A3E1D]" />
-                    Visit Date
-                  </span>
-                  <input
-                    type="date"
-                    value={tastingDate}
-                    min={minDate}
-                    onChange={(event) => {
-                      setTastingDate(event.target.value);
-                      setTastingBooked(false);
-                    }}
-                    disabled={!paid}
-                    className="h-11 w-full rounded-xl border border-[#DCCCB7] bg-white px-3 text-[13px] font-medium text-[#2B241D] outline-none transition focus:border-[#8A3E1D]"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-1 inline-flex items-center gap-2 text-[12px] font-semibold text-[#5D4D3D]">
-                    <Clock3 className="h-4 w-4 text-[#8A3E1D]" />
-                    Preferred Time
-                  </span>
-                  <select
-                    value={tastingTime}
-                    onChange={(event) => {
-                      setTastingTime(event.target.value);
-                      setTastingBooked(false);
-                    }}
-                    disabled={!paid}
-                    className="h-11 w-full rounded-xl border border-[#DCCCB7] bg-white px-3 text-[13px] font-medium text-[#2B241D] outline-none transition focus:border-[#8A3E1D]"
-                  >
-                    <option value="">Select time slot</option>
-                    {tastingSlots.map((slot) => (
-                      <option key={slot} value={slot}>
-                        {slot}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleScheduleTasting}
-                  disabled={!paid}
-                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#EC9925_0%,#D97F1D_48%,#8A3E1D_100%)] px-4 text-[13px] font-semibold text-white transition hover:opacity-95 disabled:cursor-not-allowed disabled:bg-[#D8D3CB]"
-                >
-                  <MapPin className="h-4 w-4" />
-                  Schedule Food Test & Visit
-                </button>
-              </div>
-
-              {!paid ? (
-                <p className="mt-2 text-[12px] text-[#8A6A4B]">Unlocks after 30% payment is completed.</p>
-              ) : null}
-              {tastingError ? <p className="mt-2 text-[12px] font-semibold text-[#B42318]">{tastingError}</p> : null}
-              {tastingBooked ? (
-                <div className="mt-3 rounded-xl border border-[#CFE9D7] bg-[#F2FBF6] px-3 py-2">
-                  <p className="text-[12px] font-semibold text-[#157347]">
-                    Visit request saved for {formatReadableDate(tastingDate)} · {tastingTime}
-                  </p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-        </section>
 
         <section className="rounded-[20px] border border-[#E7DCCB] bg-white p-6 shadow-[0_12px_26px_rgba(15,23,42,0.06)]">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -405,11 +276,4 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
       <span className="text-[14px] font-semibold text-[#1A1612]">{value}</span>
     </div>
   );
-}
-
-function formatReadableDate(value: string) {
-  if (!value) return "";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }

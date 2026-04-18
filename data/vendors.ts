@@ -1,3 +1,5 @@
+import { getVendorTypeFromBronzePrice, normalizeEventLabel } from "@/data/vendorFilterOptions";
+
 export type Vendor = {
   id: number;
   slug: string;
@@ -16,6 +18,156 @@ export type Vendor = {
   description: string;
   images: string[];
 };
+
+const ADMIN_STATE_KEY = "mh_admin_state_v1";
+
+type BrowserAdminMenuItem = {
+  name: string;
+  isVeg: boolean;
+  defaultSelected: boolean;
+};
+
+type BrowserAdminCategoryRule = {
+  categoryKey: string;
+  label: string;
+};
+
+type BrowserAdminPackage = {
+  id: string;
+  name: string;
+  pricePerPlate: number;
+  shortNote?: string;
+  customerLabel?: string;
+  menuItems?: Record<string, BrowserAdminMenuItem[]>;
+  categoryRules?: BrowserAdminCategoryRule[];
+};
+
+type BrowserAdminAddon = {
+  name: string;
+  isVeg: boolean;
+  pricePerPax: number;
+  enabled: boolean;
+};
+
+type BrowserAdminWater = {
+  enabled?: boolean;
+  mode?: "ro" | "packaged" | "both";
+  roPricePerPax?: number;
+  packagedPricePerPax?: number;
+  defaultSelection?: "ro" | "packaged";
+};
+
+type BrowserAdminVendor = {
+  id: string;
+  slug: string;
+  name: string;
+  ownerName?: string;
+  phone?: string;
+  whatsapp?: string;
+  email?: string;
+  gstNumber?: string;
+  address?: string;
+  city?: string;
+  pincode?: string;
+  locality?: string;
+  eventSpecialization?: string[];
+  coverPhoto?: string;
+  gallery?: string[];
+  menuType?: "veg_only" | "veg_and_non_veg";
+  shortDescription?: string;
+  about?: string;
+  displayedRating?: number;
+  googlePlaceId?: string;
+  totalOrders?: number;
+  packages?: Record<string, BrowserAdminPackage>;
+  addons?: BrowserAdminAddon[];
+  water?: BrowserAdminWater;
+};
+
+function canUseBrowser() {
+  return typeof window !== "undefined";
+}
+
+function clone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function readAdminVendorsFromBrowser(): BrowserAdminVendor[] {
+  if (!canUseBrowser()) return [];
+  try {
+    const raw = window.localStorage.getItem(ADMIN_STATE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as { vendors?: BrowserAdminVendor[] };
+    return Array.isArray(parsed.vendors) ? parsed.vendors : [];
+  } catch {
+    return [];
+  }
+}
+
+function deriveVendorCuisines(menuType: BrowserAdminVendor["menuType"]) {
+  return menuType === "veg_only"
+    ? ["North Indian", "Rajasthani", "Desserts"]
+    : ["North Indian", "Mughlai", "Rajasthani"];
+}
+
+function deriveVendorSpecialisations(vendor: BrowserAdminVendor) {
+  const derived = new Set<string>();
+  if (vendor.menuType === "veg_only") derived.add("Pure Veg Only");
+  const bronzePrice = Object.values(vendor.packages ?? {})
+    .map((pkg) => pkg.pricePerPlate)
+    .filter((price) => Number.isFinite(price))
+    .sort((a, b) => a - b)[0] ?? 300;
+  const vendorType = getVendorTypeFromBronzePrice(bronzePrice);
+  if (vendorType === "luxury") derived.add("Luxury Setup");
+  if (vendorType === "elite") derived.add("Top Rated");
+  if (vendorType === "value") derived.add("Best Value");
+  if (vendorType === "budget") derived.add("Affordable");
+  if ((vendor.eventSpecialization ?? []).some((entry) => normalizeEventLabel(entry) === "Corporate Event")) derived.add("Outdoor Events");
+  if ((vendor.eventSpecialization ?? []).some((entry) => normalizeEventLabel(entry) === "Wedding")) derived.add("Live Counter");
+  if (derived.size === 0) derived.add(vendor.menuType === "veg_only" ? "Affordable" : "Live Counter");
+  return Array.from(derived).slice(0, 3);
+}
+
+function mapAdminVendorToListing(vendor: BrowserAdminVendor, index: number): Vendor {
+  const packagePrices = Object.values(vendor.packages ?? {})
+    .map((pkg) => pkg.pricePerPlate)
+    .filter((price) => Number.isFinite(price));
+  const priceVeg = packagePrices.length ? Math.min(...packagePrices) : 300;
+  const locationParts = [vendor.locality, vendor.city].filter(Boolean);
+  const images = [vendor.coverPhoto, ...(vendor.gallery ?? [])].filter(Boolean) as string[];
+
+  return {
+    id: 10_000 + index,
+    slug: vendor.slug,
+    name: vendor.name,
+    location: locationParts.join(", ") || "Jaipur",
+    rating: vendor.displayedRating || 4.5,
+    reviews: Math.max(24, (vendor.totalOrders ?? 0) * 4 || 24),
+    isVeg: vendor.menuType === "veg_only",
+    verified: true,
+    cuisines: deriveVendorCuisines(vendor.menuType),
+    eventTypes: vendor.eventSpecialization?.length
+      ? vendor.eventSpecialization.map((entry) => normalizeEventLabel(entry))
+      : ["Wedding", "Birthday Party"],
+    specialisations: deriveVendorSpecialisations(vendor),
+    minPax: 10,
+    maxPax: 2000,
+    priceVeg,
+    description: vendor.shortDescription || vendor.about || "Structured packages with menu customization and verified service.",
+    images: images.length ? images : [
+      "https://images.unsplash.com/photo-1555244162-803834f70033?w=1400&q=80&auto=format&fit=crop",
+    ],
+  };
+}
+
+export function getFrontendVendors(): Vendor[] {
+  const map = new Map(VENDORS.map((vendor) => [vendor.slug, clone(vendor)]));
+  readAdminVendorsFromBrowser().forEach((vendor, index) => {
+    if (!vendor.slug || !vendor.name) return;
+    map.set(vendor.slug, mapAdminVendorToListing(vendor, index));
+  });
+  return Array.from(map.values());
+}
 
 export const VENDORS: Vendor[] = [
   {
@@ -550,6 +702,179 @@ export const VENDOR_DETAILS = {
 
 export type VendorDetailFull = (typeof VENDOR_DETAILS)["keemti-gupta-halwai"];
 
+function getAdminVendorBySlug(slug: string) {
+  return readAdminVendorsFromBrowser().find((vendor) => vendor.slug === slug) ?? null;
+}
+
+function getStaticVendorDetailBySlug(slug: string): VendorDetailFull | null {
+  if (!slug) return null;
+  try {
+    const direct = VENDOR_DETAILS[slug as keyof typeof VENDOR_DETAILS];
+    if (direct) {
+      return clone(direct) as VendorDetailFull;
+    }
+    const v = VENDORS.find((x) => x.slug === slug);
+    if (!v) return null;
+
+    const detail = clone(VENDOR_DETAILS["keemti-gupta-halwai"]) as Record<string, unknown>;
+
+    const base = v.priceVeg;
+    const silver = Math.round((base * 500) / 300);
+    const gold = Math.round((base * 800) / 300);
+
+    const pkgs = detail.packages as unknown as Array<Record<string, unknown> & { id: string; pricePerPlate: number }>;
+    detail.packages = pkgs.map((pkg) => {
+      const nextPrice: number =
+        pkg.id === "bronze" ? base : pkg.id === "silver" ? silver : pkg.id === "gold" ? gold : pkg.pricePerPlate;
+      return { ...pkg, pricePerPlate: nextPrice };
+    }) as unknown as VendorDetailFull["packages"];
+
+    detail.slug = v.slug;
+    detail.name = v.name;
+    detail.tagline = v.cuisines.slice(0, 2).join(" & ") + " · Trusted catering";
+    detail.location = v.location.includes("Jaipur") ? v.location : v.location + ", Jaipur";
+    detail.phone = "+91 98765 43210";
+    detail.rating = v.rating;
+    detail.reviewsCount = v.reviews;
+    detail.totalBookings = 120 + v.id * 95;
+    detail.yearsActive = 10 + v.id * 5;
+    detail.isVeg = v.isVeg;
+    detail.about = v.description;
+    detail.cuisines = [...v.cuisines];
+    detail.specialisations = [...v.specialisations];
+    detail.eventTypes = mapListingEventTypesToDetail(v.eventTypes);
+    detail.minPax = v.minPax;
+    detail.maxPax = v.maxPax;
+    detail.images = [...v.images];
+    detail.highlights = [
+      { icon: "ShieldCheck", label: "FSSAI Certified" },
+      { icon: "Users", label: `${Math.min(900, 80 + v.reviews * 8)}+ Events` },
+      { icon: "Star", label: `${v.rating} Rating` },
+      { icon: "Clock", label: `Since ${2010 + v.id}` },
+      { icon: "ChefHat", label: "25+ Cooks" },
+      { icon: "Award", label: "MH Verified" },
+    ];
+    detail.reviews = [
+      {
+        id: 1,
+        name: "Aarav M.",
+        initials: "AM",
+        rating: 5,
+        event: v.eventTypes[0] ?? "Wedding",
+        date: "Feb 2026",
+        text: `Excellent spread and service from ${v.name}. Guests loved the mains and desserts.`,
+      },
+      {
+        id: 2,
+        name: "Neha K.",
+        initials: "NK",
+        rating: 4,
+        event: v.eventTypes[1] ?? "Party",
+        date: "Jan 2026",
+        text: "On-time setup, polite staff, and generous portions. Would book again.",
+      },
+      {
+        id: 3,
+        name: "Vikram S.",
+        initials: "VS",
+        rating: 5,
+        event: "Family Event",
+        date: "Dec 2025",
+        text: "Transparent pricing and tasty food. The team handled our guest count smoothly.",
+      },
+    ];
+
+    return detail as VendorDetailFull;
+  } catch {
+    return null;
+  }
+}
+
+function mapAdminVendorToDetail(vendor: BrowserAdminVendor): VendorDetailFull {
+  const templateSlug = vendor.menuType === "veg_only" ? "keemti-gupta-halwai" : "rajputana-grand-caterers";
+  const template = clone(
+    getStaticVendorDetailBySlug(templateSlug) ?? VENDOR_DETAILS["keemti-gupta-halwai"]
+  ) as Record<string, unknown>;
+
+  const listing = mapAdminVendorToListing(vendor, 0);
+
+  template.slug = vendor.slug;
+  template.name = vendor.name;
+  template.tagline = vendor.shortDescription || `${listing.cuisines.slice(0, 2).join(" & ")} catering for structured bookings`;
+  template.location = [vendor.locality, vendor.city, "Rajasthan"].filter(Boolean).join(", ") || "Jaipur, Rajasthan";
+  template.phone = vendor.phone || vendor.whatsapp || "+91 90000 11111";
+  template.rating = vendor.displayedRating || 4.5;
+  template.reviewsCount = Math.max(24, (vendor.totalOrders ?? 0) * 4 || 24);
+  template.totalBookings = Math.max(vendor.totalOrders ?? 0, 12);
+  template.yearsActive = 8;
+  template.isVeg = vendor.menuType === "veg_only";
+  template.about = vendor.about || vendor.shortDescription || String(template.about || "");
+  template.cuisines = listing.cuisines;
+  template.specialisations = listing.specialisations;
+  template.eventTypes = vendor.eventSpecialization?.length ? vendor.eventSpecialization : (template.eventTypes as string[]);
+  template.minPax = 10;
+  template.maxPax = 2000;
+  template.images = listing.images;
+  template.highlights = [
+    { icon: "ShieldCheck", label: "MH Verified" },
+    { icon: "Users", label: `${Math.max(vendor.totalOrders ?? 0, 12)}+ Bookings` },
+    { icon: "Star", label: `${template.rating} Rating` },
+    { icon: "Clock", label: "Structured Packages" },
+    { icon: "ChefHat", label: template.isVeg ? "Veg Menu" : "Veg & Non-Veg" },
+    { icon: "Award", label: vendor.googlePlaceId ? "Google Reviews Ready" : "Admin Managed" },
+  ];
+
+  template.packages = (template.packages as VendorDetailFull["packages"]).map((pkg) => {
+    const adminPackage = vendor.packages?.[pkg.id];
+    if (!adminPackage) return pkg;
+    const categorySource = adminPackage.categoryRules?.length
+      ? adminPackage.categoryRules
+      : Object.keys(adminPackage.menuItems ?? {}).map((categoryKey) => ({
+          categoryKey,
+          label: categoryKey,
+        }));
+    return {
+      ...pkg,
+      name: adminPackage.name || pkg.name,
+      pricePerPlate: adminPackage.pricePerPlate || pkg.pricePerPlate,
+      description: adminPackage.shortNote || adminPackage.customerLabel || pkg.description,
+      categories: categorySource.map((category) => ({
+        name: category.label,
+        items: (adminPackage.menuItems?.[category.categoryKey] ?? []).map((item) => ({
+          name: item.name,
+          isVeg: item.isVeg,
+          isDefault: item.defaultSelected,
+        })),
+      })),
+    };
+  });
+
+  template.addons = (vendor.addons ?? [])
+    .filter((addon) => addon.enabled)
+    .map((addon) => ({
+      name: addon.name,
+      isVeg: addon.isVeg,
+      pricePerPax: addon.pricePerPax,
+    }));
+
+  template.water = {
+    mode: vendor.water?.mode === "ro" ? "ro" : vendor.water?.mode === "packaged" ? "packaged" : "packaged",
+    type:
+      vendor.water?.mode === "ro"
+        ? "RO Water"
+        : vendor.water?.mode === "both"
+          ? "RO / Packaged Water"
+          : "Packaged Water",
+    pricePerBottle: vendor.water?.packagedPricePerPax ?? 20,
+    pricePerPax:
+      vendor.water?.defaultSelection === "ro"
+        ? vendor.water?.roPricePerPax ?? 8
+        : vendor.water?.packagedPricePerPax ?? 15,
+  };
+
+  return template as VendorDetailFull;
+}
+
 function mapListingEventTypesToDetail(raw: string[]): string[] {
   const map: Record<string, string> = {
     Corporate: "Corporate Event / Office Party",
@@ -567,90 +892,11 @@ function mapListingEventTypesToDetail(raw: string[]): string[] {
 }
 
 export function getVendorDetailBySlug(slug: string): VendorDetailFull | null {
-  if (!slug) return null;
-  try {
-  const direct = VENDOR_DETAILS[slug as keyof typeof VENDOR_DETAILS];
-  if (direct) {
-    return JSON.parse(JSON.stringify(direct)) as VendorDetailFull;
+  const adminVendor = getAdminVendorBySlug(slug);
+  if (adminVendor) {
+    return mapAdminVendorToDetail(adminVendor);
   }
-  const v = VENDORS.find((x) => x.slug === slug);
-  if (!v) return null;
-
-  const detail = JSON.parse(JSON.stringify(VENDOR_DETAILS["keemti-gupta-halwai"])) as Record<
-    string,
-    unknown
-  >;
-
-  const base = v.priceVeg;
-  const silver = Math.round((base * 500) / 300);
-  const gold = Math.round((base * 800) / 300);
-
-  const pkgs = detail.packages as unknown as Array<Record<string, unknown> & { id: string; pricePerPlate: number }>;
-  detail.packages = pkgs.map((pkg) => {
-    const nextPrice: number =
-      pkg.id === "bronze" ? base : pkg.id === "silver" ? silver : pkg.id === "gold" ? gold : pkg.pricePerPlate;
-    return { ...pkg, pricePerPlate: nextPrice };
-  }) as unknown as VendorDetailFull["packages"];
-
-  detail.slug = v.slug;
-  detail.name = v.name;
-  detail.tagline = v.cuisines.slice(0, 2).join(" & ") + " · Trusted catering";
-  detail.location = v.location.includes("Jaipur") ? v.location : v.location + ", Jaipur";
-  detail.phone = "+91 98765 43210";
-  detail.rating = v.rating;
-  detail.reviewsCount = v.reviews;
-  detail.totalBookings = 120 + v.id * 95;
-  detail.yearsActive = 10 + v.id * 5;
-  detail.isVeg = v.isVeg;
-  detail.about = v.description;
-  detail.cuisines = [...v.cuisines];
-  detail.specialisations = [...v.specialisations];
-  detail.eventTypes = mapListingEventTypesToDetail(v.eventTypes);
-  detail.minPax = v.minPax;
-  detail.maxPax = v.maxPax;
-  detail.images = [...v.images];
-  detail.highlights = [
-    { icon: "ShieldCheck", label: "FSSAI Certified" },
-    { icon: "Users", label: `${Math.min(900, 80 + v.reviews * 8)}+ Events` },
-    { icon: "Star", label: `${v.rating} Rating` },
-    { icon: "Clock", label: `Since ${2010 + v.id}` },
-    { icon: "ChefHat", label: "25+ Cooks" },
-    { icon: "Award", label: "MH Verified" },
-  ];
-  detail.reviews = [
-    {
-      id: 1,
-      name: "Aarav M.",
-      initials: "AM",
-      rating: 5,
-      event: v.eventTypes[0] ?? "Wedding",
-      date: "Feb 2026",
-      text: `Excellent spread and service from ${v.name}. Guests loved the mains and desserts.`,
-    },
-    {
-      id: 2,
-      name: "Neha K.",
-      initials: "NK",
-      rating: 4,
-      event: v.eventTypes[1] ?? "Party",
-      date: "Jan 2026",
-      text: "On-time setup, polite staff, and generous portions. Would book again.",
-    },
-    {
-      id: 3,
-      name: "Vikram S.",
-      initials: "VS",
-      rating: 5,
-      event: "Family Event",
-      date: "Dec 2025",
-      text: "Transparent pricing and tasty food. The team handled our guest count smoothly.",
-    },
-  ];
-
-  return detail as VendorDetailFull;
-  } catch {
-    return null;
-  }
+  return getStaticVendorDetailBySlug(slug);
 }
 
 export const MASTER_MENU = [

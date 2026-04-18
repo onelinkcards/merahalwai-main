@@ -2,16 +2,18 @@
 
 import * as React from "react";
 import { Check, ChevronDown, Star } from "lucide-react";
+import { BUDGET_OPTIONS, EVENT_OPTIONS, SPECIALISATION_OPTIONS } from "@/data/vendorFilterOptions";
 
 type FiltersState = {
   guests: number | null;
-  cuisines: string[];
   minRating: number;
   foodPref: "veg" | "nonveg" | null;
   budgets: string[];
   eventTypes: string[];
   guestRange: string | null;
   specialisations: string[];
+  service: string | null;
+  vendorType: string | null;
 };
 
 type FilterSidebarProps = {
@@ -21,49 +23,6 @@ type FilterSidebarProps = {
   isMobile?: boolean;
   showHeader?: boolean;
 };
-
-const EVENT_OPTIONS = [
-  "Birthday Party",
-  "Wedding",
-  "Wedding Anniversary",
-  "Baby Shower",
-  "Retirement Party",
-  "Corporate Event / Office Party",
-  "Get-Together / Friends Party",
-  "Break-Up Party",
-  "Small Gathering (under 75 pax)",
-  "Satsang / Pooja",
-  "Funeral Bhoj",
-];
-
-const CUISINE_OPTIONS = [
-  "North Indian",
-  "Mughlai",
-  "South Indian",
-  "Rajasthani",
-  "Chaat",
-  "Desserts",
-  "Continental",
-];
-
-const SPECIALISATION_OPTIONS = [
-  "Live Counter",
-  "Royal Setup",
-  "Budget Friendly",
-  "Premium / Luxury",
-  "Mughlai Specialist",
-  "Pure Veg Only",
-  "Small Events Expert",
-  "Corporate Caterer",
-  "Outdoor Events",
-];
-
-const BUDGET_OPTIONS = [
-  { val: "under300", label: "Under ₹300", sub: "Budget friendly" },
-  { val: "300-500", label: "₹300–₹500", sub: "Mid range" },
-  { val: "500-800", label: "₹500–₹800", sub: "Premium" },
-  { val: "800plus", label: "₹800+", sub: "Luxury" },
-];
 
 const GUEST_RANGE_OPTIONS = [
   { val: "0-50", label: "< 50" },
@@ -112,39 +71,6 @@ function SectionHeader({
   );
 }
 
-function ChoicePill({
-  label,
-  active,
-  onClick,
-  compact = false,
-  prominent = false,
-  className = "",
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  compact?: boolean;
-  prominent?: boolean;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        "rounded-[16px] border px-4 text-left text-[12px] font-semibold transition-all active:scale-[0.98] " +
-        (prominent ? "min-h-[52px] py-3.5 " : compact ? "min-h-[44px] py-2.5 " : "min-h-[50px] py-3 ") +
-        (active
-          ? "border-[#8A3E1D] bg-[#FCF2E8] text-[#8A3E1D] shadow-[0_10px_22px_rgba(138,62,29,0.08)]"
-          : "border-[#E7DED2] bg-[#FFFDF9] text-[#5F564C] hover:border-[#CDAA84]") +
-        className
-      }
-    >
-      {label}
-    </button>
-  );
-}
-
 function CompactFilterPill({
   label,
   active,
@@ -184,7 +110,6 @@ export default function FilterSidebar({
     eventType: !isMobile,
     guests: true,
     budget: true,
-    cuisine: true,
     spec: !isMobile,
   });
 
@@ -200,7 +125,8 @@ export default function FilterSidebar({
       eventTypes: [],
       guestRange: null,
       specialisations: [],
-      cuisines: [],
+      service: null,
+      vendorType: null,
     }));
 
   const totalActive =
@@ -209,8 +135,7 @@ export default function FilterSidebar({
     filters.budgets.length +
     filters.eventTypes.length +
     (filters.guestRange ? 1 : 0) +
-    filters.specialisations.length +
-    filters.cuisines.length;
+    filters.specialisations.length;
 
   const visibleEvents = showAllEvents ? EVENT_OPTIONS : EVENT_OPTIONS.slice(0, 5);
 
@@ -399,13 +324,13 @@ export default function FilterSidebar({
         </div>
         {openGroups.budget ? (
           <div className="grid gap-2.5 sm:grid-cols-2 md:grid-cols-1">
-            {BUDGET_OPTIONS.map((item) => {
-              const checked = filters.budgets.includes(item.val);
+            {BUDGET_OPTIONS.filter((item) => item.value !== "all").map((item) => {
+              const checked = filters.budgets.includes(item.value);
               return (
                 <button
-                  key={item.val}
+                  key={item.value}
                   type="button"
-                  onClick={() => setFilters((p) => ({ ...p, budgets: toggle(p.budgets, item.val) }))}
+                  onClick={() => setFilters((p) => ({ ...p, budgets: p.budgets.includes(item.value) ? [] : [item.value] }))}
                   className={
                     "rounded-[16px] border px-4 py-3.5 text-left transition-all active:scale-[0.98] " +
                     (checked
@@ -416,7 +341,7 @@ export default function FilterSidebar({
                   <div className="flex items-center justify-between gap-3">
                     <span className="min-w-0">
                       <span className={"block text-[13px] font-bold " + (checked ? "text-[#8A3E1D]" : "text-[#1E1E1E]")}>{item.label}</span>
-                      <span className="mt-1 block text-[11px] font-medium text-[#8B7355]">{item.sub}</span>
+                      <span className="mt-1 block text-[11px] font-medium text-[#8B7355]">{item.tagline}</span>
                     </span>
                     <span
                       className={
@@ -430,24 +355,6 @@ export default function FilterSidebar({
                 </button>
               );
             })}
-          </div>
-        ) : null}
-      </div>
-
-      <div className="border-b border-[#E5E0D8] py-4">
-        <div className="mb-3">
-          <SectionHeader label="Cuisine" open={openGroups.cuisine} onToggle={() => tog("cuisine")} activeCount={filters.cuisines.length} />
-        </div>
-        {openGroups.cuisine ? (
-          <div className="flex flex-wrap gap-2.5">
-            {CUISINE_OPTIONS.map((item) => (
-              <ChoicePill
-                key={item}
-                label={item}
-                active={filters.cuisines.includes(item)}
-                onClick={() => setFilters((p) => ({ ...p, cuisines: toggle(p.cuisines, item) }))}
-              />
-            ))}
           </div>
         ) : null}
       </div>

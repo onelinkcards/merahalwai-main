@@ -19,6 +19,7 @@ import {
 import BookingStepper from "@/components/book/BookingStepper";
 import CustomerPaymentSplit from "@/components/booking/CustomerPaymentSplit";
 import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
+import { getSupportTelHref, getSupportWhatsappHref } from "@/lib/supportContact";
 import { useBookingStore } from "@/store/bookingStore";
 
 type SuccessSnapshot = {
@@ -128,8 +129,8 @@ function BookingSuccessContent() {
               icon={<FileText className="h-4 w-4" />}
               primary
             />
-            <ActionButton href="https://wa.me/919876543210" label="WhatsApp" icon={<MessageCircle className="h-4 w-4 fill-[#25D366] text-[#25D366]" />} external />
-            <ActionButton href="tel:+919876543210" label="Call Us" icon={<Phone className="h-4 w-4" />} external />
+            <ActionButton href={getSupportWhatsappHref()} label="WhatsApp" icon={<MessageCircle className="h-4 w-4 fill-[#25D366] text-[#25D366]" />} external />
+            <ActionButton href={getSupportTelHref()} label="Call Us" icon={<Phone className="h-4 w-4" />} external />
           </div>
 
           <div className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">

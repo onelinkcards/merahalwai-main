@@ -46,7 +46,6 @@ export default function BookReviewPage() {
   const store = useBookingStore();
   const setMany = useBookingStore((s) => s.setMany);
   const [mounted, setMounted] = useState(false);
-  const [couponInput, setCouponInput] = useState("");
   const [openCats, setOpenCats] = useState<Record<string, boolean>>({});
   const [confirming, setConfirming] = useState(false);
 
@@ -82,11 +81,9 @@ export default function BookReviewPage() {
         addOnItems: store.addOnItems,
         waterType: store.waterType,
         foodPreference: store.foodPreference,
-        couponDiscount: store.couponDiscount,
       }),
     [
       store.addOnItems,
-      store.couponDiscount,
       store.foodPreference,
       store.guestCount,
       store.pricePerPlate,
@@ -114,22 +111,6 @@ export default function BookReviewPage() {
   const orderGrandTotal = customerGrandTotal;
 
   const toggleCat = (name: string) => setOpenCats((prev) => ({ ...prev, [name]: !prev[name] }));
-
-  const applyCoupon = () => {
-    const code = couponInput.trim().toUpperCase();
-    if (code === "FLAT10") {
-      setMany({ couponCode: "FLAT10", couponDiscount: 500 });
-      useToastStore.getState().show("Coupon applied.");
-      return;
-    }
-    if (code) {
-      useToastStore.getState().show("Invalid coupon.");
-    }
-  };
-
-  const clearCoupon = () => {
-    setMany({ couponCode: "", couponDiscount: 0 });
-  };
 
   const confirm = async () => {
     setConfirming(true);
@@ -328,35 +309,6 @@ export default function BookReviewPage() {
               </div>
             </ReviewSection>
 
-            <ReviewSection kicker="Coupon" title="Apply Coupon">
-              {!store.couponCode ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <input
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value)}
-                    placeholder="Enter coupon code"
-                    className="h-12 w-full min-w-0 flex-1 rounded-[18px] border border-stone-200 bg-[#FCFBF9] px-4 text-[13px] font-semibold uppercase outline-none transition focus:border-[#8A3E1D] sm:h-11"
-                  />
-                  <button
-                    type="button"
-                    onClick={applyCoupon}
-                    className="inline-flex h-12 w-full items-center justify-center rounded-[18px] bg-stone-900 px-5 text-[13px] font-semibold text-white transition hover:bg-[#8A3E1D] sm:h-11 sm:w-auto sm:min-w-[140px]"
-                  >
-                    Apply Coupon
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between rounded-[18px] border border-green-200 bg-green-50 px-4 py-3">
-                  <div>
-                    <p className="text-[13px] font-semibold text-green-800">{store.couponCode} applied</p>
-                    <p className="text-[12px] text-green-700">₹{store.couponDiscount} discount</p>
-                  </div>
-                  <button type="button" onClick={clearCoupon} className="text-[12px] font-semibold text-green-800">
-                    Remove
-                  </button>
-                </div>
-              )}
-            </ReviewSection>
           </div>
 
           <aside className="hidden lg:sticky lg:top-24 lg:block lg:self-start">
@@ -369,7 +321,6 @@ export default function BookReviewPage() {
                 <BillRow label="Base Amount" value={bill.baseAmount} helper={`${store.guestCount} guests × ₹${store.pricePerPlate}/plate`} />
                 <BillRow label="Optional Add-ons" value={bill.optionalAddOnAmount} />
                 <BillRow label="Water" value={bill.waterAmount} />
-                {store.couponDiscount > 0 ? <BillRow label={`Coupon (${store.couponCode})`} value={-store.couponDiscount} positive /> : null}
                 <div className="border-t border-stone-200 pt-3">
                   <BillRow label="Booking value" value={bookingValue} />
                 </div>

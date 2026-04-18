@@ -13,6 +13,7 @@ import {
   getAdminSession,
   getAdminState,
   getAdminUserFromSession,
+  logOrderCommunication,
   markPaymentDone,
   notifyVendor,
   persistAdminSession,
@@ -54,6 +55,15 @@ type AdminContextValue = {
   createCoupon: (coupon: AdminCouponRecord) => void;
   saveSettings: (partial: Partial<AdminState["settings"]>) => void;
   saveTemplate: (templateId: string, partial: Partial<AdminState["templates"][number]>) => void;
+  logCommunication: (
+    orderId: string,
+    payload: {
+      actor?: string;
+      label: string;
+      helper: string;
+      tone?: AdminState["activityFeed"][number]["tone"];
+    }
+  ) => void;
 };
 
 const AdminContext = createContext<AdminContextValue | null>(null);
@@ -127,6 +137,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       createCoupon: (coupon) => runAndRefresh(() => createCouponRecord(coupon)),
       saveSettings: (partial) => runAndRefresh(() => updateSettingsRecord(partial)),
       saveTemplate: (templateId, partial) => runAndRefresh(() => updateTemplateRecord(templateId, partial)),
+      logCommunication: (orderId, payload) => runAndRefresh(() => logOrderCommunication(orderId, payload)),
     };
   }, [ready, session, state, login, logout, refresh, resetDemoData, runAndRefresh]);
 

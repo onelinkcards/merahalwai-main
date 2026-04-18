@@ -2,6 +2,7 @@
 
 import { DEMO_ORDERS, DEMO_USER, type DemoAddress, type DemoOrder } from "@/data/mockAccount";
 import { VENDORS, getVendorDetailBySlug } from "@/data/vendors";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import type { BookingCategoryKey, FoodPreference, PackageTier } from "@/store/bookingStore";
 
 export type AdminRole = "admin";
@@ -18,6 +19,8 @@ export type AdminOrderStatus =
   | "bookingConfirmed"
   | "cancelled"
   | "expired";
+
+export type AdminDisplayStatus = "notConfirmed" | "paymentPending" | "confirmed" | "cancelled";
 
 export type AdminPaymentStatus = "notStarted" | "linkSent" | "pending" | "paid" | "cancelled";
 export type AdminAuthType = "google" | "otp";
@@ -75,6 +78,17 @@ export type AdminWaterConfig = {
   roPricePerPax: number;
   packagedPricePerPax: number;
   defaultSelection: "ro" | "packaged";
+  packagedBottlePrices: Record<string, number>;
+};
+
+export type AdminPlatformMenuConfig = {
+  categoryRequiredCounts: Record<PackageTier, Record<BookingCategoryKey, number>>;
+  optionalAddOns: Array<{ id: string; name: string; isVeg: boolean; enabled: boolean; pricePerPax: number }>;
+  water: {
+    roPricePerPax: number;
+    defaultSelection: "ro" | "packaged";
+    packagedBottlePrices: Record<string, number>;
+  };
 };
 
 export type AdminVendorRecord = {
@@ -85,6 +99,7 @@ export type AdminVendorRecord = {
   phone: string;
   whatsapp: string;
   email: string;
+  gstNumber: string;
   address: string;
   city: string;
   pincode: string;
@@ -242,7 +257,7 @@ export type AdminTemplateRecord = {
   channel: "email" | "whatsapp" | "sms";
   body: string;
   lastUpdated: string;
-  group: "booking" | "vendor" | "payment" | "emailTemplates" | "whatsappTemplates";
+  group: "adminEmail" | "customerEmail" | "whatsapp";
 };
 
 export type AdminSettings = {
@@ -259,6 +274,7 @@ export type AdminSettings = {
   paymentLinkEnabled: boolean;
   categoryMaster: Array<{ key: BookingCategoryKey; label: string }>;
   paxSlabMaster: string[];
+  platformMenu: AdminPlatformMenuConfig;
 };
 
 export type AdminSystemActivity = {
@@ -485,6 +501,7 @@ function buildVendorRecord(slug: string): AdminVendorRecord {
     phone: detail.phone,
     whatsapp: detail.phone,
     email: `${slug.replace(/-/g, ".")}@merahalwai-demo.com`,
+    gstNumber: "",
     address: detail.location,
     city: "Jaipur",
     pincode: "302001",
@@ -521,9 +538,15 @@ function buildVendorRecord(slug: string): AdminVendorRecord {
     water: {
       enabled: true,
       mode: detail.water.mode === "packaged" ? "packaged" : "both",
-      roPricePerPax: 8,
+      roPricePerPax: 0,
       packagedPricePerPax: detail.water.pricePerPax,
       defaultSelection: detail.water.mode === "packaged" ? "packaged" : "ro",
+      packagedBottlePrices: {
+        "200ml": 4,
+        "330ml": 7,
+        "500ml": detail.water.pricePerPax,
+        "1 ltr": 18,
+      },
     },
   };
 }
@@ -938,7 +961,10 @@ function buildCustomersFromOrders(orderSeed: ReturnType<typeof buildSeedOrders>)
     return {
       ...customer,
       totalOrders: orders.length,
-      lifetimeSpend: orders.reduce((sum, order) => sum + order.total, 0),
+      lifetimeSpend: orders.reduce(
+        (sum, order) => sum + getCustomerFacingBillSummary(order.bill).customerGrandTotal,
+        0
+      ),
       lastBooking: orders[0]?.createdAt ?? iso("2026-03-01T10:00:00+05:30"),
     };
   });
@@ -963,7 +989,7 @@ function buildSeedState(): AdminState {
       orderId: order.id,
       customerName: order.customer.name,
       vendorName: order.vendorName,
-      amount: order.bill.finalTotal,
+      amount: getCustomerFacingBillSummary(order.bill).customerGrandTotal,
       gst: order.bill.gst,
       createdDate: order.createdAt,
       paymentStatus: order.paymentStatus,
@@ -1000,40 +1026,94 @@ function buildSeedState(): AdminState {
 
   const templates: AdminTemplateRecord[] = [
     {
-      id: "tpl-booking-request",
-      name: "Booking request received",
-      triggerEvent: "Booking request submitted",
-      channel: "whatsapp",
-      body: "Hi {{name}}, your booking request for {{vendor}} has been received. Our team is reviewing it now.",
-      lastUpdated: iso("2026-03-30T10:30:00+05:30"),
-      group: "booking",
-    },
-    {
-      id: "tpl-vendor-notified",
-      name: "Vendor notified",
-      triggerEvent: "Vendor notified",
+      id: "tpl-admin-order-received",
+      name: "Admin: order received",
+      triggerEvent: "Customer placed order",
       channel: "email",
-      body: "Vendor confirmation request sent for order {{order_id}}.",
+      body: "New booking request {{order_id}} received from {{customer_name}} for {{vendor}} on {{event_date}}. Review and proceed in the admin panel.",
+      lastUpdated: iso("2026-03-30T10:30:00+05:30"),
+      group: "adminEmail",
+    },
+    {
+      id: "tpl-admin-vendor-confirmed",
+      name: "Admin: vendor confirmed",
+      triggerEvent: "Vendor confirmed booking",
+      channel: "email",
+      body: "Vendor has confirmed booking {{order_id}}. Customer payment can now be collected and final confirmation can be sent.",
       lastUpdated: iso("2026-03-29T18:20:00+05:30"),
-      group: "vendor",
+      group: "adminEmail",
     },
     {
-      id: "tpl-payment-link",
-      name: "Payment link sent",
-      triggerEvent: "Payment Link Sent",
-      channel: "whatsapp",
-      body: "Your payment link for order {{order_id}} is ready. Complete payment to confirm your booking.",
+      id: "tpl-admin-payment-received",
+      name: "Admin: payment received",
+      triggerEvent: "Customer payment captured",
+      channel: "email",
+      body: "Payment has been received for booking {{order_id}}. Vendor details can now be shared with the customer.",
       lastUpdated: iso("2026-03-28T13:10:00+05:30"),
-      group: "payment",
+      group: "adminEmail",
     },
     {
-      id: "tpl-booking-confirmed",
-      name: "Booking confirmed",
+      id: "tpl-customer-order-received",
+      name: "Customer: order received",
+      triggerEvent: "Customer placed order",
+      channel: "email",
+      body: "Hi {{name}}, thank you for booking with Mera Halwai. We have received your order and are confirming it within {{confirmation_window}}. For help, contact {{support_phone}} or visit merahalwai.in.",
+      lastUpdated: iso("2026-03-27T11:00:00+05:30"),
+      group: "customerEmail",
+    },
+    {
+      id: "tpl-customer-payment-received",
+      name: "Customer: payment received",
+      triggerEvent: "Customer payment captured",
+      channel: "email",
+      body: "Hi {{name}}, your payment has been received successfully. Thank you for choosing Mera Halwai. We are now connecting you with the vendor team.",
+      lastUpdated: iso("2026-03-27T11:05:00+05:30"),
+      group: "customerEmail",
+    },
+    {
+      id: "tpl-customer-booking-confirmed",
+      name: "Customer: booking confirmed",
       triggerEvent: "Booking confirmed",
       channel: "email",
-      body: "Your MeraHalwai booking is confirmed. Invoice and event summary are attached.",
-      lastUpdated: iso("2026-03-27T11:00:00+05:30"),
-      group: "emailTemplates",
+      body: "Hi {{name}}, your booking {{order_id}} is confirmed. Vendor details: {{vendor_name}}, {{vendor_phone}}, {{vendor_location}}. Please pay the remaining 70% offline at the event. Taxes, if applicable, will be as per vendor invoice.",
+      lastUpdated: iso("2026-03-27T11:10:00+05:30"),
+      group: "customerEmail",
+    },
+    {
+      id: "tpl-whatsapp-booking-received",
+      name: "WhatsApp: booking received",
+      triggerEvent: "Booking request submitted",
+      channel: "whatsapp",
+      body: "Hi {{name}}, we have received your booking request for {{vendor}}. Our team is confirming it and will update you shortly.",
+      lastUpdated: iso("2026-03-27T11:15:00+05:30"),
+      group: "whatsapp",
+    },
+    {
+      id: "tpl-whatsapp-payment-link",
+      name: "WhatsApp: payment link",
+      triggerEvent: "Payment link shared",
+      channel: "whatsapp",
+      body: "Hi {{name}}, your booking {{order_id}} is accepted. Please complete the 30% payment here: {{payment_link}}",
+      lastUpdated: iso("2026-03-27T11:20:00+05:30"),
+      group: "whatsapp",
+    },
+    {
+      id: "tpl-whatsapp-vendor-details",
+      name: "WhatsApp: vendor details",
+      triggerEvent: "Booking confirmed",
+      channel: "whatsapp",
+      body: "Hi {{name}}, your booking is confirmed. Vendor: {{vendor_name}}, Contact: {{vendor_phone}}, Venue: {{venue}}. Please pay the remaining 70% at the event.",
+      lastUpdated: iso("2026-03-27T11:25:00+05:30"),
+      group: "whatsapp",
+    },
+    {
+      id: "tpl-whatsapp-vendor-notify",
+      name: "WhatsApp: vendor notification",
+      triggerEvent: "Vendor awareness",
+      channel: "whatsapp",
+      body: "Hi {{vendor_name}}, a new booking {{order_id}} needs your confirmation. Customer: {{customer_name}}, Event: {{event_type}}, Date: {{event_date}}, Guests: {{guests}}.",
+      lastUpdated: iso("2026-03-27T11:30:00+05:30"),
+      group: "whatsapp",
     },
   ];
 
@@ -1044,9 +1124,9 @@ function buildSeedState(): AdminState {
     supportPhone: "+91 90000 11111",
     adminNotificationEmail: "ops@merahalwai.com",
     gstRate: 18,
-    convenienceFee: 499,
+    convenienceFee: 0,
     slotHoldDurationMinutes: 120,
-    paymentReminderHours: 12,
+    paymentReminderHours: 0,
     paymentLinkProvider: "Razorpay",
     paymentLinkEnabled: true,
     categoryMaster: [
@@ -1057,6 +1137,48 @@ function buildSeedState(): AdminState {
       { key: "desserts", label: "Desserts" },
     ],
     paxSlabMaster: ["1-50", "50-100", "100-200", "200-500", "500-1000", "1000+"],
+    platformMenu: {
+      categoryRequiredCounts: {
+        bronze: {
+          soupsDrinks: 1,
+          starters: 2,
+          mainCourse: 3,
+          riceBreads: 2,
+          desserts: 1,
+        },
+        silver: {
+          soupsDrinks: 1,
+          starters: 3,
+          mainCourse: 4,
+          riceBreads: 2,
+          desserts: 2,
+        },
+        gold: {
+          soupsDrinks: 2,
+          starters: 4,
+          mainCourse: 5,
+          riceBreads: 3,
+          desserts: 2,
+        },
+      },
+      optionalAddOns: vendors[0]?.addons.map((addon) => ({
+        id: addon.id,
+        name: addon.name,
+        isVeg: addon.isVeg,
+        enabled: addon.enabled,
+        pricePerPax: addon.pricePerPax,
+      })) ?? [],
+      water: {
+        roPricePerPax: 0,
+        defaultSelection: "ro",
+        packagedBottlePrices: {
+          "200ml": 4,
+          "330ml": 7,
+          "500ml": 10,
+          "1 ltr": 18,
+        },
+      },
+    },
   };
 
   const activityFeed: AdminSystemActivity[] = [
@@ -1103,7 +1225,7 @@ function clone<T>(value: T): T {
 function normalizeAdminState(state: AdminState, fallback: AdminState): AdminState {
   const next = clone(state);
 
-  next.admins = (next.admins.length ? next.admins : fallback.admins).slice(0, 1).map((admin, index) => ({
+  next.admins = (next.admins.length ? next.admins : fallback.admins).slice(0, 1).map((admin) => ({
     ...admin,
     id: admin.id || fallback.admins[0].id,
     name: admin.name || fallback.admins[0].name,
@@ -1114,77 +1236,100 @@ function normalizeAdminState(state: AdminState, fallback: AdminState): AdminStat
     role: "admin" as const,
   }));
 
-  return next;
-}
+  const fallbackVendor = fallback.vendors[0];
+  next.vendors = (next.vendors.length ? next.vendors : fallback.vendors).map((vendor) => ({
+    ...fallbackVendor,
+    ...vendor,
+    gstNumber: vendor.gstNumber ?? "",
+    whatsapp: vendor.whatsapp || vendor.phone || "",
+    phone: vendor.phone || vendor.whatsapp || "",
+    eventSpecialization: Array.isArray(vendor.eventSpecialization) ? vendor.eventSpecialization : [],
+    gallery: Array.isArray(vendor.gallery) ? vendor.gallery : [],
+    packages: vendor.packages ?? fallbackVendor.packages,
+    addons: Array.isArray(vendor.addons) ? vendor.addons : fallbackVendor.addons,
+    water: {
+      ...fallbackVendor.water,
+      ...(vendor.water ?? {}),
+      packagedBottlePrices: {
+        ...fallbackVendor.water.packagedBottlePrices,
+        ...(vendor.water?.packagedBottlePrices ?? {}),
+      },
+    },
+    bankInfo: vendor.bankInfo ?? fallbackVendor.bankInfo,
+  }));
 
-export function getAdminStatusMeta(status: AdminOrderStatus) {
-  const map: Record<
-    AdminOrderStatus,
-    { label: string; chipClass: string; helper: string }
-  > = {
-    bookingRequestSubmitted: {
-      label: "Booking Request Submitted",
-      chipClass: "border-[#E8D7BA] bg-[#FFF8EC] text-[#9A6700]",
-      helper: "Customer has submitted the request and awaits review.",
-    },
-    slotHeld: {
-      label: "Slot Held",
-      chipClass: "border-[#E0B85B] bg-[#FFF7E2] text-[#9A6700]",
-      helper: "Slot is temporarily reserved while ops reviews it.",
-    },
-    pendingAdminReview: {
-      label: "Pending Admin Review",
-      chipClass: "border-[#D9B86C] bg-[#FFF8EA] text-[#8A5D14]",
-      helper: "Ops needs to review and assign the next action.",
-    },
-    vendorNotified: {
-      label: "Vendor Notified",
-      chipClass: "border-[#B9D4EC] bg-[#EFF7FF] text-[#165A8A]",
-      helper: "Vendor confirmation link has been shared.",
-    },
-    vendorConfirmed: {
-      label: "Vendor Confirmed",
-      chipClass: "border-[#86B98F] bg-[#EDF8F0] text-[#1F7A3F]",
-      helper: "Vendor has accepted the booking.",
-    },
-    vendorDeclined: {
-      label: "Vendor Declined",
-      chipClass: "border-[#E4B0B0] bg-[#FFF1F1] text-[#B54545]",
-      helper: "Vendor declined the booking. Reassign urgently.",
-    },
-    paymentLinkSent: {
-      label: "Payment Link Sent",
-      chipClass: "border-[#D8A96F] bg-[#FFF5E8] text-[#8A4D12]",
-      helper: "Customer payment link is shared and awaiting action.",
-    },
-    paymentPending: {
-      label: "Payment Pending",
-      chipClass: "border-[#D8A96F] bg-[#FFF5E8] text-[#8A4D12]",
-      helper: "Vendor confirmed, payment follow-up is pending.",
-    },
-    paymentDone: {
-      label: "Payment Done",
-      chipClass: "border-[#6EB57D] bg-[#EAF7ED] text-[#166534]",
-      helper: "Payment received successfully.",
-    },
-    bookingConfirmed: {
-      label: "Booking Confirmed",
-      chipClass: "border-[#7FBA92] bg-[#ECF8F0] text-[#166534]",
-      helper: "The booking is fully confirmed and ready for execution.",
-    },
-    cancelled: {
-      label: "Cancelled",
-      chipClass: "border-[#E4B0B0] bg-[#FFF1F1] text-[#B54545]",
-      helper: "This order has been cancelled.",
-    },
-    expired: {
-      label: "Expired",
-      chipClass: "border-[#D7D7DD] bg-[#F3F4F7] text-[#6D6D75]",
-      helper: "Slot hold expired before confirmation.",
+  next.settings = {
+    ...fallback.settings,
+    ...(next.settings ?? {}),
+    platformMenu: {
+      ...fallback.settings.platformMenu,
+      ...(next.settings?.platformMenu ?? {}),
+      categoryRequiredCounts: {
+        bronze: {
+          ...fallback.settings.platformMenu.categoryRequiredCounts.bronze,
+          ...(next.settings?.platformMenu?.categoryRequiredCounts?.bronze ?? {}),
+        },
+        silver: {
+          ...fallback.settings.platformMenu.categoryRequiredCounts.silver,
+          ...(next.settings?.platformMenu?.categoryRequiredCounts?.silver ?? {}),
+        },
+        gold: {
+          ...fallback.settings.platformMenu.categoryRequiredCounts.gold,
+          ...(next.settings?.platformMenu?.categoryRequiredCounts?.gold ?? {}),
+        },
+      },
+      optionalAddOns: Array.isArray(next.settings?.platformMenu?.optionalAddOns)
+        ? next.settings.platformMenu.optionalAddOns
+        : fallback.settings.platformMenu.optionalAddOns,
+      water: {
+        ...fallback.settings.platformMenu.water,
+        ...(next.settings?.platformMenu?.water ?? {}),
+        packagedBottlePrices: {
+          ...fallback.settings.platformMenu.water.packagedBottlePrices,
+          ...(next.settings?.platformMenu?.water?.packagedBottlePrices ?? {}),
+        },
+      },
     },
   };
 
-  return map[status];
+  return next;
+}
+
+export function getAdminDisplayStatus(status: AdminOrderStatus): AdminDisplayStatus {
+  if (status === "cancelled") return "cancelled";
+  if (["vendorConfirmed", "paymentLinkSent", "paymentPending"].includes(status)) {
+    return "paymentPending";
+  }
+  if (["paymentDone", "bookingConfirmed"].includes(status)) return "confirmed";
+  return "notConfirmed";
+}
+
+export function getAdminStatusMeta(status: AdminOrderStatus) {
+  const displayStatus = getAdminDisplayStatus(status);
+  const map: Record<AdminDisplayStatus, { label: string; chipClass: string; helper: string }> = {
+    notConfirmed: {
+      label: "Not Confirmed",
+      chipClass: "border-[#FDE68A] bg-[#FFFBEB] text-[#B45309]",
+      helper: "Vendor confirmation is still pending.",
+    },
+    paymentPending: {
+      label: "Payment Pending",
+      chipClass: "border-[#BFDBFE] bg-[#EFF6FF] text-[#2563EB]",
+      helper: "Vendor is confirmed. Customer payment is the next step.",
+    },
+    confirmed: {
+      label: "Confirmed",
+      chipClass: "border-[#BBF7D0] bg-[#ECFDF5] text-[#15803D]",
+      helper: "Vendor confirmation and payment are completed.",
+    },
+    cancelled: {
+      label: "Cancelled",
+      chipClass: "border-[#FECACA] bg-[#FEF2F2] text-[#DC2626]",
+      helper: "This order has been cancelled.",
+    },
+  };
+
+  return map[displayStatus];
 }
 
 export function getAdminPaymentMeta(status: AdminPaymentStatus) {
@@ -1218,6 +1363,15 @@ function writeStorage<T>(key: string, value: T) {
 export function getAdminState(): AdminState {
   const fallback = buildSeedState();
   return normalizeAdminState(readStorage(ADMIN_STATE_KEY, fallback), fallback);
+}
+
+export function getAdminSupportConfig() {
+  const settings = getAdminState().settings;
+  return {
+    supportPhone: settings.supportPhone || "+91 90000 11111",
+    supportEmail: settings.supportEmail || "support@merahalwai.com",
+    adminNotificationEmail: settings.adminNotificationEmail || "ops@merahalwai.com",
+  };
 }
 
 export function persistAdminState(next: AdminState) {
@@ -1317,7 +1471,7 @@ function updateInvoiceForOrder(state: AdminState, order: AdminOrderRecord) {
     orderId: order.id,
     customerName: order.customer.name,
     vendorName: order.vendorName,
-    amount: order.bill.finalTotal,
+    amount: getCustomerFacingBillSummary(order.bill).customerGrandTotal,
     gst: order.bill.gst,
     createdDate: order.paymentLinkSentAt ?? order.createdAt,
     paymentStatus: order.paymentStatus,
@@ -1553,24 +1707,77 @@ export function addInternalNote(orderId: string, note: string, author = "Admin D
   });
 }
 
+export function logOrderCommunication(
+  orderId: string,
+  {
+    actor = "Admin Desk",
+    label,
+    helper,
+    tone = "neutral",
+  }: {
+    actor?: string;
+    label: string;
+    helper: string;
+    tone?: AdminSystemActivity["tone"];
+  }
+) {
+  return mutateAdminState((state) => {
+    const order = findOrder(state, orderId);
+    if (!order) return;
+    const now = new Date().toISOString();
+    order.activity.unshift({
+      id: `${order.id}-activity-${Date.now()}`,
+      actor,
+      label,
+      helper,
+      at: now,
+    });
+    appendFeedItem(state, {
+      label,
+      helper,
+      at: now,
+      tone,
+    });
+  });
+}
+
 export function updateVendorRecord(vendorId: string, partial: Partial<AdminVendorRecord>) {
   return mutateAdminState((state) => {
     const index = state.vendors.findIndex((vendor) => vendor.id === vendorId);
     if (index < 0) return;
-    state.vendors[index] = {
+    const nextVendor = {
       ...state.vendors[index],
       ...partial,
       lastUpdated: new Date().toISOString(),
     };
+    state.vendors[index] = nextVendor;
+
+    state.orders = state.orders.map((order) =>
+      order.vendorId === vendorId
+        ? {
+            ...order,
+            vendorName: nextVendor.name,
+            vendorPhone: nextVendor.phone,
+            vendorWhatsapp: nextVendor.whatsapp,
+            vendorSlug: nextVendor.slug,
+            vendorLocation: nextVendor.locality,
+            vendorToken: `vendor-${order.id.toLowerCase()}-${nextVendor.slug}`,
+          }
+        : order
+    );
   });
 }
 
 export function createVendorRecord(input: AdminVendorRecord) {
   return mutateAdminState((state) => {
-    state.vendors.unshift({
+    const nextVendor = {
       ...input,
       lastUpdated: new Date().toISOString(),
-    });
+    };
+    state.vendors = [
+      nextVendor,
+      ...state.vendors.filter((vendor) => vendor.id !== nextVendor.id && vendor.slug !== nextVendor.slug),
+    ];
   });
 }
 

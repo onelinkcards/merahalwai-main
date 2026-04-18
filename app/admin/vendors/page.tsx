@@ -1,10 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
-import { AdminButton, AdminPanel, AdminSelect } from "@/components/admin/AdminUi";
+import { AdminLinkButton, AdminPanel, AdminSelect } from "@/components/admin/AdminUi";
 import { useAdmin } from "@/components/admin/AdminProvider";
 
 export default function AdminVendorsPage() {
@@ -28,9 +27,7 @@ export default function AdminVendorsPage() {
       title="Vendors"
       description="Operational vendor list for onboarding, activation, package setup, menu configuration, and add-on control."
       actions={
-        <Link href="/admin/vendors/new">
-          <AdminButton>Add New Vendor</AdminButton>
-        </Link>
+        <AdminLinkButton href="/admin/vendors/new">Add New Vendor</AdminLinkButton>
       }
     >
       <AdminPanel title="Vendor filters" eyebrow="Search & Segment">
@@ -90,9 +87,7 @@ export default function AdminVendorsPage() {
               </div>
 
               <div className="flex flex-wrap gap-2 xl:justify-end">
-                <Link href={`/admin/vendors/${vendor.id}/edit`}><AdminButton variant="secondary">Edit</AdminButton></Link>
-                <Link href={`/admin/vendors/${vendor.id}/menu`}><AdminButton variant="secondary">Menu</AdminButton></Link>
-                <Link href={`/admin/vendors/${vendor.id}/addons`}><AdminButton variant="secondary">Add-ons</AdminButton></Link>
+                <AdminLinkButton href={`/admin/vendors/${vendor.id}/edit`} variant="secondary">Edit</AdminLinkButton>
               </div>
             </div>
           </div>

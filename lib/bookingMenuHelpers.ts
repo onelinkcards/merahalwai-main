@@ -46,7 +46,7 @@ export type WaterOption = {
   label: string;
   pricePerPax: number;
   helperText: string;
-  variants?: string[];
+  variants?: Array<{ label: string; pricePerPax: number }>;
 };
 
 const CATEGORY_ORDER: BookingCategoryKey[] = [
@@ -88,6 +88,30 @@ const PACKAGE_RULES: Record<PackageTier, Record<BookingCategoryKey, CategoryRule
     desserts: { requiredCount: 2 },
   },
 };
+
+const ADMIN_STATE_KEY = "mh_admin_state_v1";
+
+function canUseBrowser() {
+  return typeof window !== "undefined";
+}
+
+function readPlatformMenuConfig(): null | {
+  categoryRequiredCounts?: Partial<Record<PackageTier, Partial<Record<BookingCategoryKey, number>>>>;
+  water?: {
+    roPricePerPax?: number;
+    packagedBottlePrices?: Record<string, number>;
+  };
+} {
+  if (!canUseBrowser()) return null;
+  try {
+    const raw = window.localStorage.getItem(ADMIN_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { settings?: { platformMenu?: unknown } };
+    return (parsed.settings?.platformMenu as ReturnType<typeof readPlatformMenuConfig>) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function sourceToGroup(categoryName: string): BookingCategoryKey {
   const lower = categoryName.toLowerCase();
@@ -147,12 +171,13 @@ function pushUnique(items: RawMenuItem[], nextItem: RawMenuItem) {
 }
 
 function buildSourceMenu(slug: string, packageId: PackageTier, foodPreference?: FoodPreference) {
+  const packageRules = getPackageCategoryRules(packageId);
   const vendor = getVendorDetailBySlug(slug);
   if (!vendor) {
     return CATEGORY_ORDER.map((categoryKey) => ({
       categoryKey,
       label: CATEGORY_LABELS[categoryKey],
-      rule: PACKAGE_RULES[packageId][categoryKey],
+      rule: packageRules[categoryKey],
       items: [] as BookingMenuItem[],
     }));
   }
@@ -184,7 +209,7 @@ function buildSourceMenu(slug: string, packageId: PackageTier, foodPreference?: 
   }
 
   return CATEGORY_ORDER.map((categoryKey) => {
-    const rule = PACKAGE_RULES[packageId][categoryKey];
+    const rule = packageRules[categoryKey];
     const defaults = defaultMap.get(categoryKey) ?? new Set<string>();
     const items = (grouped.get(categoryKey) ?? [])
       .map((item) => ({
@@ -232,7 +257,17 @@ export function buildMenuPreviewGroups(
 }
 
 export function getPackageCategoryRules(packageId: PackageTier) {
-  return PACKAGE_RULES[packageId];
+  const platformMenu = readPlatformMenuConfig();
+  const configured = platformMenu?.categoryRequiredCounts?.[packageId];
+  if (!configured) return PACKAGE_RULES[packageId];
+
+  return {
+    soupsDrinks: { requiredCount: configured.soupsDrinks ?? PACKAGE_RULES[packageId].soupsDrinks.requiredCount },
+    starters: { requiredCount: configured.starters ?? PACKAGE_RULES[packageId].starters.requiredCount },
+    mainCourse: { requiredCount: configured.mainCourse ?? PACKAGE_RULES[packageId].mainCourse.requiredCount },
+    riceBreads: { requiredCount: configured.riceBreads ?? PACKAGE_RULES[packageId].riceBreads.requiredCount },
+    desserts: { requiredCount: configured.desserts ?? PACKAGE_RULES[packageId].desserts.requiredCount },
+  };
 }
 
 export function getDefaultMenuKeys(slug: string, packageId: PackageTier, foodPreference?: FoodPreference): string[] {
@@ -383,24 +418,66 @@ export function getMenuItemMeta(
 
 export function getWaterOptions(slug: string): WaterOption[] {
   const vendor = getVendorDetailBySlug(slug);
-  const packagedRate = vendor?.water?.pricePerPax ?? 15;
-  const roRate = Math.max(0, Math.round(packagedRate * 0.55));
+  const vendorWater = (vendor?.water ?? {}) as {
+    pricePerPax?: number;
+    roPricePerPax?: number;
+    packagedPricePerPax?: number;
+  };
+  const platformMenu = readPlatformMenuConfig();
+  const packagedBottlePrices = platformMenu?.water?.packagedBottlePrices ?? {
+    "200ml": 4,
+    "330ml": 7,
+    "500ml": 10,
+    "1 ltr": 18,
+  };
+  const packagedDefaultRate =
+    Number(packagedBottlePrices["500ml"]) || vendorWater.packagedPricePerPax || vendorWater.pricePerPax || 10;
+  const roRate = Math.max(0, Number(platformMenu?.water?.roPricePerPax ?? vendorWater.roPricePerPax ?? 0));
 
   return [
     {
       id: "ro",
       label: "RO Water",
       pricePerPax: roRate,
-      helperText: roRate > 0 ? `₹${roRate}/guest` : "Included if arranged at venue",
+      helperText: roRate > 0 ? `₹${roRate}/guest` : "₹0 / guest",
     },
     {
       id: "packaged",
       label: "Packaged Bottles",
-      pricePerPax: packagedRate,
-      helperText: `₹${packagedRate}/guest`,
-      variants: ["200ml", "330ml", "500ml", "1 ltr"],
+      pricePerPax: packagedDefaultRate,
+      helperText: "Choose packaged bottle size",
+      variants: Object.entries(packagedBottlePrices).map(([label, pricePerPax]) => ({
+        label,
+        pricePerPax: Number(pricePerPax) || 0,
+      })),
     },
   ];
+}
+
+export function getWaterSelectionPrice(
+  slug: string,
+  waterType: WaterType,
+  waterVariant?: string
+) {
+  if (!slug || waterType === "none") return 0;
+  const options = getWaterOptions(slug);
+
+  const getOptionPrice = (type: "ro" | "packaged") => {
+    const option = options.find((entry) => entry.id === type);
+    if (!option) return 0;
+    if (type === "packaged" && waterVariant && option.variants?.length) {
+      return option.variants.find((variant) => variant.label === waterVariant)?.pricePerPax ?? option.pricePerPax;
+    }
+    return option.pricePerPax;
+  };
+
+  if (waterType === "both") {
+    return getOptionPrice("ro") + getOptionPrice("packaged");
+  }
+
+  if (waterType === "ro") return getOptionPrice("ro");
+  if (waterType === "packaged") return getOptionPrice("packaged");
+  return 0;
 }
 
 export function buildBookingDraftPayload(state: BookingStore) {

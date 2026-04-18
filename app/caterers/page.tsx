@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { Suspense, useState, useMemo, useEffect, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Calendar,
   Check,
   ChevronDown,
+  IndianRupee,
   Minus,
   Plus,
   Search,
@@ -13,7 +15,6 @@ import {
   Users,
   X,
   CalendarDays,
-  ChefHat,
   Filter,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -21,18 +22,27 @@ import Image from "next/image";
 import VendorCard from "@/components/caterers/VendorCard";
 import FilterSidebar from "@/components/caterers/FilterSidebar";
 import Navbar from "@/components/layout/Navbar";
-import { VENDORS } from "@/data/vendors";
+import { VENDORS, getFrontendVendors } from "@/data/vendors";
+import {
+  BUDGET_OPTIONS,
+  EVENT_OPTIONS,
+  SERVICE_OPTIONS,
+  budgetMatchesPrice,
+  getVendorTypeFromBronzePrice,
+  normalizeEventLabel,
+} from "@/data/vendorFilterOptions";
 import MHIconOrange from "@/logos/Symbol/MH_Logo_Icon_Orange.png";
 
 const DEFAULT_FILTERS = {
   guests: null as number | null,
-  cuisines: [] as string[],
   minRating: 0,
   foodPref: null as "veg" | "nonveg" | null,
   budgets: [] as string[],
   eventTypes: [] as string[],
   guestRange: null as string | null,
   specialisations: [] as string[],
+  service: null as string | null,
+  vendorType: null as string | null,
 };
 
 const SORT_OPTIONS = [
@@ -50,53 +60,49 @@ const MOBILE_SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
 ];
 
-const CUISINE_OPTIONS = [
-  "North Indian",
-  "Mughlai",
-  "South Indian",
-  "Rajasthani",
-  "Chaat",
-  "Desserts",
-  "Continental",
-];
-
-const EVENT_OPTIONS = [
-  "Birthday Party",
-  "Wedding",
-  "Wedding Anniversary",
-  "Baby Shower",
-  "Retirement Party",
-  "Corporate Event / Office Party",
-  "Get-Together / Friends Party",
-  "Break-Up Party",
-  "Small Gathering (under 75 pax)",
-  "Satsang / Pooja",
-  "Funeral Bhoj",
-];
-
 const GUEST_OPTIONS = (() => {
   const values = new Set<number>([10, 25, 50, 75, 100]);
   for (let value = 150; value <= 2000; value += 50) values.add(value);
   return Array.from(values).sort((a, b) => a - b);
 })();
 
-const toggle = (arr: string[], val: string) =>
-  arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val];
-
 const dropdownTitleClass = "text-[12px] font-bold uppercase tracking-[0.2em] text-[#8A3E1D]";
 
-export default function CaterersPage() {
+function CaterersPageContent() {
+  const searchParams = useSearchParams();
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [sortBy, setSortBy] = useState("popular");
   const [desktopSortOpen, setDesktopSortOpen] = useState(false);
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
   const [mobileSortOpen, setMobileSortOpen] = useState(false);
-  const [openDropdown, setOpenDropdown] = useState<"eventType" | "guests" | "cuisines" | null>(null);
+  const [openDropdown, setOpenDropdown] = useState<"eventType" | "guests" | "budget" | null>(null);
   const [searchText, setSearchText] = useState("");
+  const [vendors, setVendors] = useState(() => [...VENDORS]);
   const searchBarRef = useRef<HTMLDivElement | null>(null);
   const mobileQuickSheetRef = useRef<HTMLDivElement | null>(null);
   const mobileFilterSheetRef = useRef<HTMLDivElement | null>(null);
   const mobileSortSheetRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setVendors(getFrontendVendors());
+  }, []);
+
+  useEffect(() => {
+    const budget = searchParams.get("budget");
+    const service = searchParams.get("service");
+    const vendorType = searchParams.get("vendorType");
+    const event = searchParams.get("event");
+    const search = searchParams.get("search") ?? "";
+
+    setSearchText(search);
+    setFilters((prev) => ({
+      ...prev,
+      budgets: budget && budget !== "all" ? [budget] : [],
+      service: service && service !== "all" ? service : null,
+      vendorType: vendorType && vendorType !== "all" ? vendorType : null,
+      eventTypes: event ? [normalizeEventLabel(event)] : [],
+    }));
+  }, [searchParams]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -147,30 +153,35 @@ export default function CaterersPage() {
       : `${selectedEventTypes[0]} +${selectedEventTypes.length - 1}`;
 
   const filteredVendors = useMemo(() => {
-    let result = [...VENDORS];
+    let result = [...vendors];
 
     if (filters.minRating > 0) result = result.filter((v) => v.rating >= filters.minRating);
     if (filters.foodPref === "veg") result = result.filter((v) => v.isVeg === true);
     if (filters.foodPref === "nonveg") result = result.filter((v) => v.isVeg === false);
 
     if (filters.budgets.length > 0) {
-      result = result.filter((v) =>
-        filters.budgets.some((b) => {
-          if (b === "under300") return v.priceVeg < 300;
-          if (b === "300-500") return v.priceVeg >= 300 && v.priceVeg <= 500;
-          if (b === "500-800") return v.priceVeg > 500 && v.priceVeg <= 800;
-          if (b === "800plus") return v.priceVeg > 800;
-          return false;
-        })
-      );
+      result = result.filter((v) => filters.budgets.some((budget) => budgetMatchesPrice(budget, v.priceVeg)));
     }
 
-    if (filters.cuisines.length > 0) {
-      result = result.filter((v) => filters.cuisines.some((c) => v.cuisines.includes(c)));
+    if (filters.vendorType) {
+      result = result.filter((vendor) => getVendorTypeFromBronzePrice(vendor.priceVeg) === filters.vendorType);
+    }
+
+    if (filters.service) {
+      const serviceConfig = SERVICE_OPTIONS.find((item) => item.value === filters.service);
+      if (serviceConfig && serviceConfig.matches.length > 0) {
+        result = result.filter((vendor) => {
+          const normalizedEvents = vendor.eventTypes.map((event) => normalizeEventLabel(event));
+          return serviceConfig.matches.some((event) => normalizedEvents.includes(event));
+        });
+      }
     }
 
     if (selectedEventTypes.length > 0) {
-      result = result.filter((v) => selectedEventTypes.some((e) => v.eventTypes.includes(e)));
+      result = result.filter((v) => {
+        const normalizedEvents = v.eventTypes.map((event) => normalizeEventLabel(event));
+        return selectedEventTypes.some((e) => normalizedEvents.includes(e));
+      });
     }
 
     if (filters.guestRange) {
@@ -206,8 +217,8 @@ export default function CaterersPage() {
         (v) =>
           v.name.toLowerCase().includes(s) ||
           v.location.toLowerCase().includes(s) ||
-          v.cuisines.some((c) => c.toLowerCase().includes(s)) ||
-          v.specialisations.some((sp) => sp.toLowerCase().includes(s))
+          v.specialisations.some((sp) => sp.toLowerCase().includes(s)) ||
+          v.eventTypes.some((event) => normalizeEventLabel(event).toLowerCase().includes(s))
       );
     }
 
@@ -219,7 +230,7 @@ export default function CaterersPage() {
     else result.sort((a, b) => b.reviews - a.reviews);
 
     return result;
-  }, [filters, selectedEventTypes, sortBy, searchText]);
+  }, [filters, selectedEventTypes, sortBy, searchText, vendors]);
 
   const chips = useMemo(
     () =>
@@ -244,20 +255,31 @@ export default function CaterersPage() {
           remove: () => setFilters((p) => ({ ...p, guestRange: null })),
         },
         ...filters.budgets.map((b) => ({
-          label:
-            b === "under300"
-              ? "Under ₹300"
-              : b === "300-500"
-              ? "₹300–₹500"
-              : b === "500-800"
-              ? "₹500–₹800"
-              : "₹800+",
+          label: BUDGET_OPTIONS.find((item) => item.value === b)?.label ?? b,
           remove: () => setFilters((p) => ({ ...p, budgets: p.budgets.filter((x) => x !== b) })),
         })),
-        ...filters.cuisines.map((c) => ({
-          label: c,
-          remove: () => setFilters((p) => ({ ...p, cuisines: p.cuisines.filter((x) => x !== c) })),
-        })),
+        ...(filters.service
+          ? [
+              {
+                label: SERVICE_OPTIONS.find((item) => item.value === filters.service)?.label ?? filters.service,
+                remove: () => setFilters((p) => ({ ...p, service: null })),
+              },
+            ]
+          : []),
+        ...(filters.vendorType
+          ? [
+              {
+                label:
+                  {
+                    luxury: "Luxury Caterers",
+                    elite: "Elite Caterers",
+                    value: "Value Caterers",
+                    budget: "Budget Caterers",
+                  }[filters.vendorType] ?? filters.vendorType,
+                remove: () => setFilters((p) => ({ ...p, vendorType: null })),
+              },
+            ]
+          : []),
         ...selectedEventTypes.map((e) => ({
           label: e,
           remove: () =>
@@ -289,12 +311,10 @@ export default function CaterersPage() {
       : selectedEventTypes.length === 1
       ? selectedEventTypes[0]
       : `${selectedEventTypes[0]} +${selectedEventTypes.length - 1}`;
-  const mobileCuisineLabel =
-    filters.cuisines.length === 0
-      ? "Cuisine"
-      : filters.cuisines.length === 1
-      ? filters.cuisines[0]
-      : `${filters.cuisines[0]} +${filters.cuisines.length - 1}`;
+  const mobileBudgetLabel =
+    filters.budgets.length === 0
+      ? "By Budget"
+      : BUDGET_OPTIONS.find((item) => item.value === filters.budgets[0])?.label ?? "By Budget";
 
   const clearAll = () => {
     setFilters(DEFAULT_FILTERS);
@@ -317,7 +337,7 @@ export default function CaterersPage() {
               type="text"
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search caterer or cuisine"
+              placeholder="Search caterer or event"
               className="mh-glass-field h-[52px] w-full rounded-[18px] pl-[50px] pr-10 text-[14px] font-bold text-[#804226] placeholder:text-[#D08A43] outline-none"
             />
             {searchText ? (
@@ -359,14 +379,14 @@ export default function CaterersPage() {
               {mobileEventLabel}
             </button>
             <button
-              onClick={() => setOpenDropdown("cuisines")}
+              onClick={() => setOpenDropdown("budget")}
               className={
                 "mh-glass-chip flex h-[40px] flex-shrink-0 items-center gap-2 rounded-full border px-4 text-[13px] font-bold shadow-sm transition-transform active:scale-95 " +
-                (filters.cuisines.length > 0 ? "border-[#EB8B23]/28 text-[#8A3E1D]" : "text-[#1E1E1E]")
+                (filters.budgets.length > 0 ? "border-[#EB8B23]/28 text-[#8A3E1D]" : "text-[#1E1E1E]")
               }
             >
-              <ChefHat className="h-3.5 w-3.5 text-[#804226]" strokeWidth={2.4} />
-              {mobileCuisineLabel}
+              <IndianRupee className="h-3.5 w-3.5 text-[#804226]" strokeWidth={2.4} />
+              {mobileBudgetLabel}
             </button>
             <button
               onClick={() => setMobileSortOpen(true)}
@@ -554,31 +574,32 @@ export default function CaterersPage() {
 
             <div className="relative flex-1">
               <button
-                onClick={() => setOpenDropdown((p) => (p === "cuisines" ? null : "cuisines"))}
+                onClick={() => setOpenDropdown((p) => (p === "budget" ? null : "budget"))}
                 className={
                   "flex h-[52px] w-full cursor-pointer items-center gap-2.5 rounded-[24px] border-r border-[#f0ece4] bg-transparent px-5 transition-all hover:bg-[#fffaf4] " +
-                  (filters.cuisines.length > 0 ? "text-[#EB8B23]" : "text-[#1a1a1a]")
+                  (filters.budgets.length > 0 ? "text-[#EB8B23]" : "text-[#1a1a1a]")
                 }
               >
-                <SlidersHorizontal className="h-[15px] w-[15px] flex-shrink-0 text-[#EB8B23]" />
+                <IndianRupee className="h-[15px] w-[15px] flex-shrink-0 text-[#EB8B23]" />
                 <div className="flex min-w-0 flex-1 flex-col text-left">
                   <span className="block text-[10px] font-bold uppercase tracking-widest text-[#9b8f82]">
-                    Cuisine
+                    By Budget
                   </span>
                   <span className="truncate text-[14px] font-semibold text-[#1a1a1a]">
-                    {filters.cuisines.length > 0 ? filters.cuisines.slice(0, 2).join(", ") : "Any Cuisine"}
-                    {filters.cuisines.length > 2 ? " +more" : ""}
+                    {filters.budgets.length > 0
+                      ? BUDGET_OPTIONS.find((item) => item.value === filters.budgets[0])?.label ?? "All Budgets"
+                      : "All Budgets"}
                   </span>
                 </div>
                 <ChevronDown
                   className={
                     "h-[11px] w-[11px] flex-shrink-0 text-[#9b8f82] transition-transform duration-150 " +
-                    (openDropdown === "cuisines" ? "rotate-180" : "rotate-0")
+                    (openDropdown === "budget" ? "rotate-180" : "rotate-0")
                   }
                 />
               </button>
 
-              {openDropdown === "cuisines" ? (
+              {openDropdown === "budget" ? (
                 <motion.div
                   initial={{ opacity: 0, y: -8, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -587,19 +608,19 @@ export default function CaterersPage() {
                   className="mh-glass-popover absolute left-0 top-[calc(100%+14px)] z-[90] w-[312px] overflow-hidden rounded-[26px] border border-[#E5E0D8]"
                 >
                   <div className="border-b border-[#E5E0D8] px-4 py-3">
-                    <p className={dropdownTitleClass}>Select Cuisines</p>
+                    <p className={dropdownTitleClass}>By Budget</p>
                   </div>
                   <div className="py-2">
-                    {CUISINE_OPTIONS.map((option) => {
-                      const checked = filters.cuisines.includes(option);
+                    {BUDGET_OPTIONS.filter((option) => option.value !== "all").map((option) => {
+                      const checked = filters.budgets.includes(option.value);
                       return (
                         <button
                           type="button"
-                          key={option}
+                          key={option.value}
                           onClick={() =>
                             setFilters((p) => ({
                               ...p,
-                              cuisines: toggle(p.cuisines, option),
+                              budgets: p.budgets.includes(option.value) ? [] : [option.value],
                             }))
                           }
                           className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors duration-150 hover:bg-[#F5F0E6]"
@@ -612,7 +633,7 @@ export default function CaterersPage() {
                           >
                             {checked ? <Check className="h-3 w-3 text-[#FFFFFF]" /> : null}
                           </span>
-                          <span className="text-[13px] font-medium text-[#1E1E1E]">{option}</span>
+                          <span className="text-[13px] font-medium text-[#1E1E1E]">{option.label}</span>
                           {checked ? (
                             <span className="ml-auto rounded-md bg-[#FFF3E8] px-2 py-0.5 text-[10px] font-semibold text-[#804226]">
                               Selected
@@ -624,7 +645,7 @@ export default function CaterersPage() {
                   </div>
                   <div className="flex items-center justify-between border-t border-[#E5E0D8] px-4 py-3">
                     <span className="text-[12px] text-[#6B7280]">
-                      {filters.cuisines.length > 0 ? filters.cuisines.length + " selected" : "None selected"}
+                      {filters.budgets.length > 0 ? "1 selected" : "All budgets"}
                     </span>
                     <button
                       onClick={() => setOpenDropdown(null)}
@@ -648,7 +669,7 @@ export default function CaterersPage() {
                   type="text"
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
-                  placeholder="Caterer name, cuisine..."
+                  placeholder="Caterer name, event..."
                 className="w-full bg-transparent text-[14px] font-semibold text-[#1a1a1a] outline-none placeholder:text-[#c8c0b8]"
               />
               </div>
@@ -799,14 +820,14 @@ export default function CaterersPage() {
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <h3 className="text-[22px] font-black tracking-tight text-[#1E1E1E]">
-                      {openDropdown === "eventType" ? "Event Type" : openDropdown === "guests" ? "Guests" : "Cuisine"}
+                      {openDropdown === "eventType" ? "Event Type" : openDropdown === "guests" ? "Guests" : "By Budget"}
                     </h3>
                     <p className="mt-1 text-[12px] font-semibold text-[#8B7355]">
                       {openDropdown === "guests"
                         ? "Set a quick guest count for Jaipur caterers"
                         : openDropdown === "eventType"
                         ? "Choose the type of event you’re planning"
-                        : "Pick cuisines you want to compare"}
+                        : "Filter vendors by starting bronze package price"}
                     </p>
                   </div>
                   <button
@@ -956,25 +977,25 @@ export default function CaterersPage() {
                   </div>
                 ) : null}
 
-                {openDropdown === "cuisines" ? (
+                {openDropdown === "budget" ? (
                   <>
                     <div className="space-y-2">
-                      {CUISINE_OPTIONS.map((option) => {
-                        const selected = filters.cuisines.includes(option);
+                      {BUDGET_OPTIONS.map((option) => {
+                        const selected = option.value === "all" ? filters.budgets.length === 0 : filters.budgets.includes(option.value);
                         return (
                           <button
                             type="button"
-                            key={option}
+                            key={option.value}
                             onClick={() =>
                               setFilters((p) => ({
                                 ...p,
-                                cuisines: toggle(p.cuisines, option),
+                                budgets: option.value === "all" ? [] : [option.value],
                               }))
                             }
                             className="flex w-full items-center justify-between rounded-[18px] border border-[#EFE3D4] bg-white px-4 py-3.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
                           >
                             <span className={selected ? "font-bold text-[#804226]" : "font-semibold text-[#1E1E1E]"}>
-                              {option}
+                              {option.label}
                             </span>
                             <span
                               className={
@@ -993,7 +1014,7 @@ export default function CaterersPage() {
                       onClick={() => setOpenDropdown(null)}
                       className="mh-primary-button mt-5 flex h-[48px] w-full items-center justify-center rounded-[16px] text-[14px] font-bold !text-white"
                     >
-                      Apply Cuisine
+                      Apply Budget
                     </button>
                   </>
                 ) : null}
@@ -1133,5 +1154,13 @@ export default function CaterersPage() {
         ) : null}
       </AnimatePresence>
     </main>
+  );
+}
+
+export default function CaterersPage() {
+  return (
+    <Suspense fallback={<main className="min-h-screen bg-[#FBF8F4]" />}>
+      <CaterersPageContent />
+    </Suspense>
   );
 }

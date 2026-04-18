@@ -23,6 +23,7 @@ import { calculateBill } from "@/lib/calculateBill";
 import {
   buildBookingMenuGroups,
   getCategorySelectionSummary,
+  getWaterSelectionPrice,
   getWaterOptions,
   meetsCategoryMinimums,
   normalizeSelectedItems,
@@ -189,9 +190,10 @@ export default function BookCustomizeClient() {
         selectedItems,
         addOnItems: selectedAddOns,
         waterType,
+        waterVariant,
         couponDiscount: store.couponDiscount,
       }),
-    [activePackage?.pricePerPlate, selectedAddOns, selectedItems, selectedPackage, slug, store.couponDiscount, store.guestCount, waterType]
+    [activePackage?.pricePerPlate, selectedAddOns, selectedItems, selectedPackage, slug, store.couponDiscount, store.guestCount, waterType, waterVariant]
   );
 
   const iceCreamFlavors = selectedAddOnSelections["Ice Cream"] ?? [];
@@ -238,9 +240,7 @@ export default function BookCustomizeClient() {
           .filter(Boolean)
           .join(" + "),
       waterVariant,
-      waterPricePerPax:
-        (hasRoWater ? roWater?.pricePerPax ?? 0 : 0) +
-        (hasPackagedWater ? packagedWater?.pricePerPax ?? 0 : 0),
+      waterPricePerPax: getWaterSelectionPrice(slug, waterType, waterVariant),
       waterTotal: liveBill.waterAmount,
       baseTotal: liveBill.baseAmount,
       addOnTotal: liveBill.addOnTotal + liveBill.waterAmount,
@@ -327,8 +327,8 @@ export default function BookCustomizeClient() {
   };
 
   const toggleGroup = (categoryKey: BookingCategoryKey) => {
+    const isCurrentlyOpen = openGroups[categoryKey];
     setOpenGroups((current) => {
-      const isCurrentlyOpen = current[categoryKey];
       const next = Object.fromEntries(
         Object.keys(current).map((key) => [key, false])
       ) as Record<BookingCategoryKey, boolean>;
@@ -337,9 +337,14 @@ export default function BookCustomizeClient() {
     });
 
     const target = groupRefs.current[categoryKey];
-    if (target) {
+    if (target && !isCurrentlyOpen && typeof window !== "undefined") {
       requestAnimationFrame(() => {
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
+        const absoluteTop = target.getBoundingClientRect().top + window.scrollY;
+        const offset = window.innerWidth < 1024 ? 92 : 120;
+        window.scrollTo({
+          top: Math.max(0, absoluteTop - offset),
+          behavior: "smooth",
+        });
       });
     }
   };
@@ -626,12 +631,12 @@ export default function BookCustomizeClient() {
                   </div>
                   <div className="mt-3 grid gap-2 sm:grid-cols-4">
                     {packagedWater.variants.map((variant) => {
-                      const active = waterVariant === variant;
+                      const active = waterVariant === variant.label;
                       return (
                         <button
-                          key={variant}
+                          key={variant.label}
                           type="button"
-                          onClick={() => setWaterVariant(variant)}
+                          onClick={() => setWaterVariant(variant.label)}
                           className={
                             "inline-flex h-11 items-center justify-center rounded-[16px] border px-4 text-[12px] font-bold transition " +
                             (active
@@ -639,7 +644,10 @@ export default function BookCustomizeClient() {
                               : "border-[#CFE0F7] bg-white text-[#315B90] hover:border-[#2F6FD6]")
                           }
                         >
-                          {variant}
+                          <span className="flex flex-col items-center leading-tight">
+                            <span>{variant.label}</span>
+                            <span className="mt-0.5 text-[10px] font-semibold opacity-80">₹{variant.pricePerPax}/guest</span>
+                          </span>
                         </button>
                       );
                     })}

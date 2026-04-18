@@ -25,6 +25,7 @@ import {
   type DemoOrder,
 } from "@/data/mockAccount";
 import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
+import { getSupportTelHref, getSupportWhatsappHref } from "@/lib/supportContact";
 import { useBookingStore } from "@/store/bookingStore";
 
 export default function MyBookingDetailPage() {
@@ -269,14 +270,14 @@ export default function MyBookingDetailPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8A7D6F]">Support</p>
             <div className="mt-3 space-y-2">
               <a
-                href="tel:+919876543210"
+                href={getSupportTelHref()}
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-[#E5D9CC] bg-white text-[12px] font-semibold text-[#3F382F]"
               >
                 <PhoneCall className="h-4 w-4" />
                 Call Us
               </a>
               <a
-                href="https://wa.me/919876543210"
+                href={getSupportWhatsappHref()}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border border-[#D0E8DA] bg-white text-[12px] font-semibold text-[#147D45]"

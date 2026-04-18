@@ -8,9 +8,9 @@ import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
-  Coffee,
   LogIn,
   LogOut,
+  IndianRupee,
   MapPin,
   Sparkles,
   UserPlus,
@@ -21,11 +21,16 @@ import {
 } from "lucide-react";
 import LogoOrange from "@/logos/Horizontal/MH_Logo_Horizontal_Orange.png";
 import { useDemoAuth } from "@/components/auth/DemoAuthProvider";
+import {
+  BUDGET_OPTIONS,
+  SERVICE_OPTIONS,
+  VENDOR_TYPE_OPTIONS,
+} from "@/data/vendorFilterOptions";
 
 const cn = (...inputs: Array<string | false | null | undefined>) => clsx(inputs);
 
-type MenuKey = "services" | "cuisines" | "vendors";
-type MobileKey = "services" | "cuisines" | "vendors";
+type MenuKey = "services" | "budget" | "vendors";
+type MobileKey = "services" | "budget" | "vendors";
 
 type LinkItem = {
   title: string;
@@ -34,107 +39,34 @@ type LinkItem = {
   badge?: { text: string; className: string };
 };
 
-const servicesCol1: LinkItem[] = [
-  {
-    title: "Wedding Catering",
-    sub: "Full-scale shaadi setups",
-    href: "/caterers?event=Wedding",
-    badge: { text: "Popular", className: "bg-[#DE903E] text-[#FFFFFF]" },
-  },
-  { title: "Corporate Events", sub: "Office parties & galas", href: "/caterers?event=Corporate" },
-  { title: "Birthday Parties", sub: "All age groups", href: "/caterers?event=Birthday" },
-  { title: "Anniversary Celebrations", sub: "Intimate to grand scale", href: "/caterers?event=Anniversary" },
-  { title: "Baby Shower & Pooja", sub: "Traditional setups", href: "/caterers?event=Pooja" },
-  { title: "Retirement Parties", sub: "Memorable send-offs", href: "/caterers?event=Retirement" },
-];
+const servicesCol1: LinkItem[] = SERVICE_OPTIONS.filter((item) => item.value !== "all").slice(0, 3).map((item) => ({
+  title: item.label,
+  sub: item.tagline,
+  href: `/caterers?service=${item.value}`,
+}));
 
-const servicesCol2: LinkItem[] = [
-  {
-    title: "Custom Cakes",
-    sub: "Designer & theme cakes",
-    href: "/caterers?special=Custom%20Cakes",
-    badge: { text: "New", className: "bg-[#804226] text-[#FFFFFF]" },
-  },
-  { title: "Dessert Tables", sub: "Curated sweet spreads", href: "/caterers?special=Dessert" },
-  { title: "Sweet Boxes", sub: "Gifting & favours", href: "/caterers?special=Sweet%20Boxes" },
-  { title: "Mithai & Sweets", sub: "Traditional Indian sweets", href: "/caterers?special=Mithai" },
-  {
-    title: "Live Counters",
-    sub: "Chaat, tandoor & more",
-    href: "/caterers?special=Live%20Counter",
-    badge: { text: "Trending", className: "bg-[#804226] text-[#FFFFFF]" },
-  },
-];
+const servicesCol2: LinkItem[] = SERVICE_OPTIONS.filter((item) => item.value !== "all").slice(3).map((item) => ({
+  title: item.label,
+  sub: item.tagline,
+  href: `/caterers?service=${item.value}`,
+}));
 
-const servicesCol3: LinkItem[] = [
-  { title: "Tea & Coffee", sub: "Hot beverage stations", href: "/caterers?special=Tea" },
-  {
-    title: "Mocktails",
-    sub: "Fresh & signature blends",
-    href: "/caterers?special=Mocktail",
-    badge: { text: "Trending", className: "bg-[#804226] text-[#FFFFFF]" },
-  },
-  { title: "Fresh Juices", sub: "Seasonal fruit options", href: "/caterers?special=Juices" },
-  { title: "Traditional Drinks", sub: "Thandai, lassi & more", href: "/caterers?special=Drinks" },
-  { title: "Welcome Drinks", sub: "Event entry stations", href: "/caterers?special=Welcome" },
-];
+const budgetItems: LinkItem[] = BUDGET_OPTIONS.map((item) => ({
+  title: item.label,
+  sub: item.tagline,
+  href: item.value === "all" ? "/caterers" : `/caterers?budget=${item.value}`,
+}));
 
-const cuisinesCol1: LinkItem[] = [
-  { title: "Rajasthani", sub: "Dal baati, laal maas", href: "/caterers?cuisine=Rajasthani" },
-  { title: "Punjabi", sub: "Rich curries & tandoor", href: "/caterers?cuisine=Punjabi" },
-  { title: "Mughlai", sub: "Biryani & kebabs", href: "/caterers?cuisine=Mughlai" },
-  { title: "Delhi Street", sub: "Chaat & snacks", href: "/caterers?cuisine=Delhi%20Street" },
-  { title: "Awadhi", sub: "Dum cooking style", href: "/caterers?cuisine=Awadhi" },
-];
+const vendorsCol1: LinkItem[] = VENDOR_TYPE_OPTIONS.map((item) => ({
+  title: item.label,
+  sub: item.tagline,
+  href: item.value === "all" ? "/caterers" : `/caterers?vendorType=${item.value}`,
+  badge: item.badge ? { text: item.badge, className: "bg-[#DBEAFE] text-[#1D4ED8]" } : undefined,
+}));
 
-const cuisinesCol2: LinkItem[] = [
-  { title: "South Indian", sub: "Dosa, idli, sambar", href: "/caterers?cuisine=South%20Indian" },
-  { title: "Chettinad", sub: "Spicy Tamil cuisine", href: "/caterers?cuisine=Chettinad" },
-  { title: "Bengali", sub: "Fish curries & mishti", href: "/caterers?cuisine=Bengali" },
-  { title: "Hyderabadi", sub: "Biryani & haleem", href: "/caterers?cuisine=Hyderabadi" },
-];
-
-const cuisinesCol3: LinkItem[] = [
-  {
-    title: "Jain Menu",
-    sub: "No root vegetables",
-    href: "/caterers?cuisine=Jain",
-    badge: { text: "Pure Veg", className: "bg-[#DE903E] text-[#FFFFFF]" },
-  },
-  {
-    title: "Pure Veg",
-    sub: "100% vegetarian",
-    href: "/caterers?food=veg",
-    badge: { text: "Veg", className: "bg-[#DE903E] text-[#FFFFFF]" },
-  },
-  { title: "Continental", sub: "Western dishes", href: "/caterers?cuisine=Continental" },
-  { title: "Multi-Cuisine", sub: "Mix of everything", href: "/caterers?cuisine=Multi-Cuisine" },
-  {
-    title: "Custom Menu",
-    sub: "Build your own",
-    href: "/caterers?cuisine=Custom",
-    badge: { text: "New", className: "bg-[#804226] text-[#FFFFFF]" },
-  },
-];
-
-const vendorsCol1: LinkItem[] = [
-  { title: "All Caterers", sub: "Browse full directory", href: "/caterers" },
-  {
-    title: "Premium Caterers",
-    sub: "Top-rated & verified",
-    href: "/caterers?type=Premium%20%2F%20Luxury",
-    badge: { text: "Verified", className: "bg-[#804226] text-[#FFFFFF]" },
-  },
-  { title: "Budget Friendly", sub: "Under ₹500/plate", href: "/caterers?budget=300-500" },
-  { title: "Corporate Caterers", sub: "Office & event specialists", href: "/caterers?event=Corporate" },
-  { title: "Wedding Caterers", sub: "Full-scale shaadi setup", href: "/caterers?event=Wedding" },
-];
-
-const areas = ["Mansarovar", "Vaishali Nagar", "C-Scheme", "Malviya Nagar", "Jagatpura"];
-
-const mobileServices = ["Wedding", "Corporate", "Birthday", "Anniversary", "Pooja", "Retirement"];
-const mobileCuisines = ["Rajasthani", "Punjabi", "South Indian", "Mughlai", "Continental"];
-const mobileVendors = ["All Caterers", "Premium", "Budget Friendly", "Wedding Caterers"];
+const mobileServices = SERVICE_OPTIONS.filter((item) => item.value !== "all").map((item) => item.label);
+const mobileBudgets = BUDGET_OPTIONS.map((item) => item.label);
+const mobileVendors = VENDOR_TYPE_OPTIONS.map((item) => item.label);
 
 const getDropdownImage = (title: string) => {
   const map: Record<string, string> = {
@@ -144,35 +76,16 @@ const getDropdownImage = (title: string) => {
     "Anniversary Celebrations": "https://images.unsplash.com/photo-1600891964599-f61ba0e24092?w=120&q=80&auto=format&fit=crop",
     "Baby Shower & Pooja": "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=120&q=80&auto=format&fit=crop",
     "Retirement Parties": "https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=120&q=80&auto=format&fit=crop",
-    "Custom Cakes": "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=120&q=80&auto=format&fit=crop",
-    "Dessert Tables": "https://images.unsplash.com/photo-1551024601-bec78aea704b?w=120&q=80&auto=format&fit=crop",
-    "Sweet Boxes": "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=120&q=80&auto=format&fit=crop",
-    "Mithai & Sweets": "https://images.unsplash.com/photo-1589308078055-eb7ecf20f4e2?w=120&q=80&auto=format&fit=crop",
-    "Live Counters": "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=120&q=80&auto=format&fit=crop",
-    "Tea & Coffee": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=120&q=80&auto=format&fit=crop",
-    "Mocktails": "https://images.unsplash.com/photo-1536935338788-846bb9981813?w=120&q=80&auto=format&fit=crop",
-    "Fresh Juices": "https://images.unsplash.com/photo-1622597467836-f3285f2131b8?w=120&q=80&auto=format&fit=crop",
-    "Traditional Drinks": "https://images.unsplash.com/photo-1563227812-0ea4c22e6cc8?w=120&q=80&auto=format&fit=crop",
-    "Welcome Drinks": "https://images.unsplash.com/photo-1470337458703-46ad1756a187?w=120&q=80&auto=format&fit=crop",
-    Rajasthani: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?w=120&q=80&auto=format&fit=crop",
-    Punjabi: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=120&q=80&auto=format&fit=crop",
-    Mughlai: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?w=120&q=80&auto=format&fit=crop",
-    "South Indian": "https://images.unsplash.com/photo-1567188040759-fb8a883dc6d8?w=120&q=80&auto=format&fit=crop",
-    Chettinad: "https://images.unsplash.com/photo-1633321702518-7feccafb94d5?w=120&q=80&auto=format&fit=crop",
-    Bengali: "https://images.unsplash.com/photo-1598515214211-89d3c73ae83b?w=120&q=80&auto=format&fit=crop",
-    Hyderabadi: "https://images.unsplash.com/photo-1563379091339-03246963d96c?w=120&q=80&auto=format&fit=crop",
-    "Jain Menu": "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=120&q=80&auto=format&fit=crop",
-    "Pure Veg": "https://images.unsplash.com/photo-1512621776951-a57141f2e8c5?w=120&q=80&auto=format&fit=crop",
-    Continental: "https://images.unsplash.com/photo-1525755662778-989d0524087e?w=120&q=80&auto=format&fit=crop",
-    "Multi-Cuisine": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80&auto=format&fit=crop",
-    "Custom Menu": "https://images.unsplash.com/photo-1544148103-0773bf10d330?w=120&q=80&auto=format&fit=crop",
+    "All Budgets": "https://images.unsplash.com/photo-1556740749-887f6717d7e4?w=120&q=80&auto=format&fit=crop",
+    "Under ₹500 / plate": "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=120&q=80&auto=format&fit=crop",
+    "₹500 – ₹800 / plate": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80&auto=format&fit=crop",
+    "₹800 – ₹1200 / plate": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&q=80&auto=format&fit=crop",
+    "₹1200+ / plate": "https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=120&q=80&auto=format&fit=crop",
     "All Caterers": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80&auto=format&fit=crop",
-    "Premium Caterers": "https://images.unsplash.com/photo-1517244683847-7456b63c5969?w=120&q=80&auto=format&fit=crop",
-    "Budget Friendly": "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=120&q=80&auto=format&fit=crop",
-    "Corporate Caterers": "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=120&q=80&auto=format&fit=crop",
-    "Wedding Caterers": "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=120&q=80&auto=format&fit=crop",
-    "Delhi Street": "https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=120&q=80&auto=format&fit=crop",
-    Awadhi: "https://images.unsplash.com/photo-1536304993881-ff6e9eefa2a6?w=120&q=80&auto=format&fit=crop",
+    "Luxury Caterers": "https://images.unsplash.com/photo-1517244683847-7456b63c5969?w=120&q=80&auto=format&fit=crop",
+    "Elite Caterers": "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=120&q=80&auto=format&fit=crop",
+    "Value Caterers": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=120&q=80&auto=format&fit=crop",
+    "Budget Caterers": "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=120&q=80&auto=format&fit=crop",
   };
   return map[title] ?? "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=120&q=80&auto=format&fit=crop";
 };
@@ -180,24 +93,32 @@ const getDropdownImage = (title: string) => {
 const getMobileHref = (section: MobileKey, item: string) => {
   if (section === "services") {
     const map: Record<string, string> = {
-      Wedding: "/caterers?event=Wedding",
-      Corporate: "/caterers?event=Corporate",
-      Birthday: "/caterers?event=Birthday",
-      Anniversary: "/caterers?event=Anniversary",
-      Pooja: "/caterers?event=Pooja",
-      Retirement: "/caterers?event=Retirement",
+      "Wedding Catering": "/caterers?service=wedding",
+      "Birthday Parties": "/caterers?service=birthday",
+      "Baby Shower & Pooja": "/caterers?service=baby-shower",
+      "Corporate Events": "/caterers?service=corporate",
+      "Anniversary Celebrations": "/caterers?service=anniversary",
+      "Retirement Parties": "/caterers?service=retirement",
     };
     return map[item] ?? "/caterers";
   }
 
-  if (section === "cuisines") {
-    return "/caterers?cuisine=" + encodeURIComponent(item);
+  if (section === "budget") {
+    const map: Record<string, string> = {
+      "All Budgets": "/caterers",
+      "Under ₹500 / plate": "/caterers?budget=under-500",
+      "₹500 – ₹800 / plate": "/caterers?budget=500-800",
+      "₹800 – ₹1200 / plate": "/caterers?budget=800-1200",
+      "₹1200+ / plate": "/caterers?budget=1200-plus",
+    };
+    return map[item] ?? "/caterers";
   }
 
   const vendorMap: Record<string, string> = {
-    Premium: "/caterers?type=Premium%20%2F%20Luxury",
-    "Budget Friendly": "/caterers?budget=300-500",
-    "Wedding Caterers": "/caterers?event=Wedding",
+    "Luxury Caterers": "/caterers?vendorType=luxury",
+    "Elite Caterers": "/caterers?vendorType=elite",
+    "Value Caterers": "/caterers?vendorType=value",
+    "Budget Caterers": "/caterers?vendorType=budget",
   };
   return vendorMap[item] ?? "/caterers";
 };
@@ -233,9 +154,12 @@ function DropdownRow({
       onClick={onClick}
       className="group flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3.5 py-3 text-left transition-all duration-150 hover:bg-[#FFF4EA]"
     >
-      <img
+      <Image
         src={getDropdownImage(title)}
         alt={title}
+        width={36}
+        height={36}
+        unoptimized
         className="h-9 w-9 flex-shrink-0 rounded-lg border border-[#E8D5B7] object-cover shadow-sm"
       />
       <span className="flex-1">
@@ -263,7 +187,7 @@ export default function Navbar() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [mobileAccordion, setMobileAccordion] = useState<Record<MobileKey, boolean>>({
     services: false,
-    cuisines: false,
+    budget: false,
     vendors: false,
   });
 
@@ -271,7 +195,7 @@ export default function Navbar() {
   const closeTimer = useRef<NodeJS.Timeout | null>(null);
   const dropdownRefs = useRef<Record<MenuKey, HTMLDivElement | null>>({
     services: null,
-    cuisines: null,
+    budget: null,
     vendors: null,
   });
   const accountRef = useRef<HTMLDivElement | null>(null);
@@ -371,29 +295,21 @@ export default function Navbar() {
                 {openMenu === "services" ? (
                   <motion.div
                     {...panelMotion}
-                    className="mh-glass-popover absolute left-1/2 top-[calc(100%+14px)] z-[200] w-[920px] max-w-[calc(100vw-40px)] -translate-x-1/2 overflow-hidden rounded-[28px]"
+                    className="mh-glass-popover absolute left-1/2 top-[calc(100%+14px)] z-[200] w-[680px] max-w-[calc(100vw-40px)] -translate-x-1/2 overflow-hidden rounded-[28px]"
                   >
-                    <div className="flex">
-                      <div className="flex-1 border-r border-[#E8D5B7] p-6">
-                        <ColumnHeader icon={<UtensilsCrossed className="h-[14px] w-[14px]" />} label="Catering Services" />
+                    <div className="grid grid-cols-2 gap-0">
+                      <div className="border-r border-[#E8D5B7] p-6">
+                        <ColumnHeader icon={<UtensilsCrossed className="h-[14px] w-[14px]" />} label="Event Services" />
                         <div className="space-y-1">
                           {servicesCol1.map((item) => (
                             <DropdownRow key={item.title} {...item} onClick={() => router.push(item.href ?? "/caterers")} />
                           ))}
                         </div>
                       </div>
-                      <div className="flex-1 border-r border-[#E8D5B7] p-6">
-                        <ColumnHeader icon={<Sparkles className="h-[14px] w-[14px]" />} label="Specialty Items" />
+                      <div className="p-6">
+                        <ColumnHeader icon={<Sparkles className="h-[14px] w-[14px]" />} label="More Event Types" />
                         <div className="space-y-1">
                           {servicesCol2.map((item) => (
-                            <DropdownRow key={item.title} {...item} onClick={() => router.push(item.href ?? "/caterers")} />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex-1 p-6">
-                        <ColumnHeader icon={<Coffee className="h-[14px] w-[14px]" />} label="Beverages" />
-                        <div className="space-y-1">
-                          {servicesCol3.map((item) => (
                             <DropdownRow key={item.title} {...item} onClick={() => router.push(item.href ?? "/caterers")} />
                           ))}
                         </div>
@@ -406,52 +322,44 @@ export default function Navbar() {
 
             <div
               className="relative flex h-full items-center"
-              onMouseEnter={() => handleEnter("cuisines")}
+              onMouseEnter={() => handleEnter("budget")}
               onMouseLeave={handleLeave}
               ref={(el) => {
-                dropdownRefs.current.cuisines = el;
+                dropdownRefs.current.budget = el;
               }}
             >
               <button
-                onClick={() => setOpenMenu((p) => (p === "cuisines" ? null : "cuisines"))}
-                className={navItemClass(openMenu === "cuisines")}
+                onClick={() => setOpenMenu((p) => (p === "budget" ? null : "budget"))}
+                className={navItemClass(openMenu === "budget")}
               >
-                Cuisines
+                By Budget
                 <ChevronDown
                   className={cn(
                     "h-[13px] w-[13px] text-current opacity-60 transition-transform duration-200",
-                    openMenu === "cuisines" ? "rotate-180" : "rotate-0"
+                    openMenu === "budget" ? "rotate-180" : "rotate-0"
                   )}
                 />
               </button>
 
               <AnimatePresence>
-                {openMenu === "cuisines" ? (
+                {openMenu === "budget" ? (
                   <motion.div
                     {...panelMotion}
-                    className="mh-glass-popover absolute left-1/2 top-[calc(100%+14px)] z-[200] w-[860px] max-w-[calc(100vw-40px)] -translate-x-1/2 overflow-hidden rounded-[28px]"
+                    className="mh-glass-popover absolute left-1/2 top-[calc(100%+14px)] z-[200] w-[620px] max-w-[calc(100vw-40px)] -translate-x-1/2 overflow-hidden rounded-[28px]"
                   >
-                    <div className="flex">
-                      <div className="flex-1 border-r border-[#E8D5B7] p-6">
-                        <ColumnHeader icon={<MapPin className="h-[14px] w-[14px]" />} label="North India" />
+                    <div className="grid grid-cols-2 gap-0">
+                      <div className="border-r border-[#E8D5B7] p-6">
+                        <ColumnHeader icon={<IndianRupee className="h-[14px] w-[14px]" />} label="Budget Tiers" />
                         <div className="space-y-1">
-                          {cuisinesCol1.map((item) => (
+                          {budgetItems.slice(0, 3).map((item) => (
                             <DropdownRow key={item.title} {...item} onClick={() => router.push(item.href ?? "/caterers")} />
                           ))}
                         </div>
                       </div>
-                      <div className="flex-1 border-r border-[#E8D5B7] p-6">
-                        <ColumnHeader icon={<MapPin className="h-[14px] w-[14px]" />} label="South & East" />
+                      <div className="p-6">
+                        <ColumnHeader icon={<Sparkles className="h-[14px] w-[14px]" />} label="Premium Segments" />
                         <div className="space-y-1">
-                          {cuisinesCol2.map((item) => (
-                            <DropdownRow key={item.title} {...item} onClick={() => router.push(item.href ?? "/caterers")} />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex-1 p-6">
-                        <ColumnHeader icon={<Sparkles className="h-[14px] w-[14px]" />} label="Special" />
-                        <div className="space-y-1">
-                          {cuisinesCol3.map((item) => (
+                          {budgetItems.slice(3).map((item) => (
                             <DropdownRow key={item.title} {...item} onClick={() => router.push(item.href ?? "/caterers")} />
                           ))}
                         </div>
@@ -487,36 +395,14 @@ export default function Navbar() {
                 {openMenu === "vendors" ? (
                   <motion.div
                     {...panelMotion}
-                    className="mh-glass-popover absolute left-1/2 top-[calc(100%+14px)] z-[200] w-[760px] max-w-[calc(100vw-40px)] -translate-x-1/2 overflow-hidden rounded-[28px]"
+                    className="mh-glass-popover absolute left-1/2 top-[calc(100%+14px)] z-[200] w-[420px] max-w-[calc(100vw-40px)] -translate-x-1/2 overflow-hidden rounded-[28px]"
                   >
-                    <div className="flex">
-                      <div className="flex-1 border-r border-[#E8D5B7] p-6">
-                        <ColumnHeader icon={<Users className="h-[14px] w-[14px]" />} label="By Type" />
-                        <div className="space-y-1">
-                          {vendorsCol1.map((item) => (
-                            <DropdownRow key={item.title} {...item} onClick={() => router.push(item.href ?? "/caterers")} />
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex-1 p-6">
-                        <ColumnHeader icon={<MapPin className="h-[14px] w-[14px]" />} label="Jaipur Areas" />
-                        <div className="space-y-1">
-                          {areas.map((area) => (
-                            <button
-                              key={area}
-                              className="block w-full rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-[#1E1E1E] transition-colors duration-150 hover:bg-[#FFF3E8] hover:text-[#804226]"
-                              onClick={() => router.push("/caterers?location=" + encodeURIComponent(area))}
-                            >
-                              {area}
-                            </button>
-                          ))}
-                          <button
-                            className="block w-full rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold text-[#DE903E]"
-                            onClick={() => router.push("/caterers")}
-                          >
-                            View All Areas →
-                          </button>
-                        </div>
+                    <div className="p-6">
+                      <ColumnHeader icon={<Users className="h-[14px] w-[14px]" />} label="By Type" />
+                      <div className="space-y-1">
+                        {vendorsCol1.map((item) => (
+                          <DropdownRow key={item.title} {...item} onClick={() => router.push(item.href ?? "/caterers")} />
+                        ))}
                       </div>
                     </div>
                   </motion.div>
@@ -676,11 +562,11 @@ export default function Navbar() {
                     note: "Catering flows for different event types",
                   },
                   {
-                    key: "cuisines" as const,
-                    label: "Cuisines",
-                    items: mobileCuisines,
-                    icon: <Sparkles className="h-4 w-4" />,
-                    note: "Browse menus by cuisine preference",
+                    key: "budget" as const,
+                    label: "By Budget",
+                    items: mobileBudgets,
+                    icon: <IndianRupee className="h-4 w-4" />,
+                    note: "Filter by starting bronze price",
                   },
                   {
                     key: "vendors" as const,
@@ -737,9 +623,12 @@ export default function Navbar() {
                                 className="group overflow-hidden rounded-[20px] border border-[#E9D8C1] bg-[linear-gradient(180deg,#FFFFFF,#FFF8F1)] text-left shadow-[0_10px_20px_rgba(95,61,28,0.06)] transition-all active:scale-[0.98]"
                               >
                                 <div className="flex items-center gap-3 px-3 py-3">
-                                  <img
+                                  <Image
                                     src={getDropdownImage(item)}
                                     alt={item}
+                                    width={44}
+                                    height={44}
+                                    unoptimized
                                     className="h-11 w-11 flex-shrink-0 rounded-xl object-cover"
                                   />
                                   <span className="min-w-0 flex-1">

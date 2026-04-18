@@ -1,19 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   ArrowLeft,
   CheckCheck,
-  Copy,
-  ExternalLink,
   MessageCircle,
-  Phone,
-  Plus,
   ReceiptText,
-  Send,
   ShieldCheck,
+  WalletCards,
   XCircle,
 } from "lucide-react";
 import AdminShell from "@/components/admin/AdminShell";
@@ -23,12 +18,62 @@ import {
   AdminButton,
   AdminEmptyState,
   AdminInfoGrid,
+  AdminLinkButton,
   AdminPanel,
   AdminTableCard,
-  AdminTextarea,
 } from "@/components/admin/AdminUi";
 import { formatCurrency } from "@/data/mockAccount";
 import { buildCommissionInvoice, getCommissionInvoiceRows } from "@/lib/commissionInvoice";
+import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
+
+function digitsOnly(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function QuickStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">{label}</p>
+      <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">{value}</p>
+    </div>
+  );
+}
+
+function WhatsAppAction({
+  label,
+  helper,
+  onClick,
+}: {
+  label: string;
+  helper: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-start gap-3 rounded-[14px] border border-[#BBF7D0] bg-[#ECFDF5] px-4 py-3 text-left text-[#166534] transition hover:border-[#86EFAC] hover:bg-[#DCFCE7]"
+    >
+      <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-white text-[#16A34A]">
+        <MessageCircle className="h-4.5 w-4.5" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[14px] font-bold">{label}</span>
+        <span className="mt-1 block text-[12px] leading-[1.55] text-[#15803D]">{helper}</span>
+      </span>
+    </button>
+  );
+}
 
 export default function AdminOrderDetailPage() {
   const params = useParams<{ orderId: string }>();
@@ -41,9 +86,8 @@ export default function AdminOrderDetailPage() {
     markPaymentDone,
     confirmBooking,
     cancelOrder,
-    addInternalNote,
+    logCommunication,
   } = useAdmin();
-  const [newNote, setNewNote] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
 
   const order = useMemo(() => state.orders.find((entry) => entry.id === orderId) ?? null, [state.orders, orderId]);
@@ -51,6 +95,7 @@ export default function AdminOrderDetailPage() {
     () => state.vendors.find((entry) => entry.id === order?.vendorId || entry.slug === order?.vendorSlug) ?? null,
     [state.vendors, order]
   );
+  const billSummary = useMemo(() => (order ? getCustomerFacingBillSummary(order.bill) : null), [order]);
   const commissionInvoice = useMemo(
     () => (order && vendor ? buildCommissionInvoice(order, vendor) : null),
     [order, vendor]
@@ -61,33 +106,16 @@ export default function AdminOrderDetailPage() {
   );
 
   const paymentLink = useMemo(() => {
-    if (typeof window === "undefined") return "";
-    return `${window.location.origin}/pay/${orderId}`;
-  }, [orderId]);
+    if (!order || typeof window === "undefined") return "";
+    return `${window.location.origin}/pay/${order.id}`;
+  }, [order]);
 
-  const vendorLink = useMemo(() => {
-    if (typeof window === "undefined" || !order) return "";
+  const vendorConfirmationLink = useMemo(() => {
+    if (!order || typeof window === "undefined") return "";
     return `${window.location.origin}/vendor-order/${order.vendorToken}`;
   }, [order]);
 
-  const paymentMessage = useMemo(() => {
-    if (!order) return "";
-    const advanceAmount = Math.round(order.bill.finalTotal * 0.3);
-    const balanceAmount = Math.max(order.bill.finalTotal - advanceAmount, 0);
-    return [
-      `Hi ${order.customer.name},`,
-      `Your booking with ${order.vendorName} is ready for the payment stage.`,
-      `Order ID: ${order.id}`,
-      `Package: ${order.packageName}`,
-      `Guests: ${order.guests}`,
-      `30% to pay now: ${formatCurrency(advanceAmount)}`,
-      `70% to pay at property: ${formatCurrency(balanceAmount)}`,
-      `Payment page: ${paymentLink}`,
-      `Thank you for choosing MeraHalwai.`,
-    ].join("\n");
-  }, [order, paymentLink]);
-
-  if (!order) {
+  if (!order || !billSummary) {
     return (
       <AdminShell title="Order not found" description="The requested booking record could not be located.">
         <AdminEmptyState title="Order unavailable" body="This order ID does not exist in the current admin state." />
@@ -95,74 +123,99 @@ export default function AdminOrderDetailPage() {
     );
   }
 
-  const canMarkPaid = Boolean(paymentReference.trim() || order.paymentReference);
+  const customerNotifyMessage = [
+    `Hi ${order.customer.name},`,
+    `Your booking request ${order.id} with Mera Halwai is in process.`,
+    `We are confirming vendor availability and reviewing the booking now.`,
+    `We will notify you shortly with the next update.`,
+  ].join("\n");
+
+  const customerPaymentMessage = [
+    `Hi ${order.customer.name},`,
+    `Your booking ${order.id} has been accepted and is ready for payment.`,
+    `Vendor: ${order.vendorName}`,
+    `Package: ${order.packageName}`,
+    `Guests: ${order.guests}`,
+    `30% now (incl. 18% tax): ${formatCurrency(billSummary.upfrontTotal)}`,
+    `70% at event: ${formatCurrency(billSummary.remainingAmount)}`,
+    `Taxes (if applicable) as per vendor invoice.`,
+    `Payment link: ${paymentLink}`,
+  ].join("\n");
+
+  const customerVendorInfoMessage = [
+    `Hi ${order.customer.name},`,
+    `Your booking ${order.id} is confirmed.`,
+    `Vendor: ${order.vendorName}`,
+    `Vendor contact: ${order.vendorPhone}`,
+    `Venue: ${order.venue.venueName}`,
+    `Location: ${order.venue.address}, ${order.venue.city}`,
+  ].join("\n");
+
+  const vendorNotifyMessage = [
+    `Hi ${order.vendorName},`,
+    `A new Mera Halwai booking requires your attention.`,
+    `Order ID: ${order.id}`,
+    `Customer: ${order.customer.name} (${order.customer.phone})`,
+    `Event: ${order.eventType}`,
+    `Date: ${order.eventDate}`,
+    `Time: ${order.eventTime}`,
+    `Guests: ${order.guests}`,
+    `Package: ${order.packageName}`,
+    `Confirmation link: ${vendorConfirmationLink}`,
+  ].join("\n");
+
+  const openWhatsapp = (phone: string, message: string, beforeOpen?: () => void) => {
+    beforeOpen?.();
+    const number = digitsOnly(phone);
+    if (!number) return;
+    window.open(`https://wa.me/${number}?text=${encodeURIComponent(message)}`, "_blank", "noopener,noreferrer");
+  };
+
+  const effectivePaymentReference = paymentReference.trim() || order.paymentReference;
+  const canMarkPaid = Boolean(effectivePaymentReference);
 
   return (
     <AdminShell
       title={`Order ${order.id}`}
-      description="Full internal operations view for one booking request, including customer details, event basics, billing, vendor workflow, and notes."
+      description="Simple booking operations view for customer updates, vendor follow-up, payment sharing, and final confirmation."
       actions={
         <div className="flex flex-wrap gap-3">
-          <Link
-            href="/admin/orders"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
-          >
-            <ArrowLeft className="h-4 w-4" />
+          <AdminLinkButton href="/admin/orders" variant="secondary" className="h-10 px-4">
+            <ArrowLeft className="mr-2 h-4 w-4" />
             Back
-          </Link>
-          <Link
-            href={`/pay/${order.id}`}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
-          >
-            <ReceiptText className="h-4 w-4" />
-            Payment Page
-          </Link>
-          <Link
-            href={`/admin/orders/${order.id}/commission-invoice`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
-          >
-            <ReceiptText className="h-4 w-4" />
-            Download Commission Invoice
-          </Link>
-          <a
-            href={`https://wa.me/${order.customer.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(paymentMessage)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-[12px] bg-[#0F172A] px-4 text-[13px] font-bold text-white"
-          >
-            <MessageCircle className="h-4 w-4" />
-            Share Payment
-          </a>
+          </AdminLinkButton>
+          <AdminLinkButton href={`/pay/${order.id}`} variant="secondary" className="h-10 px-4">
+            <ReceiptText className="mr-2 h-4 w-4" />
+            Customer Payment Page
+          </AdminLinkButton>
         </div>
       }
     >
       <div className="space-y-6">
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <AdminPanel
             eyebrow="Booking Request"
             title={order.vendorName}
-            description="Primary order snapshot for daily ops handling."
+            description="Customer booking snapshot and current order state."
+            className="self-start"
           >
-            <div className="flex flex-col gap-5 border-b border-[#E8EDF4] pb-5 lg:flex-row lg:items-start lg:justify-between">
-              <div>
+            <div className="flex flex-col gap-4 border-b border-[#E2E8F0] pb-5 xl:flex-row xl:items-start xl:justify-between">
+              <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
-                  <p className="text-[30px] font-black tracking-[-0.05em] text-[#0F172A]">{order.id}</p>
+                  <p className="text-[28px] font-black tracking-[-0.05em] text-[#0F172A]">{order.id}</p>
                   <AdminOrderStatusBadge status={order.status} />
                   <AdminPaymentStatusBadge status={order.paymentStatus} />
                 </div>
-                <p className="mt-3 text-[14px] leading-[1.75] text-[#5B6574]">
-                  Created on {new Date(order.createdAt).toLocaleString("en-IN")} · Slot hold:{" "}
-                  {order.slotHoldEndsAt ? new Date(order.slotHoldEndsAt).toLocaleString("en-IN") : "Not active"}
+                <p className="mt-3 text-[14px] leading-[1.75] text-[#64748B]">
+                  Created on {formatDateTime(order.createdAt)} · Customer total {formatCurrency(billSummary.customerGrandTotal)}
                 </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <QuickStat label="Package" value={order.packageName} />
-                <QuickStat label="Final Total" value={formatCurrency(order.bill.finalTotal)} />
                 <QuickStat label="Guests" value={`${order.guests}`} />
-                <QuickStat label="Vendor Response" value={order.vendorResponseStatus} />
+                <QuickStat label="Customer Total" value={formatCurrency(billSummary.customerGrandTotal)} />
+                <QuickStat label="Vendor Status" value={order.vendorResponseStatus} />
               </div>
             </div>
 
@@ -176,9 +229,7 @@ export default function AdminOrderDetailPage() {
               <div className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Event</p>
                 <p className="mt-2 text-[16px] font-bold text-[#0F172A]">{order.eventType}</p>
-                <p className="mt-1 text-[13px] text-[#64748B]">
-                  {order.eventDate} · {order.eventTime}
-                </p>
+                <p className="mt-1 text-[13px] text-[#64748B]">{order.eventDate} · {order.eventTime}</p>
                 <p className="mt-1 text-[13px] text-[#64748B]">
                   {order.foodPreference === "veg" ? "Pure Veg" : "Veg + Non-Veg"}
                 </p>
@@ -193,86 +244,151 @@ export default function AdminOrderDetailPage() {
             </div>
           </AdminPanel>
 
-          <AdminPanel eyebrow="Actions" title="Process Controls">
-            <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => notifyVendor(order.id)}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
-              >
-                <Send className="h-4 w-4" />
-                Notify Vendor
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmVendor(order.id)}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
-              >
-                <CheckCheck className="h-4 w-4" />
-                Mark Vendor Confirmed
-              </button>
-              <button
-                type="button"
-                onClick={() => sendPaymentLink(order.id)}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
-              >
-                <MessageCircle className="h-4 w-4" />
-                Mark Payment Link Sent
-              </button>
-              <button
-                type="button"
-                onClick={() => confirmBooking(order.id)}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] bg-[#0F172A] px-4 text-[13px] font-bold text-white"
-              >
-                <ShieldCheck className="h-4 w-4" />
-                Confirm Booking
-              </button>
-              <button
-                type="button"
-                onClick={() => cancelOrder(order.id)}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#E5C5CA] bg-[#FFF5F6] px-4 text-[13px] font-bold text-[#B42318]"
-              >
-                <XCircle className="h-4 w-4" />
-                Cancel Booking
-              </button>
-            </div>
+          <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
+            <AdminPanel eyebrow="Actions" title="Booking Actions" description="Send WhatsApp updates, track payment, and close the booking.">
+              <div className="space-y-5">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Customer WhatsApp</p>
+                  <div className="mt-3 space-y-3">
+                    <WhatsAppAction
+                      label="Notify Customer"
+                      helper="Booking is under review and confirmation is in progress."
+                      onClick={() =>
+                        openWhatsapp(order.customer.whatsapp, customerNotifyMessage, () =>
+                          logCommunication(order.id, {
+                            label: "Customer notified",
+                            helper: `Processing update shared with ${order.customer.name}`,
+                            tone: "neutral",
+                          })
+                        )
+                      }
+                    />
+                    <WhatsAppAction
+                      label="Send Payment Link"
+                      helper="Shares the 30% payment link with the customer."
+                      onClick={() =>
+                        openWhatsapp(order.customer.whatsapp, customerPaymentMessage, () => sendPaymentLink(order.id))
+                      }
+                    />
+                    <WhatsAppAction
+                      label="Send Vendor Information"
+                      helper="Shares vendor name, phone, and venue details after confirmation."
+                      onClick={() =>
+                        openWhatsapp(order.customer.whatsapp, customerVendorInfoMessage, () =>
+                          logCommunication(order.id, {
+                            label: "Vendor details shared",
+                            helper: `Vendor information shared with ${order.customer.name}`,
+                            tone: "success",
+                          })
+                        )
+                      }
+                    />
+                  </div>
+                </div>
 
-            <div className="mt-5 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Vendor Link</p>
-              <p className="mt-2 text-[13px] leading-[1.7] text-[#5B6574]">
-                Share the tokenized vendor confirmation URL only after ops review.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <a
-                  href={vendorLink}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[12px] font-bold text-[#0F172A]"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open
-                </a>
-                <button
-                  type="button"
-                  onClick={() => navigator.clipboard.writeText(vendorLink)}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[12px] font-bold text-[#0F172A]"
-                >
-                  <Copy className="h-4 w-4" />
-                  Copy
-                </button>
-                <a
-                  href={`tel:${order.vendorPhone.replace(/\s+/g, "")}`}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-[10px] border border-[#CBD5E1] bg-white px-3 text-[12px] font-bold text-[#0F172A]"
-                >
-                  <Phone className="h-4 w-4" />
-                  Call
-                </a>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Vendor WhatsApp</p>
+                  <div className="mt-3 space-y-3">
+                    <WhatsAppAction
+                      label="Notify Vendor"
+                      helper="Sends booking details and confirmation link to the vendor."
+                      onClick={() =>
+                        openWhatsapp(order.vendorWhatsapp, vendorNotifyMessage, () => notifyVendor(order.id))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Booking Controls</p>
+                  <input
+                    value={paymentReference || order.paymentReference}
+                    onChange={(event) => setPaymentReference(event.target.value)}
+                    className="mt-3 h-11 w-full rounded-[12px] border border-[#CBD5E1] bg-white px-3.5 text-[14px] font-medium text-[#0F172A] outline-none focus:border-[#2563EB] focus:ring-2 focus:ring-[#DBEAFE]"
+                    placeholder="Enter payment reference"
+                  />
+                  <div className="mt-3 grid gap-3">
+                    <AdminButton variant="secondary" onClick={() => confirmVendor(order.id)} className="h-10 w-full">
+                      <CheckCheck className="mr-2 h-4 w-4" />
+                      Vendor Confirmed
+                    </AdminButton>
+                    <AdminButton
+                      variant="secondary"
+                      onClick={() => markPaymentDone(order.id, effectivePaymentReference || "MANUAL-REF")}
+                      disabled={!canMarkPaid}
+                      className="h-10 w-full"
+                    >
+                      <WalletCards className="mr-2 h-4 w-4" />
+                      Payment Received
+                    </AdminButton>
+                    <AdminButton
+                      variant="ghost"
+                      onClick={() => confirmBooking(order.id)}
+                      disabled={order.paymentStatus !== "paid"}
+                      className="h-10 w-full border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8] hover:bg-[#DBEAFE]"
+                    >
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                      Final Confirm
+                    </AdminButton>
+                    <AdminButton variant="danger" onClick={() => cancelOrder(order.id)} className="h-10 w-full">
+                      <XCircle className="mr-2 h-4 w-4" />
+                      Cancel Booking
+                    </AdminButton>
+                  </div>
+                </div>
               </div>
-            </div>
-          </AdminPanel>
+            </AdminPanel>
+
+            <AdminPanel eyebrow="Billing" title="Bill Summary">
+              <div className="space-y-3 text-[14px]">
+                {[
+                  ["Base Amount", billSummary.baseAmount],
+                  ["Optional Add-ons", billSummary.optionalAddOnAmount],
+                  ["Water", billSummary.waterAmount],
+                  ["Booking Value", billSummary.bookingValue],
+                  ["30% Now (Incl. Tax)", billSummary.upfrontTotal],
+                  ["70% At Event", billSummary.remainingAmount],
+                ].map(([label, amount]) => (
+                  <div key={String(label)} className="flex items-center justify-between gap-3">
+                    <span className="text-[#64748B]">{label}</span>
+                    <span className="font-semibold text-[#0F172A]">{formatCurrency(Number(amount))}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-5 rounded-[16px] bg-gradient-to-r from-[#2563EB] to-[#6366F1] px-4 py-4 text-white">
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/70">Customer Total</p>
+                <p className="mt-2 text-[28px] font-black tracking-[-0.04em]">{formatCurrency(billSummary.customerGrandTotal)}</p>
+              </div>
+
+              {commissionInvoice ? (
+                <div className="mt-5 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Commission Invoice</p>
+                  <div className="mt-3 space-y-2.5 text-[13px]">
+                    {commissionRows.map((row) => (
+                      <div key={row.label} className="flex items-center justify-between gap-3">
+                        <span className="text-[#64748B]">{row.label}</span>
+                        <span className="font-semibold text-[#0F172A]">{row.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-4 text-[12px] text-[#64748B]">Invoice No. {commissionInvoice.invoiceNumber}</p>
+                  <AdminLinkButton
+                    href={`/admin/orders/${order.id}/commission-invoice`}
+                    target="_blank"
+                    rel="noreferrer"
+                    variant="secondary"
+                    className="mt-3 h-10 w-full"
+                  >
+                    <ReceiptText className="mr-2 h-4 w-4" />
+                    Download Commission Invoice
+                  </AdminLinkButton>
+                </div>
+              ) : null}
+            </AdminPanel>
+          </div>
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
           <div className="space-y-6">
             <AdminPanel eyebrow="Customer & Venue" title="Captured Booking Details">
               <AdminInfoGrid
@@ -282,8 +398,6 @@ export default function AdminOrderDetailPage() {
                   { label: "Phone", value: order.customer.phone },
                   { label: "WhatsApp", value: order.customer.whatsapp },
                   { label: "Email", value: order.customer.email },
-                  { label: "Auth Type", value: order.customer.authType.toUpperCase() },
-                  { label: "Customer Profile", value: "Open profile", helper: `/admin/customers/${order.customerId}` },
                   { label: "Event Type", value: order.eventType },
                   { label: "Event Date", value: order.eventDate },
                   { label: "Event Time", value: order.eventTime },
@@ -322,13 +436,7 @@ export default function AdminOrderDetailPage() {
                 ))}
               </div>
 
-              <div className="mt-5 grid gap-4 md:grid-cols-3">
-                <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Auto Add-ons</p>
-                  <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">
-                    {order.menuSummary.autoAddOnItems.join(", ") || "None"}
-                  </p>
-                </div>
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
                 <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
                   <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Optional Add-ons</p>
                   <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">
@@ -340,159 +448,25 @@ export default function AdminOrderDetailPage() {
                   <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">{order.menuSummary.waterSelection}</p>
                 </div>
               </div>
-
-              <div className="mt-4 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Customer Note</p>
-                <p className="mt-2 text-[14px] leading-[1.75] text-[#334155]">
-                  {order.menuSummary.catererNote || "No note added by customer."}
-                </p>
-              </div>
-            </AdminPanel>
-
-            <AdminTableCard title="Timeline" eyebrow="Activity Log">
-              <div className="divide-y divide-[#E8EDF4]">
-                {order.activity.map((item) => (
-                  <div key={item.id} className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-semibold text-[#0F172A]">{item.label}</p>
-                      <p className="mt-1 text-[13px] leading-[1.7] text-[#64748B]">{item.helper}</p>
-                    </div>
-                    <div className="shrink-0 text-[12px] text-[#64748B] md:text-right">
-                      <p className="font-semibold uppercase tracking-[0.14em] text-[#475569]">{item.actor}</p>
-                      <p className="mt-1">{new Date(item.at).toLocaleString("en-IN")}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </AdminTableCard>
-          </div>
-
-          <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
-            <AdminPanel eyebrow="Billing" title="Bill Summary">
-              <div className="space-y-3 text-[14px]">
-                {[
-                  ["Base Amount", order.bill.baseAmount],
-                  ["Auto Add-ons", order.bill.autoAddOns],
-                  ["Optional Add-ons", order.bill.optionalAddOns],
-                  ["Water", order.bill.water],
-                  ["Subtotal", order.bill.subtotal],
-                  ["GST (18%)", order.bill.gst],
-                  ["Convenience Fee", order.bill.convenienceFee],
-                ].map(([label, amount]) => (
-                  <div key={String(label)} className="flex items-center justify-between gap-3">
-                    <span className="text-[#64748B]">{label}</span>
-                    <span className="font-semibold text-[#0F172A]">{formatCurrency(Number(amount))}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 rounded-[16px] bg-[#0F172A] px-4 py-4 text-white">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/60">Final Total</p>
-                <p className="mt-2 text-[28px] font-black tracking-[-0.04em]">{formatCurrency(order.bill.finalTotal)}</p>
-              </div>
-
-              {commissionInvoice ? (
-                <div className="mt-5 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Commission Invoice</p>
-                  <div className="mt-3 space-y-2.5 text-[13px]">
-                    {commissionRows.map((row) => (
-                      <div key={row.label} className="flex items-center justify-between gap-3">
-                        <span className="text-[#64748B]">{row.label}</span>
-                        <span className="font-semibold text-[#0F172A]">{row.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="mt-3 text-[12px] text-[#64748B]">
-                    Invoice No. {commissionInvoice.invoiceNumber}
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="mt-5 rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Payment Reference</p>
-                <input
-                  value={paymentReference || order.paymentReference}
-                  onChange={(event) => setPaymentReference(event.target.value)}
-                  className="mt-3 h-11 w-full rounded-[12px] border border-[#CBD5E1] bg-white px-3.5 text-[14px] font-medium text-[#0F172A] outline-none focus:border-[#64748B] focus:ring-2 focus:ring-[#E2E8F0]"
-                  placeholder="Enter bank or Razorpay reference"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!canMarkPaid) return;
-                    markPaymentDone(order.id, paymentReference || order.paymentReference || "MANUAL-REF");
-                    setPaymentReference("");
-                  }}
-                  disabled={!canMarkPaid}
-                  className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <ShieldCheck className="h-4 w-4" />
-                  Mark Payment Done
-                </button>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-3">
-                <Link
-                  href={`/invoice/${order.id}`}
-                  className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
-                >
-                  Open Invoice
-                </Link>
-                <Link
-                  href={`/admin/orders/${order.id}/commission-invoice`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex h-10 items-center justify-center rounded-[12px] border border-[#CBD5E1] bg-white px-4 text-[13px] font-bold text-[#0F172A]"
-                >
-                  Preview Commission Invoice
-                </Link>
-              </div>
-            </AdminPanel>
-
-            <AdminPanel eyebrow="Notes" title="Internal Notes">
-              <div className="space-y-3">
-                {order.internalNotes.map((note) => (
-                  <div key={note.id} className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
-                    <p className="text-[14px] font-medium leading-[1.7] text-[#0F172A]">{note.note}</p>
-                    <p className="mt-2 text-[12px] text-[#64748B]">
-                      {note.author} · {new Date(note.createdAt).toLocaleString("en-IN")}
-                    </p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4">
-                <AdminTextarea
-                  label="Add Note"
-                  value={newNote}
-                  onChange={(event) => setNewNote(event.target.value)}
-                  placeholder="Add internal remark, escalation note, or vendor coordination detail"
-                  className="min-h-[110px]"
-                />
-                <div className="mt-3 flex justify-end">
-                  <AdminButton
-                    onClick={() => {
-                      if (!newNote.trim()) return;
-                      addInternalNote(order.id, newNote);
-                      setNewNote("");
-                    }}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Note
-                  </AdminButton>
-                </div>
-              </div>
             </AdminPanel>
           </div>
+
+          <AdminTableCard title="Timeline" eyebrow="Activity Log">
+            <div className="divide-y divide-[#E8EDF4]">
+              {order.activity.map((item) => (
+                <div key={item.id} className="flex flex-col gap-3 px-5 py-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[14px] font-semibold text-[#0F172A]">{item.label}</p>
+                    <span className="text-[12px] font-medium text-[#64748B]">{item.actor}</span>
+                  </div>
+                  <p className="text-[13px] leading-[1.7] text-[#64748B]">{item.helper}</p>
+                  <p className="text-[12px] text-[#64748B]">{formatDateTime(item.at)}</p>
+                </div>
+              ))}
+            </div>
+          </AdminTableCard>
         </div>
       </div>
     </AdminShell>
-  );
-}
-
-function QuickStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[16px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
-      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">{label}</p>
-      <p className="mt-2 text-[14px] font-semibold text-[#0F172A]">{value}</p>
-    </div>
   );
 }

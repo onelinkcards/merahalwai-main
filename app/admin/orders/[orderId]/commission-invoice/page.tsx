@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Download, Printer } from "lucide-react";
 import { useAdmin } from "@/components/admin/AdminProvider";
-import { AdminButton, AdminEmptyState } from "@/components/admin/AdminUi";
+import { AdminButton, AdminEmptyState, AdminLinkButton } from "@/components/admin/AdminUi";
 import { formatCurrency } from "@/data/mockAccount";
 import {
   buildCommissionInvoice,
@@ -72,12 +71,10 @@ export default function AdminCommissionInvoicePage() {
       <main className="min-h-screen bg-[#F3F4F6] px-4 py-10 md:px-8">
         <div className="mx-auto max-w-[900px]">
           <div className="mb-6">
-            <Link href="/admin/orders" className="inline-flex">
-              <AdminButton variant="secondary">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Orders
-              </AdminButton>
-            </Link>
+            <AdminLinkButton href="/admin/orders" variant="secondary">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Orders
+            </AdminLinkButton>
           </div>
           <AdminEmptyState
             title="Commission invoice unavailable"
@@ -93,12 +90,10 @@ export default function AdminCommissionInvoicePage() {
       <div className="mx-auto max-w-[1180px] px-4 py-6 md:px-8 print:px-0 print:py-0">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3 print:hidden">
           <div className="flex flex-wrap gap-3">
-            <Link href={`/admin/orders/${order.id}`} className="inline-flex">
-              <AdminButton variant="secondary">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Order
-              </AdminButton>
-            </Link>
+            <AdminLinkButton href={`/admin/orders/${order.id}`} variant="secondary">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Order
+            </AdminLinkButton>
             <AdminButton variant="secondary" onClick={() => window.print()}>
               <Printer className="mr-2 h-4 w-4" />
               Print
@@ -169,7 +164,7 @@ export default function AdminCommissionInvoicePage() {
                   <p>City: {vendor.city}</p>
                   <p>State: Rajasthan</p>
                   <p>Pincode: {vendor.pincode}</p>
-                  <p>Vendor GST Number: —</p>
+                  <p>Vendor GST Number: {vendor.gstNumber || "—"}</p>
                 </div>
               </section>
             </div>

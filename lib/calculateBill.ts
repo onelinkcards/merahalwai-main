@@ -1,8 +1,7 @@
 import type { BookingStore } from "@/store/bookingStore";
 import { getVendorDetailBySlug } from "@/data/vendors";
-import { getWaterOptions } from "@/lib/bookingMenuHelpers";
+import { getWaterSelectionPrice } from "@/lib/bookingMenuHelpers";
 
-const CONVENIENCE_FEE_RATE = 0.02;
 export const GST_RATE = 0.18;
 const ADVANCE_PAYMENT_RATE = 0.3;
 
@@ -51,18 +50,15 @@ function optionalAddOnTotal(slug: string, addOnNames: string[], guestCount: numb
   }, 0);
 }
 
-function waterTotal(slug: string, waterType: BookingStore["waterType"], guestCount: number) {
+function waterTotal(
+  slug: string,
+  waterType: BookingStore["waterType"],
+  guestCount: number,
+  waterVariant?: string
+) {
   if (!slug || !waterType) return 0;
-  const options = getWaterOptions(slug);
-
-  if (waterType === "both") {
-    return options
-      .filter((entry) => entry.id === "ro" || entry.id === "packaged")
-      .reduce((total, option) => total + option.pricePerPax * guestCount, 0);
-  }
-
-  const option = options.find((entry) => entry.id === waterType);
-  return option ? option.pricePerPax * guestCount : 0;
+  const selectedPrice = getWaterSelectionPrice(slug, waterType, waterVariant);
+  return selectedPrice * guestCount;
 }
 
 export function calculateBill(state: Partial<BookingStore>): BillBreakdown {
@@ -75,13 +71,15 @@ export function calculateBill(state: Partial<BookingStore>): BillBreakdown {
   const optionalAddOnAmount = slug
     ? optionalAddOnTotal(slug, state.addOnItems ?? [], guestCount)
     : 0;
-  const waterAmount = slug ? waterTotal(slug, state.waterType ?? "none", guestCount) : 0;
+  const waterAmount = slug
+    ? waterTotal(slug, state.waterType ?? "none", guestCount, state.waterVariant)
+    : 0;
   const addOnTotal = autoAddOnAmount + optionalAddOnAmount;
 
-  const couponDiscount = Math.max(0, state.couponDiscount ?? 0);
-  const preTax = Math.max(0, baseAmount + addOnTotal + waterAmount - couponDiscount);
+  const couponDiscount = 0;
+  const preTax = Math.max(0, baseAmount + addOnTotal + waterAmount);
   const gstAmount = Math.round(preTax * GST_RATE);
-  const convenienceFee = Math.round(preTax * CONVENIENCE_FEE_RATE);
+  const convenienceFee = 0;
   const grandTotal = preTax + gstAmount + convenienceFee;
 
   return {

@@ -1,60 +1,40 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import AdminShell from "@/components/admin/AdminShell";
 import { useAdmin } from "@/components/admin/AdminProvider";
-import { AdminPanel, AdminTextarea } from "@/components/admin/AdminUi";
-
-const GROUPS = [
-  { key: "booking", label: "Booking" },
-  { key: "vendor", label: "Vendor" },
-  { key: "payment", label: "Payment" },
-  { key: "emailTemplates", label: "Email Templates" },
-  { key: "whatsappTemplates", label: "WhatsApp Templates" },
-] as const;
+import { AdminTableCard } from "@/components/admin/AdminUi";
 
 export default function AdminNotificationsPage() {
-  const { state, saveTemplate } = useAdmin();
-  const [activeGroup, setActiveGroup] = useState<(typeof GROUPS)[number]["key"]>("booking");
-  const templates = useMemo(() => state.templates.filter((template) => template.group === activeGroup), [activeGroup, state.templates]);
+  const { state } = useAdmin();
+  const activity = useMemo(() => state.activityFeed.slice(0, 10), [state.activityFeed]);
 
   return (
-    <AdminShell
-      title="Notifications"
-      description="Operational template control for booking, vendor, payment, email, and WhatsApp events."
-    >
-      <AdminPanel title="Template groups" eyebrow="Channels">
-        <div className="flex flex-wrap gap-2">
-          {GROUPS.map((group) => (
-            <button
-              key={group.key}
-              type="button"
-              onClick={() => setActiveGroup(group.key)}
-              className={`rounded-[12px] px-4 py-2.5 text-[13px] font-bold transition ${activeGroup === group.key ? "bg-[#0F172A] text-white" : "border border-[#D9E1EC] bg-white text-[#334155] hover:bg-[#F8FAFC]"}`}
-            >
-              {group.label}
-            </button>
-          ))}
+    <AdminShell title="Notifications" description="Recent admin-side notification activity.">
+      <AdminTableCard title="Recent notifications" eyebrow="Activity">
+        <div className="overflow-hidden">
+          <table className="min-w-full text-left">
+            <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">
+              <tr>
+                <th className="px-4 py-3">Event</th>
+                <th className="px-4 py-3">Details</th>
+                <th className="px-4 py-3">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E2E8F0]">
+              {activity.map((item) => (
+                <tr key={item.id} className="text-[13px] text-[#334155]">
+                  <td className="px-4 py-3 font-semibold text-[#0F172A]">{item.label}</td>
+                  <td className="px-4 py-3 text-[#64748B]">{item.helper}</td>
+                  <td className="px-4 py-3 text-[#64748B]">
+                    {new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short" }).format(new Date(item.at))}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-      </AdminPanel>
-
-      <div className="mt-6 space-y-6">
-        {templates.map((template) => (
-          <AdminPanel
-            key={template.id}
-            title={template.name}
-            eyebrow={template.channel}
-            description={`Trigger: ${template.triggerEvent} · Updated ${new Date(template.lastUpdated).toLocaleDateString("en-IN")}`}
-          >
-            <AdminTextarea
-              label="Template Body"
-              value={template.body}
-              onChange={(event) => saveTemplate(template.id, { body: event.target.value })}
-              className="min-h-[160px]"
-            />
-          </AdminPanel>
-        ))}
-      </div>
+      </AdminTableCard>
     </AdminShell>
   );
 }

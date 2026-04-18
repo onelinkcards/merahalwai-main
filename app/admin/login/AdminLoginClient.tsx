@@ -8,18 +8,10 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  LockKeyhole,
   ShieldCheck,
-  Workflow,
 } from "lucide-react";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { ADMIN_EMAIL, ADMIN_PASSWORD } from "@/data/mockAdmin";
-
-const ACCESS_RULES = [
-  "Booking requests, vendors, billing, and reports are controlled from this console.",
-  "Only internal admins can change order states, vendor pricing, and payment follow-up.",
-  "Every booking action should stay consistent with the customer-facing flow.",
-];
 
 export default function AdminLoginClient() {
   const router = useRouter();
@@ -72,51 +64,18 @@ export default function AdminLoginClient() {
               <ShieldCheck className="h-7 w-7" />
             </div>
 
-            <p className="mt-10 text-[11px] font-bold uppercase tracking-[0.24em] text-[#94A3B8]">
-              Internal Console
-            </p>
             <h1 className="mt-3 max-w-[520px] text-[42px] font-black tracking-[-0.05em] text-white">
-              MeraHalwai admin access
+              Mera Halwai admin access
             </h1>
             <p className="mt-5 max-w-[520px] text-[15px] leading-[1.8] text-[#CBD5E1]">
-              This panel is for operations control only. Use it to manage booking lifecycle, vendor responses,
-              invoices, payouts, and production configuration.
+              Use this panel to manage bookings, vendors, notifications, commission invoices, and platform settings.
             </p>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
-              <div className="rounded-[20px] border border-white/10 bg-white/5 p-5">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/10">
-                    <Workflow className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Coverage</p>
-                    <p className="mt-1 text-[15px] font-semibold text-white">Orders, vendors, billing, reports</p>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-[20px] border border-white/10 bg-white/5 p-5">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/10 bg-white/10">
-                    <LockKeyhole className="h-5 w-5" />
-                  </span>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Access</p>
-                    <p className="mt-1 text-[15px] font-semibold text-white">Protected internal operations only</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-3">
-              {ACCESS_RULES.map((rule) => (
-                <div
-                  key={rule}
-                  className="rounded-[18px] border border-white/10 bg-white/5 px-4 py-3 text-[14px] leading-[1.7] text-[#E2E8F0]"
-                >
-                  {rule}
-                </div>
-              ))}
+            <div className="mt-8 rounded-[20px] border border-white/10 bg-white/5 p-5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#94A3B8]">Operations access</p>
+              <p className="mt-3 text-[15px] leading-[1.8] text-[#E2E8F0]">
+                Booking requests, vendor follow-up, customer payment flow, notifications, and commission billing are controlled from this admin workspace.
+              </p>
             </div>
           </section>
 
@@ -132,7 +91,7 @@ export default function AdminLoginClient() {
             </p>
 
             <div className="mt-6 rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-4">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Demo credentials</p>
+              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Admin credentials</p>
               <div className="mt-3 space-y-1 text-[14px]">
                 <p className="font-semibold text-[#0F172A]">{ADMIN_EMAIL}</p>
                 <p className="text-[#64748B]">Password: {ADMIN_PASSWORD}</p>
@@ -186,7 +145,7 @@ export default function AdminLoginClient() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#0F172A] px-5 text-[15px] font-black text-white transition hover:bg-[#1E293B] disabled:cursor-not-allowed disabled:opacity-60"
+                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-[14px] bg-[#2563EB] px-5 text-[15px] font-black text-white transition hover:bg-[#1D4ED8] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                 Sign in to Admin Panel

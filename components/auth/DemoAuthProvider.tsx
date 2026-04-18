@@ -76,7 +76,7 @@ export function DemoAuthProvider({ children }: { children: React.ReactNode }) {
         setSession(next);
         useToastStore.getState().show(
           next.user.onboardingComplete
-            ? "Signed in with demo Google account."
+            ? "Signed in with Google account."
             : "Google sign-in complete. Finish your profile to continue."
         );
         return next;
