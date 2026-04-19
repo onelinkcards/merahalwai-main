@@ -23,8 +23,8 @@ function formatDate(date: string) {
 function InvoiceField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-1">
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#64748B]">{label}</p>
-      <p className="text-[13px] font-semibold leading-[1.6] text-[#0F172A]">{value}</p>
+      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#64748B]">{label}</p>
+      <p className="text-[13px] font-medium leading-[1.55] text-[#0F172A]">{value}</p>
     </div>
   );
 }
@@ -56,8 +56,6 @@ export default function AdminCommissionInvoicePage() {
     () => (order && vendor ? buildCommissionInvoice(order, vendor) : null),
     [order, vendor]
   );
-
-  const gstHalf = useMemo(() => (invoice ? Math.round(invoice.gstAmount / 2) : 0), [invoice]);
 
   useEffect(() => {
     if (!ready) return;
@@ -96,21 +94,66 @@ export default function AdminCommissionInvoicePage() {
       <style jsx global>{`
         @page {
           size: A4;
-          margin: 14mm;
+          margin: 5mm;
         }
         @media print {
           html,
           body {
             background: #ffffff !important;
+            height: auto !important;
+            overflow: visible !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          body * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           #kry-invoice-a4 {
-            width: 210mm !important;
+            position: static !important;
+            width: 100% !important;
+            max-width: none !important;
             min-height: auto !important;
             margin: 0 !important;
+            padding: 0 !important;
+            overflow: visible !important;
+            box-shadow: none !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            background: #ffffff !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          #kry-invoice-a4 section,
+          #kry-invoice-a4 div,
+          #kry-invoice-a4 table,
+          #kry-invoice-a4 tr,
+          #kry-invoice-a4 td {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          main {
+            min-height: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: #ffffff !important;
+          }
+          .invoice-shell {
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+        @media screen {
+          #kry-invoice-a4 {
+            width: 100%;
           }
         }
       `}</style>
-      <div className="mx-auto max-w-[1080px]">
+      <div className="invoice-shell mx-auto max-w-[1080px]">
         <div className="mb-5 flex justify-end gap-3 print:hidden">
           <AdminButton variant="secondary" onClick={() => window.print()} className="h-10 px-4">
             <Printer className="mr-2 h-4 w-4" />
@@ -124,98 +167,73 @@ export default function AdminCommissionInvoicePage() {
 
         <section
           id="kry-invoice-a4"
-          className="mx-auto min-h-[297mm] w-full max-w-[210mm] overflow-hidden rounded-[10px] border border-[#D7DEE7] bg-white shadow-[0_1px_3px_rgba(15,23,42,0.08)] print:min-h-0 print:max-w-none print:rounded-none print:border-0 print:shadow-none"
+          className="mx-auto w-full max-w-[186mm] rounded-[8px] border border-[#D7DEE7] bg-white text-[12px] shadow-[0_1px_3px_rgba(15,23,42,0.08)] print:max-w-none print:rounded-none print:border-0 print:text-[10.5px] print:shadow-none"
         >
-          <div className="border-b border-[#E2E8F0] px-8 py-8">
-            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_260px]">
-              <div className="space-y-3">
-                <div>
-                  <p className="text-[24px] font-black tracking-[-0.03em] text-[#0F172A]">{PLATFORM_INVOICE_COMPANY.brandName}</p>
-                  <p className="text-[13px] font-semibold text-[#334155]">{PLATFORM_INVOICE_COMPANY.legalName}</p>
-                </div>
-                <div className="grid gap-1 text-[13px] leading-[1.7] text-[#334155]">
-                  <p>GSTIN: {PLATFORM_INVOICE_COMPANY.gstin}</p>
-                  <p>CIN: {PLATFORM_INVOICE_COMPANY.cin}</p>
-                  <p>Email: {PLATFORM_INVOICE_COMPANY.email}</p>
-                  <p>{PLATFORM_INVOICE_COMPANY.addressLines.join(", ")}</p>
-                </div>
+          <div className="border-b border-[#E2E8F0] px-6 py-5 print:px-4 print:py-3">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_210px] print:gap-2">
+              <div>
+                <p className="text-[20px] font-black tracking-[-0.03em] text-[#0F172A] print:text-[16px]">{PLATFORM_INVOICE_COMPANY.brandName}</p>
+                <p className="mt-1 text-[12px] font-semibold text-[#334155] print:mt-0.5 print:text-[10px]">{PLATFORM_INVOICE_COMPANY.legalName}</p>
               </div>
-
-              <div className="rounded-[10px] border border-[#E2E8F0] bg-white px-5 py-5 text-right">
-                <p className="text-[34px] font-black tracking-[-0.04em] text-[#0F172A]">TAX INVOICE</p>
-                <p className="mt-2 text-[12px] font-semibold uppercase tracking-[0.16em] text-[#64748B]">Platform Commission Invoice</p>
-                <div className="mt-5 space-y-2 text-[13px]">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#64748B]">Invoice No</span>
-                    <span className="font-bold text-[#0F172A]">{invoice.invoiceNumber}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#64748B]">Date</span>
-                    <span className="font-semibold text-[#0F172A]">{invoice.invoiceDate}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#64748B]">Place of Supply</span>
-                    <span className="font-semibold text-[#0F172A]">{invoice.placeOfSupply}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-[#64748B]">Reverse Charge</span>
-                    <span className="font-semibold text-[#0F172A]">{invoice.reverseCharge}</span>
-                  </div>
+              <div className="text-right">
+                <p className="text-[24px] font-black tracking-[-0.04em] text-[#0F172A] print:text-[18px]">Tax Invoice</p>
+                <div className="mt-2 space-y-1 text-[12px] print:mt-1 print:space-y-0.5 print:text-[10px]">
+                  <p><span className="text-[#64748B]">Invoice No:</span> <span className="font-semibold text-[#0F172A]">{invoice.invoiceNumber}</span></p>
+                  <p><span className="text-[#64748B]">Invoice Date:</span> <span className="font-semibold text-[#0F172A]">{invoice.invoiceDate}</span></p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="px-8 py-8">
-            <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
-              <section className="rounded-[10px] border border-[#E2E8F0] bg-white p-5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0F172A]">Bill To</p>
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                  <InvoiceField label="Vendor Name" value={vendor.name} />
-                  <InvoiceField label="Business Name" value={vendor.name} />
-                  <InvoiceField label="Contact Person" value={vendor.ownerName} />
-                  <InvoiceField label="Phone Number" value={vendor.phone} />
-                  <InvoiceField label="Email" value={vendor.email} />
-                  <InvoiceField label="Vendor GST Number" value={vendor.gstNumber || "Not Available"} />
-                  <InvoiceField label="Locality" value={vendor.locality} />
-                  <InvoiceField label="City / State" value={`${vendor.city}, Rajasthan`} />
-                  <InvoiceField label="Pincode" value={vendor.pincode} />
-                  <div className="sm:col-span-2">
-                    <InvoiceField label="Full Billing Address" value={vendor.address} />
-                  </div>
+          <div className="space-y-4 px-6 py-5 print:space-y-3 print:px-4 print:py-3">
+            <div className="grid gap-4 md:grid-cols-2 print:gap-3">
+              <section className="border border-[#E2E8F0] p-3.5 print:p-2.5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0F172A] print:text-[9px]">Issued By</p>
+                <div className="mt-2.5 space-y-1 text-[12px] leading-[1.5] text-[#334155] print:mt-1.5 print:space-y-0.5 print:text-[10px] print:leading-[1.35]">
+                  <p className="font-semibold text-[#0F172A]">{PLATFORM_INVOICE_COMPANY.brandName}</p>
+                  <p>{PLATFORM_INVOICE_COMPANY.legalName}</p>
+                  <p>GSTIN: {PLATFORM_INVOICE_COMPANY.gstin}</p>
+                  <p>CIN: {PLATFORM_INVOICE_COMPANY.cin}</p>
+                  <p>Email: {PLATFORM_INVOICE_COMPANY.email}</p>
+                  <p>{PLATFORM_INVOICE_COMPANY.addressLines.join(", ")}</p>
                 </div>
               </section>
 
-              <section className="rounded-[10px] border border-[#E2E8F0] bg-white p-5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#0F172A]">Booking Context</p>
-                <div className="mt-4 space-y-3">
-                  <SummaryRow label="Order ID" value={order.id} />
-                  <SummaryRow label="Booking ID" value={order.id} />
-                  <SummaryRow label="Customer Name" value={order.customer.name} />
-                  <SummaryRow label="Event Date" value={formatDate(order.eventDate)} />
-                  <SummaryRow label="Package Name" value={order.packageName} />
-                  <SummaryRow label="Vendor Name" value={vendor.name} />
-                  <SummaryRow label="Gross Booking Amount" value={formatCurrency(invoice.principalAmount)} strong />
+              <section className="border border-[#E2E8F0] p-3.5 print:p-2.5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0F172A] print:text-[9px]">Bill To</p>
+                <div className="mt-2.5 space-y-1 text-[12px] leading-[1.5] text-[#334155] print:mt-1.5 print:space-y-0.5 print:text-[10px] print:leading-[1.35]">
+                  <p className="font-semibold text-[#0F172A]">{vendor.name}</p>
+                  <p>{vendor.name}</p>
+                  <p>{vendor.address}</p>
+                  <p>{vendor.locality}, {vendor.city}, Rajasthan {vendor.pincode}</p>
+                  <p>Phone: {vendor.phone}</p>
+                  <p>Email: {vendor.email}</p>
+                  <p>GST / Registration: {vendor.gstNumber || "Not Available"}</p>
                 </div>
               </section>
             </div>
 
-            <section className="mt-6 overflow-hidden rounded-[10px] border border-[#E2E8F0]">
-              <div className="grid grid-cols-[68px_minmax(0,1fr)_160px_110px_140px_160px] bg-[#0F172A] px-5 py-4 text-[11px] font-bold uppercase tracking-[0.14em] text-white">
-                <span>Sr. No.</span>
-                <span>Description</span>
-                <span className="text-right">Taxable Amount</span>
-                <span className="text-right">GST Rate</span>
-                <span className="text-right">GST Amount</span>
-                <span className="text-right">Total Amount</span>
+            <section className="border border-[#E2E8F0] p-3.5 print:p-2.5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#0F172A] print:text-[9px]">Reference</p>
+              <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 print:mt-1.5 print:gap-2">
+                <InvoiceField label="Order ID" value={order.id} />
+                <InvoiceField label="Event Date" value={formatDate(order.eventDate)} />
+                <InvoiceField label="Customer Name" value={order.customer.name} />
+                <InvoiceField label="Gross Booking Amount" value={formatCurrency(invoice.principalAmount)} />
               </div>
-              <div className="grid grid-cols-[68px_minmax(0,1fr)_160px_110px_140px_160px] border-t border-[#E2E8F0] px-5 py-5 text-[14px] text-[#334155]">
-                <span className="font-semibold text-[#0F172A]">01</span>
-                <div>
-                  <p className="font-bold text-[#0F172A]">{invoice.lineDescription}</p>
-                  <p className="mt-1 text-[12px] leading-[1.6] text-[#64748B]">
-                    Commission charged as per agreed vendor commercial terms
-                  </p>
+            </section>
+
+            <section className="overflow-hidden border border-[#E2E8F0]">
+              <div className="grid grid-cols-[minmax(0,1.7fr)_90px_55px_95px_105px] bg-[#0F172A] px-3.5 py-2.5 text-[9px] font-bold uppercase tracking-[0.11em] text-white print:grid-cols-[minmax(0,1.7fr)_78px_48px_82px_92px] print:px-2.5 print:py-2 print:text-[8px]">
+                <span>Description</span>
+                <span className="text-right">Commission</span>
+                <span className="text-right">GST %</span>
+                <span className="text-right">GST Amount</span>
+                <span className="text-right">Total Payable</span>
+              </div>
+              <div className="grid grid-cols-[minmax(0,1.7fr)_90px_55px_95px_105px] border-t border-[#E2E8F0] px-3.5 py-3 text-[12px] text-[#334155] print:grid-cols-[minmax(0,1.7fr)_78px_48px_82px_92px] print:px-2.5 print:py-2 print:text-[10px]">
+                <div className="pr-4 print:pr-2">
+                  <p className="font-semibold text-[#0F172A]">Platform commission on booking order {order.id}</p>
                 </div>
                 <span className="text-right font-semibold text-[#0F172A]">{formatCurrency(invoice.commissionAmount)}</span>
                 <span className="text-right">{Math.round(COMMISSION_GST_RATE * 100)}%</span>
@@ -224,45 +242,25 @@ export default function AdminCommissionInvoicePage() {
               </div>
             </section>
 
-            <div className="mt-6 grid gap-6 md:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="space-y-6">
-                <section className="rounded-[10px] border border-[#E2E8F0] bg-white p-5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#64748B]">Terms</p>
-                  <ol className="mt-4 list-decimal space-y-2 pl-5 text-[13px] leading-[1.7] text-[#334155]">
-                    {invoice.terms.map((term) => (
-                      <li key={term}>{term}</li>
-                    ))}
-                  </ol>
-                </section>
+            <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px] print:gap-3 print:md:grid-cols-[minmax(0,1fr)_220px]">
+              <section className="border border-[#E2E8F0] p-3.5 print:p-2.5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B] print:text-[9px]">Amount in Words</p>
+                <p className="mt-2 text-[13px] font-semibold leading-[1.5] text-[#0F172A] print:mt-1.5 print:text-[10.5px] print:leading-[1.35]">{invoice.amountInWords}</p>
+              </section>
 
-                <section className="rounded-[10px] border border-[#E2E8F0] bg-white p-5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#64748B]">Amount in Words</p>
-                  <p className="mt-3 text-[15px] font-semibold leading-[1.8] text-[#0F172A]">{invoice.amountInWords}</p>
-                </section>
-              </div>
-
-              <section className="rounded-[10px] border border-[#E2E8F0] bg-white p-5">
-                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#64748B]">Invoice Summary</p>
-                <div className="mt-4 space-y-3">
+              <section className="border border-[#E2E8F0] p-3.5 print:p-2.5">
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B] print:text-[9px]">Summary</p>
+                <div className="mt-2.5 space-y-2 print:mt-1.5 print:space-y-1.5">
                   <SummaryRow label="Taxable Value" value={formatCurrency(invoice.commissionAmount)} />
-                  <SummaryRow label="CGST @ 9%" value={formatCurrency(gstHalf)} />
-                  <SummaryRow label="SGST @ 9%" value={formatCurrency(invoice.gstAmount - gstHalf)} />
-                </div>
-                <div className="mt-5 border-t border-[#E2E8F0] pt-4">
+                  <SummaryRow label="GST" value={formatCurrency(invoice.gstAmount)} />
                   <SummaryRow label="Grand Total" value={formatCurrency(invoice.totalPayable)} strong />
                 </div>
               </section>
             </div>
 
-            <section className="mt-8 flex items-end justify-between gap-6 border-t border-[#E2E8F0] pt-8">
-              <div className="max-w-[420px] text-[12px] leading-[1.7] text-[#64748B]">
-                <p className="font-semibold text-[#334155]">For {PLATFORM_INVOICE_COMPANY.legalName}</p>
-                <p>This is a system-generated invoice and does not require physical signature.</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[12px] font-bold uppercase tracking-[0.16em] text-[#64748B]">Authorized Signatory</p>
-                <div className="mt-10 h-px w-[180px] bg-[#94A3B8]" />
-                <p className="mt-2 text-[13px] font-semibold text-[#0F172A]">{PLATFORM_INVOICE_COMPANY.brandName}</p>
+            <section className="border-t border-[#E2E8F0] pt-4 print:pt-2.5">
+              <div className="text-[12px] leading-[1.6] text-[#64748B] print:text-[10px] print:leading-[1.3]">
+                <p>This is a system-generated invoice.</p>
               </div>
             </section>
           </div>
