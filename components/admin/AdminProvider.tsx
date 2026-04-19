@@ -11,6 +11,7 @@ import {
   createVendorRecord,
   declineVendor,
   getAdminSession,
+  getAdminSeedState,
   getAdminState,
   getAdminUserFromSession,
   logOrderCommunication,
@@ -71,7 +72,7 @@ const AdminContext = createContext<AdminContextValue | null>(null);
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<AdminSession | null>(null);
-  const [state, setState] = useState<AdminState>(getAdminState());
+  const [state, setState] = useState<AdminState>(() => getAdminSeedState());
 
   const refresh = useCallback(() => {
     setState(getAdminState());

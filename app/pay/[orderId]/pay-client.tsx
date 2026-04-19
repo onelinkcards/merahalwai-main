@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatCurrency } from "@/data/mockAccount";
-import { getAdminOrderById, type AdminOrderRecord } from "@/data/mockAdmin";
+import { getAdminOrderById, markPaymentDone, type AdminOrderRecord } from "@/data/mockAdmin";
 import CustomerPaymentSplit from "@/components/booking/CustomerPaymentSplit";
 import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import { getSupportTelHref, getSupportWhatsappHref } from "@/lib/supportContact";
@@ -22,12 +23,12 @@ declare global {
 type PayClientProps = { orderId: string };
 
 export default function PayClient({ orderId }: PayClientProps) {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [paid, setPaid] = useState(false);
-  const order: AdminOrderRecord | null = getAdminOrderById(orderId);
+  const [order, setOrder] = useState<AdminOrderRecord | null | undefined>(undefined);
   const razorpayKey =
     process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ?? "rzp_live_SZTkZ0kcr1wMAN";
-  const razorpayCheckoutAmountPaise = 100;
   const {
     bookingValue,
     upfrontBase,
@@ -45,6 +46,11 @@ export default function PayClient({ orderId }: PayClientProps) {
         remainingAmount: 0,
         customerGrandTotal: 0,
       };
+  const razorpayCheckoutAmountPaise = Math.max(100, Math.round(advanceAmount * 100));
+
+  useEffect(() => {
+    setOrder(getAdminOrderById(orderId));
+  }, [orderId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -66,6 +72,9 @@ export default function PayClient({ orderId }: PayClientProps) {
         { label: "70% At Property", value: balanceAtProperty },
       ]
     : [];
+  if (order === undefined) {
+    return <div className="min-h-screen bg-[#F5F7FB]" />;
+  }
   if (!order) {
     return (
       <div className="min-h-screen bg-[#F5F7FB] px-4 py-10 text-[#111827]">
@@ -107,9 +116,12 @@ export default function PayClient({ orderId }: PayClientProps) {
         package: order.packageName,
       },
       theme: { color: "#EC9925" },
-      handler: () => {
+      handler: (response: { razorpay_payment_id?: string }) => {
+        const paymentId = response.razorpay_payment_id || `RAZORPAY-${order.id}`;
+        markPaymentDone(order.id, paymentId, "Razorpay");
         setPaid(true);
         setIsLoading(false);
+        router.replace(`/booking/payment-confirmed?orderId=${order.id}`);
       },
       modal: {
         ondismiss: () => setIsLoading(false),

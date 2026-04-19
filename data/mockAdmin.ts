@@ -1,9 +1,25 @@
 "use client";
 
 import { DEMO_ORDERS, DEMO_USER, type DemoAddress, type DemoOrder } from "@/data/mockAccount";
-import { VENDORS, getVendorDetailBySlug } from "@/data/vendors";
+import { MASTER_MENU, MASTER_MENU_ADDON_GROUPS, VENDORS, getVendorDetailBySlug } from "@/data/vendors";
 import { getCustomerFacingBillSummary } from "@/lib/calculateBill";
 import type { BookingCategoryKey, FoodPreference, PackageTier } from "@/store/bookingStore";
+
+const PLATFORM_OPTIONAL_ADDON_NAMES = [
+  "Soft Drink",
+  "Buttermilk / Chaas",
+  "Sweet Lassi",
+  "Salted Lassi",
+  "Mocktail",
+  "Ice Cream",
+  "Falooda",
+  "Kulfi Counter",
+  "Extra Raita",
+  "Extra Papad",
+  "Chaat Counter",
+  "Live Counter",
+  "Tea / Coffee Counter",
+] as const;
 
 export type AdminRole = "admin";
 export type AdminOrderStatus =
@@ -82,8 +98,19 @@ export type AdminWaterConfig = {
 };
 
 export type AdminPlatformMenuConfig = {
+  menuCategories: Array<{
+    key: BookingCategoryKey;
+    label: string;
+    position: number;
+    items: Array<{ name: string; isVeg: boolean }>;
+  }>;
   categoryRequiredCounts: Record<PackageTier, Record<BookingCategoryKey, number>>;
   optionalAddOns: Array<{ id: string; name: string; isVeg: boolean; enabled: boolean; pricePerPax: number }>;
+  optionalAddOnGroups: Array<{
+    key: string;
+    title: string;
+    items: string[];
+  }>;
   water: {
     roPricePerPax: number;
     defaultSelection: "ro" | "packaged";
@@ -329,33 +356,53 @@ function iso(date: string) {
 }
 
 const categoryLabelMap: Record<BookingCategoryKey, string> = {
-  soupsDrinks: "Soups / Drinks",
-  starters: "Starters",
-  mainCourse: "Main Course",
-  riceBreads: "Rice & Breads",
+  soups: "Soups",
+  vegStarters: "Veg Starters",
+  nonVegStarters: "Non-Veg Starters",
+  vegMainCourse: "Veg Main Course",
+  nonVegMainCourse: "Non-Veg Main Course",
+  dalKadhiLegumes: "Dal / Kadhi / Legumes",
+  riceBiryani: "Rice / Biryani",
+  indianBreads: "Indian Breads",
+  accompaniments: "Accompaniments",
   desserts: "Desserts",
 };
 
 const packageCategoryDefaults: Record<PackageTier, AdminCategoryConfig[]> = {
   bronze: [
-    { categoryKey: "soupsDrinks", label: "Soups / Drinks", minRequired: 0, includedCount: 1, maxSelectableCount: 1 },
-    { categoryKey: "starters", label: "Starters", minRequired: 1, includedCount: 2, maxSelectableCount: 3 },
-    { categoryKey: "mainCourse", label: "Main Course", minRequired: 2, includedCount: 3, maxSelectableCount: 4 },
-    { categoryKey: "riceBreads", label: "Rice & Breads", minRequired: 1, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "soups", label: "Soups", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "vegStarters", label: "Veg Starters", minRequired: 2, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "nonVegStarters", label: "Non-Veg Starters", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "vegMainCourse", label: "Veg Main Course", minRequired: 2, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "nonVegMainCourse", label: "Non-Veg Main Course", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "dalKadhiLegumes", label: "Dal / Kadhi / Legumes", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "riceBiryani", label: "Rice / Biryani", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "indianBreads", label: "Indian Breads", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "accompaniments", label: "Accompaniments", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
     { categoryKey: "desserts", label: "Desserts", minRequired: 1, includedCount: 1, maxSelectableCount: 2 },
   ],
   silver: [
-    { categoryKey: "soupsDrinks", label: "Soups / Drinks", minRequired: 0, includedCount: 1, maxSelectableCount: 2 },
-    { categoryKey: "starters", label: "Starters", minRequired: 2, includedCount: 4, maxSelectableCount: 5 },
-    { categoryKey: "mainCourse", label: "Main Course", minRequired: 3, includedCount: 4, maxSelectableCount: 6 },
-    { categoryKey: "riceBreads", label: "Rice & Breads", minRequired: 1, includedCount: 2, maxSelectableCount: 3 },
-    { categoryKey: "desserts", label: "Desserts", minRequired: 1, includedCount: 1, maxSelectableCount: 2 },
+    { categoryKey: "soups", label: "Soups", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "vegStarters", label: "Veg Starters", minRequired: 2, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "nonVegStarters", label: "Non-Veg Starters", minRequired: 2, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "vegMainCourse", label: "Veg Main Course", minRequired: 2, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "nonVegMainCourse", label: "Non-Veg Main Course", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "dalKadhiLegumes", label: "Dal / Kadhi / Legumes", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "riceBiryani", label: "Rice / Biryani", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "indianBreads", label: "Indian Breads", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "accompaniments", label: "Accompaniments", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "desserts", label: "Desserts", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
   ],
   gold: [
-    { categoryKey: "soupsDrinks", label: "Soups / Drinks", minRequired: 0, includedCount: 2, maxSelectableCount: 2 },
-    { categoryKey: "starters", label: "Starters", minRequired: 2, includedCount: 5, maxSelectableCount: 6 },
-    { categoryKey: "mainCourse", label: "Main Course", minRequired: 3, includedCount: 5, maxSelectableCount: 8 },
-    { categoryKey: "riceBreads", label: "Rice & Breads", minRequired: 1, includedCount: 2, maxSelectableCount: 4 },
+    { categoryKey: "soups", label: "Soups", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "vegStarters", label: "Veg Starters", minRequired: 3, includedCount: 3, maxSelectableCount: 3 },
+    { categoryKey: "nonVegStarters", label: "Non-Veg Starters", minRequired: 2, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "vegMainCourse", label: "Veg Main Course", minRequired: 3, includedCount: 3, maxSelectableCount: 3 },
+    { categoryKey: "nonVegMainCourse", label: "Non-Veg Main Course", minRequired: 2, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "dalKadhiLegumes", label: "Dal / Kadhi / Legumes", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "riceBiryani", label: "Rice / Biryani", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
+    { categoryKey: "indianBreads", label: "Indian Breads", minRequired: 2, includedCount: 2, maxSelectableCount: 2 },
+    { categoryKey: "accompaniments", label: "Accompaniments", minRequired: 1, includedCount: 1, maxSelectableCount: 1 },
     { categoryKey: "desserts", label: "Desserts", minRequired: 1, includedCount: 1, maxSelectableCount: 5 },
   ],
 };
@@ -390,42 +437,35 @@ function buildMenuItems(
   }));
 
   const result: Record<BookingCategoryKey, AdminMenuItem[]> = {
-    soupsDrinks: [],
-    starters: [],
-    mainCourse: [],
-    riceBreads: [],
+    soups: [],
+    vegStarters: [],
+    nonVegStarters: [],
+    vegMainCourse: [],
+    nonVegMainCourse: [],
+    dalKadhiLegumes: [],
+    riceBiryani: [],
+    indianBreads: [],
+    accompaniments: [],
     desserts: [],
   };
 
   const alias: Record<string, BookingCategoryKey> = {
-    soups: "soupsDrinks",
-    "welcome drinks": "soupsDrinks",
-    "soups / drinks": "soupsDrinks",
-    starters: "starters",
-    "veg starters": "starters",
-    "non-veg starters": "starters",
-    "main course": "mainCourse",
-    "veg main course": "mainCourse",
-    "non-veg main course": "mainCourse",
-    "dal / kadhi / legumes": "mainCourse",
-    "rice & breads": "riceBreads",
-    "rice / biryani": "riceBreads",
-    "indian breads": "riceBreads",
+    soups: "soups",
+    "veg starters": "vegStarters",
+    "non-veg starters": "nonVegStarters",
+    "veg main course": "vegMainCourse",
+    "non-veg main course": "nonVegMainCourse",
+    "dal / kadhi / legumes": "dalKadhiLegumes",
+    "rice / biryani": "riceBiryani",
+    "indian breads": "indianBreads",
+    accompaniments: "accompaniments",
     desserts: "desserts",
   };
 
   const imageFallback = categories.flatMap((category) => category.items).map((item) => item.name);
 
   categories.forEach((category, categoryIndex) => {
-    const key = alias[category.name.toLowerCase()] ?? (category.name.toLowerCase().includes("rice") || category.name.toLowerCase().includes("bread")
-      ? "riceBreads"
-      : category.name.toLowerCase().includes("dessert")
-        ? "desserts"
-        : category.name.toLowerCase().includes("starter")
-          ? "starters"
-          : category.name.toLowerCase().includes("main")
-            ? "mainCourse"
-            : "soupsDrinks");
+    const key = alias[category.name.toLowerCase()] ?? "desserts";
 
     category.items.forEach((item, itemIndex) => {
       if (menuType === "veg_only" && !item.isVeg) return;
@@ -1130,44 +1170,90 @@ function buildSeedState(): AdminState {
     paymentLinkProvider: "Razorpay",
     paymentLinkEnabled: true,
     categoryMaster: [
-      { key: "soupsDrinks", label: "Soups / Drinks" },
-      { key: "starters", label: "Starters" },
-      { key: "mainCourse", label: "Main Course" },
-      { key: "riceBreads", label: "Rice & Breads" },
+      { key: "soups", label: "Soups" },
+      { key: "vegStarters", label: "Veg Starters" },
+      { key: "nonVegStarters", label: "Non-Veg Starters" },
+      { key: "vegMainCourse", label: "Veg Main Course" },
+      { key: "nonVegMainCourse", label: "Non-Veg Main Course" },
+      { key: "dalKadhiLegumes", label: "Dal / Kadhi / Legumes" },
+      { key: "riceBiryani", label: "Rice / Biryani" },
+      { key: "indianBreads", label: "Indian Breads" },
+      { key: "accompaniments", label: "Accompaniments" },
       { key: "desserts", label: "Desserts" },
     ],
     paxSlabMaster: ["1-50", "50-100", "100-200", "200-500", "500-1000", "1000+"],
     platformMenu: {
+      menuCategories: MASTER_MENU.map((category, index) => ({
+        key: ({
+          Soups: "soups",
+          "Veg Starters": "vegStarters",
+          "Non-Veg Starters": "nonVegStarters",
+          "Veg Main Course": "vegMainCourse",
+          "Non-Veg Main Course": "nonVegMainCourse",
+          "Dal / Kadhi / Legumes": "dalKadhiLegumes",
+          "Rice / Biryani": "riceBiryani",
+          "Indian Breads": "indianBreads",
+          Accompaniments: "accompaniments",
+          Desserts: "desserts",
+        } as Record<string, BookingCategoryKey>)[category.name],
+        label: category.name,
+        position: index + 1,
+        items: category.items.map((item) => ({ name: item.name, isVeg: item.isVeg })),
+      })),
       categoryRequiredCounts: {
         bronze: {
-          soupsDrinks: 1,
-          starters: 2,
-          mainCourse: 3,
-          riceBreads: 2,
+          soups: 1,
+          vegStarters: 2,
+          nonVegStarters: 1,
+          vegMainCourse: 2,
+          nonVegMainCourse: 1,
+          dalKadhiLegumes: 1,
+          riceBiryani: 1,
+          indianBreads: 1,
+          accompaniments: 1,
           desserts: 1,
         },
         silver: {
-          soupsDrinks: 1,
-          starters: 3,
-          mainCourse: 4,
-          riceBreads: 2,
-          desserts: 2,
+          soups: 1,
+          vegStarters: 2,
+          nonVegStarters: 2,
+          vegMainCourse: 2,
+          nonVegMainCourse: 1,
+          dalKadhiLegumes: 1,
+          riceBiryani: 1,
+          indianBreads: 1,
+          accompaniments: 1,
+          desserts: 1,
         },
         gold: {
-          soupsDrinks: 2,
-          starters: 4,
-          mainCourse: 5,
-          riceBreads: 3,
+          soups: 1,
+          vegStarters: 3,
+          nonVegStarters: 2,
+          vegMainCourse: 3,
+          nonVegMainCourse: 2,
+          dalKadhiLegumes: 1,
+          riceBiryani: 1,
+          indianBreads: 2,
+          accompaniments: 1,
           desserts: 2,
         },
       },
-      optionalAddOns: vendors[0]?.addons.map((addon) => ({
-        id: addon.id,
-        name: addon.name,
-        isVeg: addon.isVeg,
-        enabled: addon.enabled,
-        pricePerPax: addon.pricePerPax,
-      })) ?? [],
+      optionalAddOns:
+        PLATFORM_OPTIONAL_ADDON_NAMES.map((name) => {
+          const matched = vendors[0]?.addons.find((addon) => addon.name === name);
+          return {
+            id: matched?.id ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+            name,
+            isVeg: matched?.isVeg ?? true,
+            enabled: matched?.enabled ?? true,
+            pricePerPax: matched?.pricePerPax ?? 0,
+          };
+        }) ?? [],
+      optionalAddOnGroups: MASTER_MENU_ADDON_GROUPS.map((group) => ({
+        key: group.key,
+        title: group.title,
+        items: [...group.items],
+      })),
       water: {
         roPricePerPax: 0,
         defaultSelection: "ro",
@@ -1184,24 +1270,24 @@ function buildSeedState(): AdminState {
   const activityFeed: AdminSystemActivity[] = [
     {
       id: "activity-1",
-      label: "Vendor link copied",
-      helper: "Rajputana Grand Caterers link copied for order MH240034",
+      label: "Order placed",
+      helper: "New booking request MH240031 received from Priya Sharma",
       at: iso("2026-04-01T09:35:00+05:30"),
       tone: "neutral",
     },
     {
       id: "activity-2",
-      label: "Payment reminder pending",
-      helper: "Order MH240036 needs a payment follow-up within 3 hours",
+      label: "Payment received",
+      helper: "Customer payment captured for order MH240036",
       at: iso("2026-04-01T09:10:00+05:30"),
-      tone: "warning",
+      tone: "success",
     },
     {
       id: "activity-3",
-      label: "Vendor declined booking",
-      helper: "Order MH240035 needs reassignment urgently",
+      label: "Vendor confirmed",
+      helper: "Rajputana Grand Caterers confirmed order MH240034",
       at: iso("2026-03-30T12:15:00+05:30"),
-      tone: "danger",
+      tone: "success",
     },
   ];
 
@@ -1264,6 +1350,9 @@ function normalizeAdminState(state: AdminState, fallback: AdminState): AdminStat
     platformMenu: {
       ...fallback.settings.platformMenu,
       ...(next.settings?.platformMenu ?? {}),
+      menuCategories: Array.isArray(next.settings?.platformMenu?.menuCategories)
+        ? next.settings.platformMenu.menuCategories
+        : fallback.settings.platformMenu.menuCategories,
       categoryRequiredCounts: {
         bronze: {
           ...fallback.settings.platformMenu.categoryRequiredCounts.bronze,
@@ -1281,6 +1370,9 @@ function normalizeAdminState(state: AdminState, fallback: AdminState): AdminStat
       optionalAddOns: Array.isArray(next.settings?.platformMenu?.optionalAddOns)
         ? next.settings.platformMenu.optionalAddOns
         : fallback.settings.platformMenu.optionalAddOns,
+      optionalAddOnGroups: Array.isArray(next.settings?.platformMenu?.optionalAddOnGroups)
+        ? next.settings.platformMenu.optionalAddOnGroups
+        : fallback.settings.platformMenu.optionalAddOnGroups,
       water: {
         ...fallback.settings.platformMenu.water,
         ...(next.settings?.platformMenu?.water ?? {}),
@@ -1363,6 +1455,10 @@ function writeStorage<T>(key: string, value: T) {
 export function getAdminState(): AdminState {
   const fallback = buildSeedState();
   return normalizeAdminState(readStorage(ADMIN_STATE_KEY, fallback), fallback);
+}
+
+export function getAdminSeedState(): AdminState {
+  return buildSeedState();
 }
 
 export function getAdminSupportConfig() {
@@ -1501,12 +1597,6 @@ export function notifyVendor(orderId: string, actor = "Admin Desk") {
       helper: "Vendor confirmation link shared over WhatsApp",
       at: now,
     });
-    appendFeedItem(state, {
-      label: "Vendor notified",
-      helper: `${order.vendorName} notified for order ${order.id}`,
-      at: now,
-      tone: "neutral",
-    });
   });
 }
 
@@ -1551,12 +1641,6 @@ export function declineVendor(orderId: string, actor = "Admin Desk") {
       helper: "Vendor marked the booking unavailable",
       at: now,
     });
-    appendFeedItem(state, {
-      label: "Vendor declined",
-      helper: `${order.vendorName} declined order ${order.id}`,
-      at: now,
-      tone: "danger",
-    });
   });
 }
 
@@ -1578,12 +1662,6 @@ export function sendPaymentLink(orderId: string, actor = "Admin Desk") {
       at: now,
     });
     updateInvoiceForOrder(state, order);
-    appendFeedItem(state, {
-      label: "Payment link sent",
-      helper: `Payment link sent for order ${order.id}`,
-      at: now,
-      tone: "warning",
-    });
   });
 }
 
@@ -1628,12 +1706,6 @@ export function confirmBooking(orderId: string, actor = "Admin Desk") {
       helper: "Booking moved to confirmed state",
       at: now,
     });
-    appendFeedItem(state, {
-      label: "Booking confirmed",
-      helper: `${order.id} moved to final confirmed state`,
-      at: now,
-      tone: "success",
-    });
   });
 }
 
@@ -1651,12 +1723,6 @@ export function cancelOrder(orderId: string, actor = "Admin Desk") {
       label: "Order cancelled",
       helper: "Order cancelled from admin panel",
       at: now,
-    });
-    appendFeedItem(state, {
-      label: "Order cancelled",
-      helper: `${order.id} cancelled by ${actor}`,
-      at: now,
-      tone: "danger",
     });
   });
 }
@@ -1684,12 +1750,6 @@ export function reassignVendor(orderId: string, vendorId: string, actor = "Admin
       label: "Vendor reassigned",
       helper: `Vendor changed to ${vendor.name}`,
       at: now,
-    });
-    appendFeedItem(state, {
-      label: "Vendor reassigned",
-      helper: `Order ${order.id} moved to ${vendor.name}`,
-      at: now,
-      tone: "warning",
     });
   });
 }
@@ -1732,12 +1792,14 @@ export function logOrderCommunication(
       helper,
       at: now,
     });
-    appendFeedItem(state, {
-      label,
-      helper,
-      at: now,
-      tone,
-    });
+    if (["Order placed", "Payment received", "Vendor confirmed"].includes(label)) {
+      appendFeedItem(state, {
+        label,
+        helper,
+        at: now,
+        tone,
+      });
+    }
   });
 }
 

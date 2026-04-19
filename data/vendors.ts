@@ -271,6 +271,31 @@ export const VENDORS: Vendor[] = [
     ],
   },
   {
+    id: 41,
+    slug: "hotel-royal-bagh8765786",
+    name: "Royal Bagh",
+    location: "Jagatpura, Jaipur",
+    rating: 4.7,
+    reviews: 164,
+    isVeg: false,
+    verified: true,
+    cuisines: ["North Indian", "Rajasthani", "Mughlai"],
+    eventTypes: ["Wedding", "Haldi Ceremony", "Mehendi Ceremony"],
+    specialisations: ["Royal Setup", "Live Counter", "Premium Service"],
+    minPax: 80,
+    maxPax: 1800,
+    priceVeg: 620,
+    description:
+      "Royal Bagh serves large-format wedding menus, elegant buffet presentation, and coordinated event catering across Jaipur.",
+    images: [
+      "https://images.unsplash.com/photo-1519225421980-715cb0215aed?w=1400&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1555244162-803834f70033?w=900&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=900&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=900&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=900&q=80&auto=format&fit=crop",
+    ],
+  },
+  {
     id: 5,
     slug: "royal-rasoi-collective",
     name: "Royal Rasoi Collective",
@@ -1077,5 +1102,28 @@ export const MASTER_MENU = [
       { name: "Moong Dal Halwa", isVeg: true },
       { name: "Kulfi", isVeg: true },
     ],
+  },
+] as const;
+
+export const MASTER_MENU_ADDON_GROUPS = [
+  {
+    key: "beverages",
+    title: "Beverages",
+    items: ["Soft Drink", "Buttermilk / Chaas", "Sweet Lassi", "Salted Lassi", "Mocktail"],
+  },
+  {
+    key: "dessertAddons",
+    title: "Dessert Add-ons",
+    items: ["Ice Cream", "Falooda", "Kulfi Counter"],
+  },
+  {
+    key: "extras",
+    title: "Extras",
+    items: ["Extra Raita", "Extra Papad", "Water"],
+  },
+  {
+    key: "premiumEventAddons",
+    title: "Premium / Event Add-ons",
+    items: ["Chaat Counter", "Live Counter", "Tea / Coffee Counter"],
   },
 ] as const;

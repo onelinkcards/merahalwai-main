@@ -5,10 +5,15 @@ export type OrderStatus = "pending" | "confirmed" | "paid" | "completed" | "canc
 export type WaterType = "ro" | "packaged" | "both" | "none";
 export type FoodPreference = "" | "veg" | "veg_nonveg";
 export type BookingCategoryKey =
-  | "soupsDrinks"
-  | "starters"
-  | "mainCourse"
-  | "riceBreads"
+  | "soups"
+  | "vegStarters"
+  | "nonVegStarters"
+  | "vegMainCourse"
+  | "nonVegMainCourse"
+  | "dalKadhiLegumes"
+  | "riceBiryani"
+  | "indianBreads"
+  | "accompaniments"
   | "desserts";
 
 export type CategorySelectionSummary = {

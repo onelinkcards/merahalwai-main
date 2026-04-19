@@ -10,8 +10,8 @@ export default function AdminNotificationsPage() {
   const activity = useMemo(() => state.activityFeed.slice(0, 10), [state.activityFeed]);
 
   return (
-    <AdminShell title="Notifications" description="Recent admin-side notification activity.">
-      <AdminTableCard title="Recent notifications" eyebrow="Activity">
+    <AdminShell title="Activity" description="Core order, payment, and vendor confirmation updates.">
+      <AdminTableCard title="Recent activity" eyebrow="Activity">
         <div className="overflow-hidden">
           <table className="min-w-full text-left">
             <thead className="bg-[#F8FAFC] text-[11px] font-bold uppercase tracking-[0.16em] text-[#64748B]">

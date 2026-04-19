@@ -183,10 +183,10 @@ export default function AdminDashboardPage() {
           </div>
         </AdminPanel>
 
-        <div className="grid min-w-0 gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+        <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <div className="min-w-0">
             <AdminPanel title="Needs action" eyebrow="Priority" description="Orders that need handling next." className="min-w-0">
-              <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {actionQueue.map((order) => (
                   <Link
                     key={order.id}

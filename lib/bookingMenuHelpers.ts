@@ -41,6 +41,12 @@ export type ReviewMenuGroup = {
   items: { key: string; name: string; isVeg: boolean; isAddOn: boolean }[];
 };
 
+export type MenuPreviewSection = {
+  title: string;
+  items: { name: string; isVeg: boolean }[];
+  more: number;
+};
+
 export type WaterOption = {
   id: WaterType;
   label: string;
@@ -50,41 +56,66 @@ export type WaterOption = {
 };
 
 const CATEGORY_ORDER: BookingCategoryKey[] = [
-  "soupsDrinks",
-  "starters",
-  "mainCourse",
-  "riceBreads",
+  "soups",
+  "vegStarters",
+  "nonVegStarters",
+  "vegMainCourse",
+  "nonVegMainCourse",
+  "dalKadhiLegumes",
+  "riceBiryani",
+  "indianBreads",
+  "accompaniments",
   "desserts",
 ];
 
 const CATEGORY_LABELS: Record<BookingCategoryKey, string> = {
-  soupsDrinks: "Soups / Drinks",
-  starters: "Starters",
-  mainCourse: "Main Course",
-  riceBreads: "Rice & Breads",
+  soups: "Soups",
+  vegStarters: "Veg Starters",
+  nonVegStarters: "Non-Veg Starters",
+  vegMainCourse: "Veg Main Course",
+  nonVegMainCourse: "Non-Veg Main Course",
+  dalKadhiLegumes: "Dal / Kadhi / Legumes",
+  riceBiryani: "Rice / Biryani",
+  indianBreads: "Indian Breads",
+  accompaniments: "Accompaniments",
   desserts: "Desserts",
 };
 
 const PACKAGE_RULES: Record<PackageTier, Record<BookingCategoryKey, CategoryRule>> = {
   bronze: {
-    soupsDrinks: { requiredCount: 1 },
-    starters: { requiredCount: 2 },
-    mainCourse: { requiredCount: 3 },
-    riceBreads: { requiredCount: 2 },
+    soups: { requiredCount: 1 },
+    vegStarters: { requiredCount: 2 },
+    nonVegStarters: { requiredCount: 1 },
+    vegMainCourse: { requiredCount: 2 },
+    nonVegMainCourse: { requiredCount: 1 },
+    dalKadhiLegumes: { requiredCount: 1 },
+    riceBiryani: { requiredCount: 1 },
+    indianBreads: { requiredCount: 1 },
+    accompaniments: { requiredCount: 1 },
     desserts: { requiredCount: 1 },
   },
   silver: {
-    soupsDrinks: { requiredCount: 1 },
-    starters: { requiredCount: 3 },
-    mainCourse: { requiredCount: 4 },
-    riceBreads: { requiredCount: 2 },
-    desserts: { requiredCount: 2 },
+    soups: { requiredCount: 1 },
+    vegStarters: { requiredCount: 2 },
+    nonVegStarters: { requiredCount: 2 },
+    vegMainCourse: { requiredCount: 2 },
+    nonVegMainCourse: { requiredCount: 1 },
+    dalKadhiLegumes: { requiredCount: 1 },
+    riceBiryani: { requiredCount: 1 },
+    indianBreads: { requiredCount: 1 },
+    accompaniments: { requiredCount: 1 },
+    desserts: { requiredCount: 1 },
   },
   gold: {
-    soupsDrinks: { requiredCount: 2 },
-    starters: { requiredCount: 4 },
-    mainCourse: { requiredCount: 5 },
-    riceBreads: { requiredCount: 3 },
+    soups: { requiredCount: 1 },
+    vegStarters: { requiredCount: 3 },
+    nonVegStarters: { requiredCount: 2 },
+    vegMainCourse: { requiredCount: 3 },
+    nonVegMainCourse: { requiredCount: 2 },
+    dalKadhiLegumes: { requiredCount: 1 },
+    riceBiryani: { requiredCount: 1 },
+    indianBreads: { requiredCount: 2 },
+    accompaniments: { requiredCount: 1 },
     desserts: { requiredCount: 2 },
   },
 };
@@ -96,7 +127,14 @@ function canUseBrowser() {
 }
 
 function readPlatformMenuConfig(): null | {
-  categoryRequiredCounts?: Partial<Record<PackageTier, Partial<Record<BookingCategoryKey, number>>>>;
+  menuCategories?: Array<{
+    key: BookingCategoryKey;
+    label: string;
+    position: number;
+    items: Array<{ name: string; isVeg: boolean }>;
+  }>;
+  categoryRequiredCounts?: Partial<Record<PackageTier, Partial<Record<BookingCategoryKey | "soupsDrinks" | "starters" | "mainCourse" | "riceBreads", number>>>>;
+  optionalAddOnGroups?: Array<{ key: string; title: string; items: string[] }>;
   water?: {
     roPricePerPax?: number;
     packagedBottlePrices?: Record<string, number>;
@@ -114,25 +152,46 @@ function readPlatformMenuConfig(): null | {
 }
 
 function sourceToGroup(categoryName: string): BookingCategoryKey {
-  const lower = categoryName.toLowerCase();
-  if (lower.includes("drink") || lower.includes("soup")) return "soupsDrinks";
-  if (lower.includes("starter")) return "starters";
-  if (
-    lower.includes("main") ||
-    lower.includes("dal") ||
-    lower.includes("legume") ||
-    lower.includes("kadhi")
-  ) {
-    return "mainCourse";
-  }
-  if (lower.includes("rice") || lower.includes("bread") || lower.includes("accompaniment") || lower.includes("side")) {
-    return "riceBreads";
-  }
-  return "desserts";
+  const alias: Record<string, BookingCategoryKey> = {
+    soups: "soups",
+    "veg starters": "vegStarters",
+    "non-veg starters": "nonVegStarters",
+    "veg main course": "vegMainCourse",
+    "non-veg main course": "nonVegMainCourse",
+    "dal / kadhi / legumes": "dalKadhiLegumes",
+    "rice / biryani": "riceBiryani",
+    "indian breads": "indianBreads",
+    accompaniments: "accompaniments",
+    desserts: "desserts",
+  };
+
+  return alias[categoryName.toLowerCase()] ?? "desserts";
 }
 
 function itemKey(categoryKey: BookingCategoryKey, itemName: string) {
   return `${categoryKey}::${itemName}`;
+}
+
+function getConfiguredMenuCategories() {
+  const platformMenu = readPlatformMenuConfig();
+  const configured = platformMenu?.menuCategories;
+  if (configured?.length) {
+    return [...configured]
+      .sort((left, right) => left.position - right.position)
+      .filter((category) => category.key && category.label && Array.isArray(category.items));
+  }
+
+  return MASTER_MENU.map((category, index) => ({
+    key: sourceToGroup(category.name),
+    label: category.name,
+    position: index + 1,
+    items: category.items.map((item) => ({ name: item.name, isVeg: item.isVeg })),
+  }));
+}
+
+export function getConfiguredAddOnGroups() {
+  const platformMenu = readPlatformMenuConfig();
+  return platformMenu?.optionalAddOnGroups?.length ? platformMenu.optionalAddOnGroups : [];
 }
 
 function normalizeFoodPreference(vendorIsVeg: boolean, foodPreference?: FoodPreference) {
@@ -149,17 +208,14 @@ function shouldIncludeItem(vendorIsVeg: boolean, foodPreference: FoodPreference 
 function vendorPackageDefaults(slug: string, packageId: string) {
   const vendor = getVendorDetailBySlug(slug);
   const pkg = vendor?.packages.find((entry) => entry.id === packageId);
-  const defaultNames = new Map<BookingCategoryKey, Set<string>>();
+  const defaultNames = new Set<string>();
 
   if (!pkg) return defaultNames;
 
   for (const category of pkg.categories) {
-    const groupKey = sourceToGroup(category.name);
-    const existing = defaultNames.get(groupKey) ?? new Set<string>();
     for (const item of category.items) {
-      if (item.isDefault) existing.add(item.name);
+      if (item.isDefault) defaultNames.add(item.name);
     }
-    defaultNames.set(groupKey, existing);
   }
 
   return defaultNames;
@@ -186,21 +242,9 @@ function buildSourceMenu(slug: string, packageId: PackageTier, foodPreference?: 
   const grouped = new Map<BookingCategoryKey, RawMenuItem[]>(
     CATEGORY_ORDER.map((categoryKey) => [categoryKey, []])
   );
-  const masterSources: Record<string, BookingCategoryKey> = {
-    Soups: "soupsDrinks",
-    "Veg Starters": "starters",
-    "Non-Veg Starters": "starters",
-    "Veg Main Course": "mainCourse",
-    "Non-Veg Main Course": "mainCourse",
-    "Dal / Kadhi / Legumes": "mainCourse",
-    "Rice / Biryani": "riceBreads",
-    "Indian Breads": "riceBreads",
-    Accompaniments: "riceBreads",
-    Desserts: "desserts",
-  };
 
-  for (const category of MASTER_MENU) {
-    const categoryKey = masterSources[category.name];
+  for (const category of getConfiguredMenuCategories()) {
+    const categoryKey = category.key;
     if (!categoryKey) continue;
     for (const item of category.items) {
       if (!shouldIncludeItem(vendor.isVeg, foodPreference, item.isVeg)) continue;
@@ -210,7 +254,7 @@ function buildSourceMenu(slug: string, packageId: PackageTier, foodPreference?: 
 
   return CATEGORY_ORDER.map((categoryKey) => {
     const rule = packageRules[categoryKey];
-    const defaults = defaultMap.get(categoryKey) ?? new Set<string>();
+    const defaults = defaultMap;
     const items = (grouped.get(categoryKey) ?? [])
       .map((item) => ({
         key: itemKey(categoryKey, item.name),
@@ -235,7 +279,7 @@ function buildSourceMenu(slug: string, packageId: PackageTier, foodPreference?: 
       rule,
       items,
     };
-  });
+  }).filter((group) => group.items.length > 0);
 }
 
 export function buildMenuPreviewGroups(
@@ -256,16 +300,45 @@ export function buildMenuPreviewGroups(
     .filter((group) => group.items.length > 0);
 }
 
+export function buildFullMenuPreviewSections(
+  slug: string,
+  foodPreference?: FoodPreference,
+  previewLimit = 4
+): MenuPreviewSection[] {
+  const vendor = getVendorDetailBySlug(slug);
+  if (!vendor) return [];
+
+  return getConfiguredMenuCategories().map((category) => {
+    const items = category.items.filter((item) =>
+      shouldIncludeItem(vendor.isVeg, foodPreference, item.isVeg)
+    );
+
+    return {
+      title: category.label,
+      items: items.slice(0, previewLimit).map((item) => ({
+        name: item.name,
+        isVeg: item.isVeg,
+      })),
+      more: Math.max(items.length - previewLimit, 0),
+    };
+  }).filter((category) => category.items.length > 0);
+}
+
 export function getPackageCategoryRules(packageId: PackageTier) {
   const platformMenu = readPlatformMenuConfig();
   const configured = platformMenu?.categoryRequiredCounts?.[packageId];
   if (!configured) return PACKAGE_RULES[packageId];
 
   return {
-    soupsDrinks: { requiredCount: configured.soupsDrinks ?? PACKAGE_RULES[packageId].soupsDrinks.requiredCount },
-    starters: { requiredCount: configured.starters ?? PACKAGE_RULES[packageId].starters.requiredCount },
-    mainCourse: { requiredCount: configured.mainCourse ?? PACKAGE_RULES[packageId].mainCourse.requiredCount },
-    riceBreads: { requiredCount: configured.riceBreads ?? PACKAGE_RULES[packageId].riceBreads.requiredCount },
+    soups: { requiredCount: configured.soups ?? configured.soupsDrinks ?? PACKAGE_RULES[packageId].soups.requiredCount },
+    vegStarters: { requiredCount: configured.vegStarters ?? configured.starters ?? PACKAGE_RULES[packageId].vegStarters.requiredCount },
+    nonVegStarters: { requiredCount: configured.nonVegStarters ?? configured.starters ?? PACKAGE_RULES[packageId].nonVegStarters.requiredCount },
+    vegMainCourse: { requiredCount: configured.vegMainCourse ?? configured.mainCourse ?? PACKAGE_RULES[packageId].vegMainCourse.requiredCount },
+    nonVegMainCourse: { requiredCount: configured.nonVegMainCourse ?? configured.mainCourse ?? PACKAGE_RULES[packageId].nonVegMainCourse.requiredCount },
+    dalKadhiLegumes: { requiredCount: configured.dalKadhiLegumes ?? configured.mainCourse ?? PACKAGE_RULES[packageId].dalKadhiLegumes.requiredCount },
+    riceBiryani: { requiredCount: configured.riceBiryani ?? configured.riceBreads ?? PACKAGE_RULES[packageId].riceBiryani.requiredCount },
+    indianBreads: { requiredCount: configured.indianBreads ?? configured.riceBreads ?? PACKAGE_RULES[packageId].indianBreads.requiredCount },
+    accompaniments: { requiredCount: configured.accompaniments ?? configured.riceBreads ?? PACKAGE_RULES[packageId].accompaniments.requiredCount },
     desserts: { requiredCount: configured.desserts ?? PACKAGE_RULES[packageId].desserts.requiredCount },
   };
 }

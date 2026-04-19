@@ -19,7 +19,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Navbar from "@/components/layout/Navbar";
 import { getVendorDetailBySlug, type VendorDetailFull } from "@/data/vendors";
-import { buildMenuPreviewGroups } from "@/lib/bookingMenuHelpers";
+import { buildFullMenuPreviewSections } from "@/lib/bookingMenuHelpers";
 import { useBookingStore, type FoodPreference, type PackageTier } from "@/store/bookingStore";
 
 type ReviewData = VendorDetailFull["reviews"][number];
@@ -188,9 +188,8 @@ export default function CatererDetailClient() {
   const menuGroups = useMemo(
     () =>
       selectedPackage
-        ? buildMenuPreviewGroups(
+        ? buildFullMenuPreviewSections(
             slug,
-            selectedPackage.id as PackageTier,
             (vendor?.isVeg || foodView === "veg" ? "veg" : "veg_nonveg") as FoodPreference
           )
         : [],

@@ -20,7 +20,6 @@ import {
   AdminInfoGrid,
   AdminLinkButton,
   AdminPanel,
-  AdminTableCard,
 } from "@/components/admin/AdminUi";
 import { formatCurrency } from "@/data/mockAccount";
 import { buildCommissionInvoice, getCommissionInvoiceRows } from "@/lib/commissionInvoice";
@@ -310,6 +309,25 @@ export default function AdminOrderDetailPage() {
               </div>
             </div>
           </AdminPanel>
+
+          <AdminPanel eyebrow="Activity" title="Booking Timeline">
+            <div className="space-y-3">
+              {order.activity.map((item) => (
+                <div key={item.id} className="rounded-[18px] border border-[#E2E8F0] bg-[#F8FAFC] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[15px] font-bold text-[#0F172A]">{item.label}</p>
+                      <p className="mt-1 text-[13px] leading-[1.7] text-[#64748B]">{item.helper}</p>
+                    </div>
+                    <span className="rounded-full border border-[#D7E3F4] bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-[#64748B]">
+                      {item.actor}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-[12px] font-medium text-[#64748B]">{formatDateTime(item.at)}</p>
+                </div>
+              ))}
+            </div>
+          </AdminPanel>
         </div>
 
         <div className="space-y-6 xl:sticky xl:top-24 xl:self-start">
@@ -457,21 +475,6 @@ export default function AdminOrderDetailPage() {
               </div>
             ) : null}
           </AdminPanel>
-
-          <AdminTableCard title="Timeline" eyebrow="Activity Log">
-            <div className="divide-y divide-[#E8EDF4]">
-              {order.activity.map((item) => (
-                <div key={item.id} className="flex flex-col gap-3 px-5 py-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[14px] font-semibold text-[#0F172A]">{item.label}</p>
-                    <span className="text-[12px] font-medium text-[#64748B]">{item.actor}</span>
-                  </div>
-                  <p className="text-[13px] leading-[1.7] text-[#64748B]">{item.helper}</p>
-                  <p className="text-[12px] text-[#64748B]">{formatDateTime(item.at)}</p>
-                </div>
-              ))}
-            </div>
-          </AdminTableCard>
         </div>
       </div>
     </AdminShell>

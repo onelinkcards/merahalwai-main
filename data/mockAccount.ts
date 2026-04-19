@@ -696,10 +696,15 @@ export function buildLiveOrderFromStore(store: Partial<BookingStore>): DemoOrder
   const bill = calculateBill(store);
   const customerBill = getCustomerFacingBillSummary(bill);
   const labelMap: Record<string, string> = {
-    soupsDrinks: "Soups / Drinks",
-    starters: "Starters",
-    mainCourse: "Main Course",
-    riceBreads: "Rice & Breads",
+    soups: "Soups",
+    vegStarters: "Veg Starters",
+    nonVegStarters: "Non-Veg Starters",
+    vegMainCourse: "Veg Main Course",
+    nonVegMainCourse: "Non-Veg Main Course",
+    dalKadhiLegumes: "Dal / Kadhi / Legumes",
+    riceBiryani: "Rice / Biryani",
+    indianBreads: "Indian Breads",
+    accompaniments: "Accompaniments",
     desserts: "Desserts",
   };
 

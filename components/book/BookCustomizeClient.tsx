@@ -17,11 +17,12 @@ import bronzeIcon from "@/Group 8284.png";
 import silverIcon from "@/silver.png";
 import goldIcon from "@/gold.png";
 import BookingStepper from "@/components/book/BookingStepper";
-import { getVendorDetailBySlug } from "@/data/vendors";
+import { MASTER_MENU_ADDON_GROUPS, getVendorDetailBySlug } from "@/data/vendors";
 import { hasAuthCookie } from "@/lib/authCookie";
 import { calculateBill } from "@/lib/calculateBill";
 import {
   buildBookingMenuGroups,
+  getConfiguredAddOnGroups,
   getCategorySelectionSummary,
   getWaterSelectionPrice,
   getWaterOptions,
@@ -38,29 +39,6 @@ const PACKAGE_META: Record<PackageTier, { icon: StaticImageData; title: string }
   silver: { icon: silverIcon, title: "Silver" },
   gold: { icon: goldIcon, title: "Gold" },
 };
-
-const ADDON_GROUPS = [
-  {
-    key: "beverages",
-    title: "Beverages",
-    items: ["Soft Drink", "Buttermilk / Chaas", "Sweet Lassi", "Salted Lassi", "Mocktail"],
-  },
-  {
-    key: "extras",
-    title: "Extras",
-    items: ["Extra Raita", "Extra Papad"],
-  },
-  {
-    key: "dessertAddons",
-    title: "Dessert Add-ons",
-    items: ["Ice Cream", "Falooda", "Kulfi Counter"],
-  },
-  {
-    key: "premium",
-    title: "Premium / Event Add-ons",
-    items: ["Chaat Counter", "Live Counter", "Tea / Coffee Counter"],
-  },
-];
 
 const ICE_CREAM_FLAVORS = ["Vanilla", "Chocolate", "Butterscotch", "Strawberry", "Kesar Pista"];
 
@@ -120,10 +98,15 @@ export default function BookCustomizeClient() {
   );
   const [specialNote, setSpecialNote] = useState(store.vendorSlug === slug ? store.specialNote : "");
   const [openGroups, setOpenGroups] = useState<Record<BookingCategoryKey, boolean>>({
-    soupsDrinks: true,
-    starters: false,
-    mainCourse: false,
-    riceBreads: false,
+    soups: true,
+    vegStarters: false,
+    nonVegStarters: false,
+    vegMainCourse: false,
+    nonVegMainCourse: false,
+    dalKadhiLegumes: false,
+    riceBiryani: false,
+    indianBreads: false,
+    accompaniments: false,
     desserts: false,
   });
   const groupRefs = useRef<Partial<Record<BookingCategoryKey, HTMLDivElement | null>>>({});
@@ -166,6 +149,16 @@ export default function BookCustomizeClient() {
   const activePackage = selectedPackage
     ? vendor?.packages.find((entry) => entry.id === selectedPackage) ?? null
     : null;
+
+  const addonGroups = useMemo(() => {
+    const configured = getConfiguredAddOnGroups();
+    const source = configured.length ? configured : MASTER_MENU_ADDON_GROUPS;
+    return source.map((group) => ({
+      key: group.key,
+      title: group.title,
+      items: [...group.items].filter((item) => item !== "Water"),
+    }));
+  }, []);
 
   const groups = useMemo(
     () => (selectedPackage && foodPreference ? buildBookingMenuGroups(slug, selectedPackage, selectedItems, foodPreference) : []),
@@ -407,7 +400,7 @@ export default function BookCustomizeClient() {
               <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-stone-500">Menu Builder</p>
-                  <h2 className="mt-1 text-[22px] font-black text-stone-950">Grouped categories</h2>
+                  <h2 className="mt-1 text-[22px] font-black text-stone-950">Menu Categories</h2>
                 </div>
               </div>
 
@@ -507,7 +500,7 @@ export default function BookCustomizeClient() {
               </div>
 
               <div className="mt-5 space-y-6">
-                {ADDON_GROUPS.map((group) => {
+                {addonGroups.map((group) => {
                   const groupItems = vendor.addons.filter((addon) => group.items.includes(addon.name));
                   if (!groupItems.length) return null;
                   return (

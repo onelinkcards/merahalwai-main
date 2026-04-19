@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FileDown, Printer } from "lucide-react";
 import { useAdmin } from "@/components/admin/AdminProvider";
 import { AdminButton, AdminEmptyState } from "@/components/admin/AdminUi";
 import { formatCurrency } from "@/data/mockAccount";
+import { getAdminOrderById } from "@/data/mockAdmin";
 import {
   buildCommissionInvoice,
   COMMISSION_GST_RATE,
@@ -44,10 +45,9 @@ export default function AdminCommissionInvoicePage() {
   const { ready, session, state } = useAdmin();
   const orderId = params?.orderId ?? "";
 
-  const order = useMemo(
-    () => state.orders.find((entry) => entry.id === orderId) ?? null,
-    [state.orders, orderId]
-  );
+  const order = useMemo(() => {
+    return state.orders.find((entry) => entry.id === orderId) ?? getAdminOrderById(orderId) ?? null;
+  }, [state.orders, orderId]);
   const vendor = useMemo(
     () => state.vendors.find((entry) => entry.id === order?.vendorId || entry.slug === order?.vendorSlug) ?? null,
     [state.vendors, order]
@@ -67,6 +67,67 @@ export default function AdminCommissionInvoicePage() {
       document.title = invoice.fileName.replace(/\.pdf$/i, "");
     }
   }, [ready, session, router, invoice]);
+
+  const handlePrintInvoice = useCallback(() => {
+    if (typeof window === "undefined" || !invoice) return;
+    const invoiceNode = document.getElementById("kry-invoice-a4");
+    if (!invoiceNode) return;
+
+    const printWindow = window.open("", "_blank", "noopener,noreferrer,width=960,height=1280");
+    if (!printWindow) return;
+
+    const title = invoice.fileName.replace(/\.pdf$/i, "");
+    const printHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>${title}</title>
+    <style>
+      @page { size: A4; margin: 7mm; }
+      * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #ffffff;
+        color: #0f172a;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      body { padding: 0; }
+      .invoice-print-root {
+        width: 196mm;
+        max-width: 196mm;
+        margin: 0 auto;
+        background: #ffffff;
+      }
+      .invoice-print-root section,
+      .invoice-print-root div,
+      .invoice-print-root table,
+      .invoice-print-root tr,
+      .invoice-print-root td {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      @media print {
+        html, body { width: 210mm; height: 297mm; overflow: hidden; }
+        .invoice-print-root { width: 100%; max-width: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-print-root">${invoiceNode.outerHTML}</div>
+  </body>
+</html>`;
+
+    printWindow.document.open();
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.onload = () => {
+      printWindow.print();
+      printWindow.onafterprint = () => printWindow.close();
+    };
+  }, [invoice]);
 
   if (!ready) {
     return <div className="min-h-screen bg-[#F8FAFC]" />;
@@ -91,75 +152,13 @@ export default function AdminCommissionInvoicePage() {
 
   return (
     <main className="min-h-screen bg-[#F8FAFC] px-4 py-6 md:px-6 print:bg-white print:px-0 print:py-0">
-      <style jsx global>{`
-        @page {
-          size: A4;
-          margin: 5mm;
-        }
-        @media print {
-          html,
-          body {
-            background: #ffffff !important;
-            height: auto !important;
-            overflow: visible !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          body * {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          #kry-invoice-a4 {
-            position: static !important;
-            width: 100% !important;
-            max-width: none !important;
-            min-height: auto !important;
-            margin: 0 !important;
-            padding: 0 !important;
-            overflow: visible !important;
-            box-shadow: none !important;
-            border: 0 !important;
-            border-radius: 0 !important;
-            background: #ffffff !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-          #kry-invoice-a4 section,
-          #kry-invoice-a4 div,
-          #kry-invoice-a4 table,
-          #kry-invoice-a4 tr,
-          #kry-invoice-a4 td {
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-          main {
-            min-height: auto !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            background: #ffffff !important;
-          }
-          .invoice-shell {
-            max-width: none !important;
-            margin: 0 !important;
-            padding: 0 !important;
-          }
-          .print\\:hidden {
-            display: none !important;
-          }
-        }
-        @media screen {
-          #kry-invoice-a4 {
-            width: 100%;
-          }
-        }
-      `}</style>
       <div className="invoice-shell mx-auto max-w-[1080px]">
         <div className="mb-5 flex justify-end gap-3 print:hidden">
-          <AdminButton variant="secondary" onClick={() => window.print()} className="h-10 px-4">
+          <AdminButton variant="secondary" onClick={handlePrintInvoice} className="h-10 px-4">
             <Printer className="mr-2 h-4 w-4" />
             Print
           </AdminButton>
-          <AdminButton variant="secondary" onClick={() => window.print()} className="h-10 px-4">
+          <AdminButton variant="secondary" onClick={handlePrintInvoice} className="h-10 px-4">
             <FileDown className="mr-2 h-4 w-4" />
             Save as PDF
           </AdminButton>

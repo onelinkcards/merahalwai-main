@@ -356,32 +356,72 @@ export default function BookDetailsPage() {
               </div>
               <div>
                 <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-stone-500">Section 2</p>
-                <h2 className="text-[24px] font-black text-stone-950">Venue Details</h2>
+                <h2 className="text-[24px] font-black text-stone-950">Your Address</h2>
               </div>
             </div>
+
+            {!savedAddresses.length ? (
+              <div className="mt-5 rounded-[22px] border border-[#E7D5C4] bg-[#FFF9F2] p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[13px] font-semibold text-stone-900">Please select your address</p>
+                    <p className="mt-1 text-[12px] text-stone-500">
+                      Add your saved address first so booking details can be filled properly.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {!user?.profileComplete ? (
+                      <button
+                        type="button"
+                        onClick={() => router.push("/onboarding/profile?redirect=" + encodeURIComponent("/book/details"))}
+                        className="inline-flex h-10 items-center justify-center rounded-full border border-[#E3C9AF] bg-white px-4 text-[13px] font-semibold text-[#8A3E1D]"
+                      >
+                        Complete Profile
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => router.push("/onboarding/address?redirect=" + encodeURIComponent("/book/details"))}
+                      className="inline-flex h-10 items-center justify-center rounded-full bg-[#8A3E1D] px-4 text-[13px] font-semibold text-white"
+                    >
+                      Add Address
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
 
             {savedAddresses.length ? (
               <div className="relative mt-5 rounded-[22px] border border-[#E7D5C4] bg-[#FFF9F2] p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0 flex-1">
                     <p className="text-[13px] font-semibold text-stone-900">Choose from saved addresses</p>
-                    <p className="mt-1 text-[12px] text-stone-500">Pick a saved venue and the form will fill instantly.</p>
+                    <p className="mt-1 text-[12px] text-stone-500">Pick your saved address and the form will fill instantly.</p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setAddressPickerOpen((current) => !current)}
-                    className="inline-flex h-11 min-w-[250px] items-center justify-between rounded-[18px] border border-[#E3C9AF] bg-white px-4 text-[13px] font-semibold text-[#8A3E1D] shadow-sm"
-                  >
-                    <span className="truncate">
-                      {selectedAddressId
-                        ? (() => {
-                            const chosen = savedAddresses.find((item) => item.id === selectedAddressId);
-                            return chosen ? `${chosen.label} · ${chosen.venueName}` : "Select saved address";
-                          })()
-                        : "Select saved address"}
-                    </span>
-                    <ChevronDown className={"h-4 w-4 transition " + (addressPickerOpen ? "rotate-180" : "")} />
-                  </button>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setAddressPickerOpen((current) => !current)}
+                      className="inline-flex h-11 min-w-[250px] items-center justify-between rounded-[18px] border border-[#E3C9AF] bg-white px-4 text-[13px] font-semibold text-[#8A3E1D] shadow-sm"
+                    >
+                      <span className="truncate">
+                        {selectedAddressId
+                          ? (() => {
+                              const chosen = savedAddresses.find((item) => item.id === selectedAddressId);
+                              return chosen ? `${chosen.label} · ${chosen.venueName}` : "Select saved address";
+                            })()
+                          : "Select saved address"}
+                      </span>
+                      <ChevronDown className={"h-4 w-4 transition " + (addressPickerOpen ? "rotate-180" : "")} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => router.push("/onboarding/address?redirect=" + encodeURIComponent("/book/details"))}
+                      className="inline-flex h-11 items-center justify-center rounded-[18px] border border-[#E3C9AF] bg-white px-4 text-[13px] font-semibold text-[#8A3E1D]"
+                    >
+                      Change Address
+                    </button>
+                  </div>
                 </div>
 
                 {addressPickerOpen ? (
@@ -426,11 +466,11 @@ export default function BookDetailsPage() {
             ) : null}
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
-              <Field label="Venue / Hall Name">
+              <Field label="House / Flat / Building">
                 <input
                   {...register("venueName")}
                   onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
-                  placeholder="Royal Orchid Banquet"
+                  placeholder="Flat / house / building name"
                   className={inputClass(Boolean(errors.venueName))}
                 />
               </Field>
@@ -442,11 +482,11 @@ export default function BookDetailsPage() {
                   className={inputClass(Boolean(errors.venueCity))}
                 />
               </Field>
-              <Field label="Complete Venue Address *" error={isSubmitted ? errors.venueAddress?.message : undefined}>
+              <Field label="Complete Address *" error={isSubmitted ? errors.venueAddress?.message : undefined}>
                 <textarea
                   {...register("venueAddress")}
                   onFocus={(e) => scrollFieldIntoView(e.currentTarget)}
-                  placeholder="Full venue address"
+                  placeholder="Full customer address"
                   className={
                     "min-h-[120px] w-full rounded-2xl border bg-white px-4 py-4 text-[14px] font-medium text-stone-900 outline-none transition " +
                     (errors.venueAddress ? "border-red-400 focus:border-red-500" : "border-stone-200 focus:border-[#8A3E1D]")
