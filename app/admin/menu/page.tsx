@@ -266,8 +266,8 @@ export default function AdminPlatformMenuPage() {
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
           <AdminPanel
             eyebrow="Optional Add-ons"
-            title="Add-on Groups"
-            description="These sit outside the core menu and are billed separately."
+            title="Extras Beyond The Menu"
+            description="Beverages, dessert add-ons, extras, and premium / event add-ons are billed separately."
           >
             <div className="space-y-4">
               {addonGroups.map((group) => (
@@ -296,7 +296,7 @@ export default function AdminPlatformMenuPage() {
             <AdminPanel
               eyebrow="Pricing"
               title="Optional Add-ons Pricing"
-              description="Edit per-pax pricing for every optional add-on."
+              description="Edit per-pax pricing for every separately billed optional add-on."
             >
               <div className="space-y-3">
                 {addOnPricing.map((addon) => (
@@ -320,7 +320,7 @@ export default function AdminPlatformMenuPage() {
             <AdminPanel
               eyebrow="Water Pricing"
               title="RO + Packaged Bottles"
-              description="RO stays free. Edit packaged bottle pricing below."
+              description="Water remains separate from optional add-ons. RO stays free and packaged bottles are priced below."
             >
               <div className="space-y-4">
                 <AdminInput

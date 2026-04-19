@@ -496,6 +496,9 @@ export default function BookCustomizeClient() {
                 <div>
                   <p className="text-[12px] font-semibold uppercase tracking-[0.24em] text-stone-500">Optional Add-ons</p>
                   <h2 className="mt-1 text-[22px] font-black text-stone-950">Extras beyond the menu</h2>
+                  <p className="mt-2 max-w-[780px] text-[13px] leading-6 text-stone-500">
+                    Beverages, dessert add-ons, extras, and premium / event add-ons are billed separately. Water is selected in the section below.
+                  </p>
                 </div>
               </div>
 
